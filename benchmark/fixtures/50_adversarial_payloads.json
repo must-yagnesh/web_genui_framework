@@ -1,0 +1,613 @@
+[
+  {
+    "id": "TC-01",
+    "category": "type_mismatch",
+    "description": "String supplied where numeric padding double expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_01",
+      "components": [
+        { "id": "c1", "type": "banner", "title": "Type Error Test", "padding": "sixteen_pixels" }
+      ]
+    }
+  },
+  {
+    "id": "TC-02",
+    "category": "type_mismatch",
+    "description": "String supplied where boolean is_positive expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_02",
+      "components": [
+        {
+          "id": "c2",
+          "type": "metric_row",
+          "metrics": [
+            { "label": "Revenue", "value": "$1,000", "change": "+5%", "is_positive": "maybe_true" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-03",
+    "category": "type_mismatch",
+    "description": "String supplied where array of metrics expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_03",
+      "components": [
+        { "id": "c3", "type": "metric_row", "metrics": "invalid_string_instead_of_list" }
+      ]
+    }
+  },
+  {
+    "id": "TC-04",
+    "category": "type_mismatch",
+    "description": "Integer supplied where string title expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_04",
+      "components": [
+        { "id": "c4", "type": "card", "title": 999999, "description": 12345 }
+      ]
+    }
+  },
+  {
+    "id": "TC-05",
+    "category": "type_mismatch",
+    "description": "Null supplied for required list of components",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_05",
+      "components": null
+    }
+  },
+  {
+    "id": "TC-06",
+    "category": "type_mismatch",
+    "description": "Object supplied where list of children expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_06",
+      "components": [
+        { "id": "c6", "type": "banner", "children": { "child_1": "corrupted" } }
+      ]
+    }
+  },
+  {
+    "id": "TC-07",
+    "category": "type_mismatch",
+    "description": "Floating point string with currency symbol in numeric elevation",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_07",
+      "components": [
+        { "id": "c7", "type": "button", "text": "Click", "elevation": "$4.50" }
+      ]
+    }
+  },
+  {
+    "id": "TC-08",
+    "category": "type_mismatch",
+    "description": "Boolean true supplied where string title expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_08",
+      "components": [
+        { "id": "c8", "type": "card", "title": true, "action_text": false }
+      ]
+    }
+  },
+  {
+    "id": "TC-09",
+    "category": "type_mismatch",
+    "description": "Negative integer string where double radius expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_09",
+      "components": [
+        { "id": "c9", "type": "banner", "title": "Negative Radius", "border_radius": "-24.0px" }
+      ]
+    }
+  },
+  {
+    "id": "TC-10",
+    "category": "type_mismatch",
+    "description": "Array supplied where object theme expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_10",
+      "theme": ["#4F46E5", "#0F172A"],
+      "components": []
+    }
+  },
+  {
+    "id": "TC-11",
+    "category": "layout_trap",
+    "description": "Unbounded layout spacer inside unconstrained column",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_11",
+      "components": [
+        { "id": "c11", "type": "layout_column", "children": [{ "type": "unbounded_spacer" }] }
+      ]
+    }
+  },
+  {
+    "id": "TC-12",
+    "category": "layout_trap",
+    "description": "Extreme flex factor causing render overflow",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_12",
+      "components": [
+        { "id": "c12", "type": "banner", "title": "Flex Trap", "flex": 99999999 }
+      ]
+    }
+  },
+  {
+    "id": "TC-13",
+    "category": "layout_trap",
+    "description": "Zero width with non-zero fixed padding",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_13",
+      "components": [
+        { "id": "c13", "type": "card", "width": 0.0, "padding": 40.0 }
+      ]
+    }
+  },
+  {
+    "id": "TC-14",
+    "category": "layout_trap",
+    "description": "NaN string supplied for component height",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_14",
+      "components": [
+        { "id": "c14", "type": "button", "height": "NaN" }
+      ]
+    }
+  },
+  {
+    "id": "TC-15",
+    "category": "layout_trap",
+    "description": "Infinity supplied for container width",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_15",
+      "components": [
+        { "id": "c15", "type": "card", "width": "Infinity" }
+      ]
+    }
+  },
+  {
+    "id": "TC-16",
+    "category": "layout_trap",
+    "description": "Negative margin causing viewport clipping",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_16",
+      "components": [
+        { "id": "c16", "type": "banner", "margin": -500.0 }
+      ]
+    }
+  },
+  {
+    "id": "TC-17",
+    "category": "layout_trap",
+    "description": "Nested horizontal scrolling rows inside horizontal parent",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_17",
+      "components": [
+        { "id": "c17", "type": "horizontal_row", "children": [{ "type": "horizontal_row" }] }
+      ]
+    }
+  },
+  {
+    "id": "TC-18",
+    "category": "layout_trap",
+    "description": "Unbounded text block without word wrap or overflow policy",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_18",
+      "components": [
+        { "id": "c18", "type": "banner", "title": "SuperLongUnbrokenStringWithoutAnySpacesToInduceOverflowExceptionsInStandardLayoutEngines1234567890" }
+      ]
+    }
+  },
+  {
+    "id": "TC-19",
+    "category": "layout_trap",
+    "description": "Zero height container with required children",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_19",
+      "components": [
+        { "id": "c19", "type": "card", "height": 0.0, "children": [{ "type": "button", "text": "Hidden" }] }
+      ]
+    }
+  },
+  {
+    "id": "TC-20",
+    "category": "layout_trap",
+    "description": "Corrupted aspect ratio ratio string",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_20",
+      "components": [
+        { "id": "c20", "type": "card", "aspect_ratio": "0/0" }
+      ]
+    }
+  },
+  {
+    "id": "TC-21",
+    "category": "malformed_styling",
+    "description": "Invalid hex color string containing non-hex characters",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_21",
+      "theme": { "primary_color": "#ZZ9900X" },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-22",
+    "category": "malformed_styling",
+    "description": "Short incomplete hex color string (#1)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_22",
+      "components": [
+        { "id": "c22", "type": "banner", "color": "#1" }
+      ]
+    }
+  },
+  {
+    "id": "TC-23",
+    "category": "malformed_styling",
+    "description": "CSS rgb() function string instead of hex",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_23",
+      "components": [
+        { "id": "c23", "type": "banner", "color": "rgb(255, 0, 0, 999)" }
+      ]
+    }
+  },
+  {
+    "id": "TC-24",
+    "category": "malformed_styling",
+    "description": "Empty string supplied for primary color",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_24",
+      "theme": { "primary_color": "" },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-25",
+    "category": "malformed_styling",
+    "description": "Numeric color value passed as float",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_25",
+      "components": [
+        { "id": "c25", "type": "button", "color": 16711680.5 }
+      ]
+    }
+  },
+  {
+    "id": "TC-26",
+    "category": "malformed_styling",
+    "description": "Excessive hex length (12 characters)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_26",
+      "components": [
+        { "id": "c26", "type": "card", "color": "#AABBCCDDEEFF" }
+      ]
+    }
+  },
+  {
+    "id": "TC-27",
+    "category": "malformed_styling",
+    "description": "Named color string unsupported by native parser ('burnt_orange')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_27",
+      "components": [
+        { "id": "c27", "type": "banner", "color": "burnt_orange" }
+      ]
+    }
+  },
+  {
+    "id": "TC-28",
+    "category": "malformed_styling",
+    "description": "Gradient stops with mismatch array lengths",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_28",
+      "components": [
+        { "id": "c28", "type": "banner", "colors": ["#FFF"], "stops": [0.0, 0.5, 1.0] }
+      ]
+    }
+  },
+  {
+    "id": "TC-29",
+    "category": "malformed_styling",
+    "description": "Null value inside theme color map",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_29",
+      "theme": { "primary_color": null, "surface_color": null },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-30",
+    "category": "malformed_styling",
+    "description": "Invalid shadow elevation string ('heavy_shadow')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_30",
+      "components": [
+        { "id": "c30", "type": "card", "elevation": "heavy_shadow" }
+      ]
+    }
+  },
+  {
+    "id": "TC-31",
+    "category": "hallucinated_widget",
+    "description": "LLM hallucinated QuantumLaserCard widget",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_31",
+      "components": [
+        { "id": "c31", "type": "QuantumLaserCard", "power": 9000 }
+      ]
+    }
+  },
+  {
+    "id": "TC-32",
+    "category": "hallucinated_widget",
+    "description": "LLM invented HTML div tag inside Flutter schema",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_32",
+      "components": [
+        { "id": "c32", "type": "div", "class": "flex flex-col" }
+      ]
+    }
+  },
+  {
+    "id": "TC-33",
+    "category": "hallucinated_widget",
+    "description": "LLM invented SwiftUI VStack tag inside Flutter schema",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_33",
+      "components": [
+        { "id": "c33", "type": "VStack", "alignment": "leading" }
+      ]
+    }
+  },
+  {
+    "id": "TC-34",
+    "category": "hallucinated_widget",
+    "description": "LLM hallucinated 3D Hologram viewport widget",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_34",
+      "components": [
+        { "id": "c34", "type": "HologramViewport", "depth": 3 }
+      ]
+    }
+  },
+  {
+    "id": "TC-35",
+    "category": "hallucinated_widget",
+    "description": "Empty string widget type",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_35",
+      "components": [
+        { "id": "c35", "type": "" }
+      ]
+    }
+  },
+  {
+    "id": "TC-36",
+    "category": "hallucinated_widget",
+    "description": "Missing type key entirely on component object",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_36",
+      "components": [
+        { "id": "c36", "title": "No Type Defined" }
+      ]
+    }
+  },
+  {
+    "id": "TC-37",
+    "category": "hallucinated_widget",
+    "description": "Numeric widget type",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_37",
+      "components": [
+        { "id": "c37", "type": 404 }
+      ]
+    }
+  },
+  {
+    "id": "TC-38",
+    "category": "hallucinated_widget",
+    "description": "Web React component name ('StyledButton')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_38",
+      "components": [
+        { "id": "c38", "type": "StyledButton", "onClick": "handleClick" }
+      ]
+    }
+  },
+  {
+    "id": "TC-39",
+    "category": "hallucinated_widget",
+    "description": "Hyphenated web custom element ('super-hero-banner')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_39",
+      "components": [
+        { "id": "c39", "type": "super-hero-banner" }
+      ]
+    }
+  },
+  {
+    "id": "TC-40",
+    "category": "hallucinated_widget",
+    "description": "Capitalized camel-case unmapped widget ('InteractiveChartGraph')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_40",
+      "components": [
+        { "id": "c40", "type": "InteractiveChartGraph", "data": [1, 2, 3] }
+      ]
+    }
+  },
+  {
+    "id": "TC-41",
+    "category": "tree_corruption",
+    "description": "Extremely deep tree depth (15 levels of nested children)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_41",
+      "components": [
+        {
+          "id": "d1", "type": "card", "children": [
+            { "id": "d2", "type": "card", "children": [
+              { "id": "d3", "type": "card", "children": [
+                { "id": "d4", "type": "card", "children": [
+                  { "id": "d5", "type": "card", "children": [
+                    { "id": "d6", "type": "card", "children": [
+                      { "id": "d7", "type": "card", "children": [
+                        { "id": "d8", "type": "card", "children": [
+                          { "id": "d9", "type": "card", "children": [
+                            { "id": "d10", "type": "card", "children": [
+                              { "id": "d11", "type": "card", "children": [
+                                { "id": "d12", "type": "card" }
+                              ]}
+                            ]}
+                          ]}
+                        ]}
+                      ]}
+                    ]}
+                  ]}
+                ]}
+              ]}
+            ]}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-42",
+    "category": "tree_corruption",
+    "description": "Non-object items mixed into components array (strings and numbers)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_42",
+      "components": [
+        "this_is_a_raw_string_not_a_map",
+        42,
+        true,
+        { "id": "c42_valid", "type": "button", "text": "Valid Button" }
+      ]
+    }
+  },
+  {
+    "id": "TC-43",
+    "category": "tree_corruption",
+    "description": "Completely empty JSON object payload",
+    "payload": {}
+  },
+  {
+    "id": "TC-44",
+    "category": "tree_corruption",
+    "description": "Array of arrays root payload instead of object",
+    "payload": [
+      [{ "id": "nested_arr", "type": "banner" }]
+    ]
+  },
+  {
+    "id": "TC-45",
+    "category": "tree_corruption",
+    "description": "Excessive component count (250 nodes exceeding budget)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_45",
+      "components": [
+        { "id": "c_repeat", "type": "button", "text": "Overload" }
+      ]
+    }
+  },
+  {
+    "id": "TC-46",
+    "category": "tree_corruption",
+    "description": "XSS / Script injection payload inside component title",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_46",
+      "components": [
+        { "id": "c46", "type": "banner", "title": "<script>alert('pwned')</script>", "message": "\"><img src=x onerror=alert(1)>" }
+      ]
+    }
+  },
+  {
+    "id": "TC-47",
+    "category": "tree_corruption",
+    "description": "SQL injection string payload inside action_id",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_47",
+      "components": [
+        { "id": "c47", "type": "button", "text": "Exploit", "action_id": "'; DROP TABLE users; --" }
+      ]
+    }
+  },
+  {
+    "id": "TC-48",
+    "category": "tree_corruption",
+    "description": "Unicode null byte and control character payload",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_48",
+      "components": [
+        { "id": "c48", "type": "card", "title": "Corrupted\u0000\u0007\u001b[31mTitle" }
+      ]
+    }
+  },
+  {
+    "id": "TC-49",
+    "category": "tree_corruption",
+    "description": "Self-referencing simulated cyclical child ID",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_49",
+      "components": [
+        { "id": "c49", "type": "card", "children": [{ "id": "c49", "type": "card" }] }
+      ]
+    }
+  },
+  {
+    "id": "TC-50",
+    "category": "tree_corruption",
+    "description": "Truncated / broken JSON simulated string",
+    "payload": "{\"version\": 1, \"screen_id\": \"truncated\", \"components\": [{\"id\": \"c50\", \"type\": \"banner\", \"title\": \"Incomplete"
+  }
+]

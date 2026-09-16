@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web-Controlled Gen UI Dashboard — Instant Mobile Delivery</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <span class="logo-icon">⚡</span>
+        <div class="brand-text">
+          <span class="brand-title">GenUI Control Console</span>
+          <span class="brand-sub">Instant Web-to-Mobile UI Delivery Engine</span>
+        </div>
+      </div>
+      <div class="sync-badge" id="syncStatusBadge">
+        <span class="status-dot"></span>
+        <span id="statusText">Connecting...</span>
+        <span class="sub-counter" id="subCounter">0 devices</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="version-tag">Schema: <strong id="schemaVersionDisplay">v1</strong></div>
+      <button class="btn btn-secondary" id="btnResetDefault">Reset to Default</button>
+      <button class="btn btn-primary" id="btnApplyToApp">
+        <span class="btn-icon">🚀</span>
+        <span>Apply to App</span>
+        <span class="shortcut">Ctrl+Enter</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main 3-Column Layout -->
+  <main class="dashboard-grid">
+    
+    <!-- Column 1: Visual Screen & Component Editor -->
+    <section class="panel editor-panel">
+      <div class="panel-header">
+        <h2>🛠 Visual Screen Designer</h2>
+        <span class="badge">No Rebuild Required</span>
+      </div>
+      <div class="panel-body scrollable">
+        
+        <!-- Screen Meta Controls -->
+        <div class="control-group">
+          <label class="group-title">Screen Header & Styling</label>
+          <div class="input-row">
+            <div class="field flex-2">
+              <label>Header Title</label>
+              <input type="text" id="screenTitleInput" value="Crypto & Multi-Asset Hub">
+            </div>
+            <div class="field flex-1">
+              <label>Accent Color</label>
+              <div class="color-picker-wrapper">
+                <input type="color" id="primaryColorPicker" value="#4F46E5">
+                <span id="colorHexText">#4F46E5</span>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Subtitle / Description</label>
+            <input type="text" id="screenSubtitleInput" value="Live Web-Controlled Dynamic View">
+          </div>
+        </div>
+
+        <!-- Dynamic Components Section -->
+        <div class="control-group">
+          <div class="flex-between">
+            <label class="group-title">Dynamic UI Components</label>
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline" id="btnAddDropdown">+ Add Component</button>
+              <div class="dropdown-menu" id="addMenu">
+                <a href="#" data-add="banner">📢 Promo Banner</a>
+                <a href="#" data-add="metric_row">📊 Metric Stats Row</a>
+                <a href="#" data-add="card">💳 Feature Action Card</a>
+                <a href="#" data-add="button">🔘 Call-To-Action Button</a>
+              </div>
+            </div>
+          </div>
+          
+          <div class="component-list" id="componentCardsContainer">
+            <!-- Dynamically populated component editor cards -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Column 2: AI Prompt Studio & JSON Schema Editor -->
+    <section class="panel ai-panel">
+      <div class="panel-header">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="tab-ai">🤖 AI Prompt Studio</button>
+          <button class="tab-btn" data-tab="tab-json">📄 Raw Schema JSON</button>
+          <button class="tab-btn" data-tab="tab-stress">⚡ Stress & Adversarial</button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        
+        <!-- Tab 1: AI Prompt Studio -->
+        <div class="tab-content active" id="tab-ai">
+          <div class="ai-studio-header">
+            <p class="section-desc">Prompt an AI model or pick a preset template to instantly generate full Flutter dynamic UI layouts.</p>
+            
+            <div class="preset-pills">
+              <span class="pill-label">Quick Presets:</span>
+              <button class="preset-pill" data-preset="crypto">🪙 Crypto Staking</button>
+              <button class="preset-pill" data-preset="ecommerce">🛍 Flash Sale</button>
+              <button class="preset-pill" data-preset="fintech">💳 VIP Banking</button>
+              <button class="preset-pill" data-preset="support">🎧 Help & FAQ</button>
+            </div>
+          </div>
+
+          <div class="field prompt-box">
+            <label>Natural Language UI Prompt</label>
+            <textarea id="aiPromptInput" rows="4" placeholder="e.g. Generate a dark-mode luxury NFT launchpad screen with gold accent, 24h auction countdown banner, high bid metric cards, and a primary Mint Now action button..."></textarea>
+          </div>
+
+          <div class="ai-meta-row">
+            <div class="field">
+              <label>AI Engine</label>
+              <select id="aiModelSelect">
+                <option value="mock_engine" selected>Instant Mock Engine (Offline / Demo)</option>
+                <option value="custom_llm">Custom LLM Key (Gemini / OpenAI)</option>
+              </select>
+            </div>
+            <div class="field api-key-field" id="apiKeyField">
+              <label>API Key (Any mock key works)</label>
+              <input type="text" id="aiApiKeyInput" placeholder="sk-demo-key-12345">
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-block" id="btnGenerateAiSchema">
+            <span>✨ Synthesize Dynamic UI Layout</span>
+          </button>
+
+          <!-- 1-Click AI Persona Switcher -->
+          <div class="persona-section">
+            <label class="group-title">🎭 1-Click AI Persona Switcher (Dynamic Personalization)</label>
+            <p class="section-desc">Adapt the entire mobile interface on-the-fly for distinct customer cohorts with zero Dart code changes.</p>
+            <div class="persona-grid">
+              <button class="persona-btn" data-persona="beginner">
+                <div class="persona-icon">🌱</div>
+                <div class="persona-info">
+                  <strong>First-Time Beginner</strong>
+                  <small>Educational tooltips, low-friction buy, warm theme</small>
+                </div>
+              </button>
+              <button class="persona-btn" data-persona="vip">
+                <div class="persona-icon">👑</div>
+                <div class="persona-info">
+                  <strong>VIP Wealth Trader</strong>
+                  <small>Gold terminal theme, high-yield staking, concierge</small>
+                </div>
+              </button>
+              <button class="persona-btn" data-persona="shopper">
+                <div class="persona-icon">⚡</div>
+                <div class="persona-info">
+                  <strong>Flash Deal Shopper</strong>
+                  <small>High-urgency magenta, coupons, countdown timer</small>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- AI Design & Token Cost Auditor Card -->
+          <div class="auditor-card" id="aiAuditorCard">
+            <div class="auditor-header">
+              <span class="auditor-title">🛡 AI Architectural & Cost Auditor</span>
+              <span class="badge badge-success" id="wcagBadge">WCAG AA PASSED</span>
+            </div>
+            <div class="auditor-grid">
+              <div class="auditor-metric">
+                <span class="aud-label">Contrast Ratio</span>
+                <span class="aud-val" id="audContrast">7.4 : 1</span>
+                <small class="aud-sub text-success">Luminance Verified</small>
+              </div>
+              <div class="auditor-metric">
+                <span class="aud-label">Touch Target</span>
+                <span class="aud-val" id="audTouchTarget">&ge; 48 dp</span>
+                <small class="aud-sub text-success">100% Compliant</small>
+              </div>
+              <div class="auditor-metric">
+                <span class="aud-label">Token Context</span>
+                <span class="aud-val" id="audTokens">284 tkns</span>
+                <small class="aud-sub">~$0.00014 / call</small>
+              </div>
+              <div class="auditor-metric">
+                <span class="aud-label">Parse Budget</span>
+                <span class="aud-val text-success" id="audParseBudget">&lt; 3 ms</span>
+                <small class="aud-sub">120Hz Fluid</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Raw Schema JSON -->
+        <div class="tab-content" id="tab-json">
+          <div class="json-editor-header">
+            <p class="section-desc">Direct declarative JSON AST parsed and sanitized by <code>flutter_genui_guard</code>.</p>
+            <button class="btn btn-sm btn-outline" id="btnCopyJson">📋 Copy</button>
+          </div>
+          <textarea id="rawJsonEditor" spellcheck="false"></textarea>
+          <div class="json-footer">
+            <button class="btn btn-secondary btn-sm" id="btnFormatJson">Format JSON</button>
+            <button class="btn btn-primary btn-sm" id="btnUpdateFromJson">Load from JSON</button>
+          </div>
+        </div>
+
+        <!-- Tab 3: Adversarial Stress Testing -->
+        <div class="tab-content" id="tab-stress">
+          <div class="stress-header">
+            <h3 class="text-danger">⚡ Adversarial Fuzzing & Crash Test</h3>
+            <p class="section-desc">Test sending deliberately malformed, corrupted, and invalid LLM payloads to verify that <code>flutter_genui_guard</code> isolates faults and prevents Flutter Red-Screen crashes.</p>
+          </div>
+
+          <!-- AI Auto-Repair Agent Toggle Banner -->
+          <div class="auto-repair-banner" id="autoRepairBanner">
+            <div class="repair-left">
+              <span class="repair-icon">🤖</span>
+              <div>
+                <strong>AI Autonomous Self-Healing Agent</strong>
+                <small id="repairSubtext">Standby: isolates faults with fallbacks</small>
+              </div>
+            </div>
+            <div class="toggle-wrapper">
+              <span class="toggle-label" id="repairToggleLabel">OFF</span>
+              <label class="switch">
+                <input type="checkbox" id="toggleAutoRepair">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- AI Auto-Repair Diagnostics Console -->
+          <div class="repair-console" id="repairConsole">
+            <div class="repair-console-header">
+              <span>🩺 AI Self-Healing Telemetry & Diff</span>
+              <button class="btn btn-sm btn-outline" id="btnClearRepairLog">Clear</button>
+            </div>
+            <div class="repair-log-body" id="repairLogBody">
+              <div class="log-line text-muted">[System] AI Auto-Repair Agent initialized. Awaiting adversarial payloads...</div>
+            </div>
+          </div>
+
+          <div class="fuzz-grid">
+            <button class="btn btn-outline fuzz-btn" data-fuzz="type_mismatch">
+              <strong>1. Type Mismatch Trap</strong>
+              <small>Sends string "twenty" for double padding</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="bad_color">
+              <strong>2. Malformed Color Hex</strong>
+              <small>Sends invalid color string "#ZZ9900X"</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="unregistered_widget">
+              <strong>3. Hallucinated Widget Tag</strong>
+              <small>Sends non-existent &lt;QuantumLaserCard&gt;</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="missing_constraints">
+              <strong>4. Unbounded Layout Trap</strong>
+              <small>Sends unconstrained Column in ListView</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="null_children">
+              <strong>5. Null Pointer Array Trap</strong>
+              <small>Sends null metrics array in metric_row</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="corrupted_hierarchy">
+              <strong>6. Circular / Corrupted Tree</strong>
+              <small>Sends deeply nested recursive nodes</small>
+            </button>
+          </div>
+
+          <div class="stress-explanation">
+            <div class="compare-card danger">
+              <strong>Standard Naive Parser:</strong>
+              <span>💥 100% Crash (Unhandled Exception, Red Screen of Death, App Terminated)</span>
+            </div>
+            <div class="compare-card success">
+              <strong>With flutter_genui_guard:</strong>
+              <span>🛡 0% Crash (Component isolated, graceful fallback card rendered, telemetry logged)</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Column 3: Live Mobile Phone Simulator & Telemetry -->
+    <section class="panel simulator-panel">
+      <div class="panel-header">
+        <h2>📱 Live App Simulator</h2>
+        <span class="live-pill">Real-Time</span>
+      </div>
+
+      <div class="panel-body center-content">
+        <!-- Phone Mockup Frame -->
+        <div class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen" id="phoneSimulatorScreen">
+            
+            <!-- Mobile App Bar -->
+            <div class="sim-app-bar" id="simAppBar">
+              <div class="sim-app-title-group">
+                <span class="sim-title" id="simTitle">Crypto & Multi-Asset Hub</span>
+                <span class="sim-sub" id="simSubtitle">Live Web-Controlled Dynamic View</span>
+              </div>
+              <div class="sim-app-icon">🔔</div>
+            </div>
+
+            <!-- Dynamic Mobile Content Container -->
+            <div class="sim-content" id="simComponentsList">
+              <!-- Dynamically rendered widgets -->
+            </div>
+
+            <!-- Bottom Navigation Bar Mock -->
+            <div class="sim-nav-bar">
+              <span class="nav-item active">🏠 Home</span>
+              <span class="nav-item">📈 Markets</span>
+              <span class="nav-item">💼 Portfolio</span>
+              <span class="nav-item">⚙ Settings</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Telemetry Card -->
+        <div class="telemetry-bar">
+          <div class="tele-item">
+            <span class="tele-label">Roundtrip Latency:</span>
+            <span class="tele-val text-success" id="teleLatency">12 ms</span>
+          </div>
+          <div class="tele-item">
+            <span class="tele-label">Device Target:</span>
+            <span class="tele-val" id="teleTarget">Android / Emulator</span>
+          </div>
+          <div class="tele-item">
+            <span class="tele-label">Crash Guard:</span>
+            <span class="tele-val text-success">ARMED (0% Fail)</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div class="toast" id="appToast">Changes Applied Instantly!</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
