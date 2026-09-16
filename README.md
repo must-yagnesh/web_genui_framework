@@ -10,27 +10,32 @@
 
 ## 1. The Real-World Problem
 
-In production mobile engineering (Flutter / Android / iOS), deploying UI changes to users currently forces engineering and product leadership into an impossible tradeoff:
+In production mobile engineering (Flutter / Android / iOS), deploying UI changes to users forces engineering and product leadership into an impossible tradeoff between slow release cycles and app stability risks:
 
+```mermaid
+graph TD
+    Root["<b>The Mobile UI Deployment Dilemma</b>"] --> OptionA["<b>Method 1: App Store / Play Store Binary Release</b>"]
+    Root --> OptionB["<b>Method 2: Over-The-Air (OTA / CodePush)</b>"]
+
+    OptionA --> A1["⏳ <b>24–72+ Hour Review Lag</b><br/>Uncertain store approval delays"]
+    OptionA --> A2["🔒 <b>Zero Real-Time Agility</b><br/>Blocked emergency and flash campaigns"]
+    OptionA --> A3["📉 <b>User Version Fragmentation</b><br/>30%+ users remain on obsolete versions"]
+
+    OptionB --> B1["💥 <b>High Failure Rate</b><br/>Corrupted dynamic bundle downloads"]
+    OptionB --> B2["🚨 <b>App Launch Crash Loops</b><br/>Fatal start-up crashes destroying Play Vitals"]
+    OptionB --> B3["⚖️ <b>Store Policy Violations</b><br/>Breaches Apple Guideline 2.5.2 code execution rules"]
+
+    style Root fill:#1e293b,stroke:#6366f1,stroke-width:2px,color:#f8fafc
+    style OptionA fill:#334155,stroke:#ef4444,stroke-width:2px,color:#f8fafc
+    style OptionB fill:#334155,stroke:#f59e0b,stroke-width:2px,color:#f8fafc
 ```
-                  ┌────────────────────────────────────────────────────────┐
-                  │          THE MOBILE UI DEPLOYMENT DILEMMA              │
-                  └────────────────────────────────────────────────────────┘
-                                      │
-              ┌───────────────────────┴───────────────────────┐
-              ▼                                               ▼
-┌───────────────────────────┐                   ┌───────────────────────────┐
-│   App Store / Play Store  │                   │  Over-The-Air (OTA /      │
-│      Binary Release       │                   │        CodePush)          │
-├───────────────────────────┤                   ├───────────────────────────┤
-│ ❌ 24–72+ hour review delay│                   │ ❌ High failure rate (bundle│
-│ ❌ Uncertain approval risk│                   │    download corruption)   │
-│ ❌ Zero real-time agility │                   │ ❌ App launch crashes     │
-│    for flash campaigns    │                   │ ❌ Store policy scrutiny  │
-│ ❌ User update lag (30%+  │                   │    (dynamic executable    │
-│    users stay on old v)   │                   │    code execution bans)   │
-└───────────────────────────┘                   └───────────────────────────┘
-```
+
+### Deployment Method Breakdown
+
+| Strategy | Mechanism | Failure Modes & Limitations | Impact on Business |
+| :--- | :--- | :--- | :--- |
+| **App Store / Google Play Binary Release** | Full binary re-compilation, signing, and submission through Apple and Google store review pipelines. | ⏳ **24–72+ hour review delay**<br>⚠️ **Uncertain approval risk**<br>🔒 **Zero real-time agility** for flash sales or live events<br>📉 **Adoption lag**: 30%+ of users stay on old versions | High deployment latency; inability to react to urgent market opportunities. |
+| **Over-The-Air (OTA / CodePush)** | Dynamic downloading and swapping of JavaScript or asset bundles at runtime. | 💥 **High failure rate** from interrupted network bundle downloads<br>🚨 **App launch crash loops** that brick the application<br>⚖️ **Store policy scrutiny** regarding dynamic executable code bans | Severe app instability, degraded Google Play Vitals, risk of store rejection. |
 
 ### The Emerging Risk: The Generative UI Trap
 To achieve agility, modern teams turn to **Server-Driven UI (SDUI)** and **Generative UI (LLM-synthesized schemas)**. However, dynamic AI schemas introduce non-deterministic edge cases:
@@ -48,24 +53,34 @@ In standard Flutter architectures, **a single schema error triggers the Red Scre
 
 The **Web-Controlled Generative UI App Framework** introduces a third, superior paradigm that combines instant agility with deterministic reliability:
 
-```
-┌───────────────────────────┐         HTTP/REST          ┌───────────────────────────┐
-│   Web Control Console     │ ─────────────────────────► │    Real-Time Sync Bridge  │
-│   (Marketing / Product)   │        (Port 8080)         │       (sync_server/)      │
-└───────────────────────────┘                            └───────────────────────────┘
-                                                                       │
-                                                              Server-Sent Events (SSE)
-                                                                Sub-100ms Stream Push
-                                                                       │
-                                                                       ▼
-┌────────────────────────────────────────────────────────────────────────────────────┐
-│                    FLUTTER CLIENT ENGINE (flutter_genui_guard)                     │
-│                                                                                    │
-│   1. GenUiSyncClient      ──► Auto-reconnecting live SSE stream listener            │
-│   2. GenUiSchemaValidator ──► Sub-millisecond type coercion & AST sanitization     │
-│   3. SafeWidgetRegistry   ──► Whitelisted mapping to production native Flutter UI  │
-│   4. GenUiErrorBoundary   ──► Component fault isolation: 0% Red-Screen crashes     │
-└────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph WebConsole["1. Web Control Console (Port 8080)"]
+        direction LR
+        W1["Visual Screen Editor"] --- W2["1-Click AI Personas"] --- W3["AI Auto-Repair Agent"]
+    end
+
+    subgraph SyncBridge["2. Real-Time Sync Bridge (sync_server/)"]
+        S1["HTTP REST /api/schema/apply"]
+        S2["Persistent Server-Sent Events (SSE) Stream"]
+        S1 --> S2
+    end
+
+    subgraph FlutterClient["3. Flutter Mobile Client (flutter_genui_guard)"]
+        direction TB
+        C1["<b>GenUiSyncClient</b><br/>Auto-reconnecting SSE stream listener"]
+        C2["<b>GenUiSchemaValidator</b><br/>Sub-millisecond type coercion & AST sanitization"]
+        C3["<b>SafeWidgetRegistry</b><br/>Whitelisted mapping to production native Flutter UI"]
+        C4["<b>GenUiErrorBoundary</b><br/>Component fault isolation: 0% Red-Screen crashes"]
+        C1 --> C2 --> C3 --> C4
+    end
+
+    WebConsole -->|HTTP POST JSON AST| S1
+    S2 -->|Sub-100ms Live Stream Push| C1
+
+    style WebConsole fill:#0f172a,stroke:#6366f1,stroke-width:2px,color:#f8fafc
+    style SyncBridge fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc
+    style FlutterClient fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
 ```
 
 ### Key Architectural Pillars
