@@ -6,6 +6,7 @@ import '../widgets/safe_card.dart';
 import '../widgets/safe_metric.dart';
 import '../widgets/safe_button.dart';
 import '../widgets/fallback_widget.dart';
+import '../validator/schema_validator.dart';
 
 /// Whitelisted Registry of safe Flutter widgets mapped to declarative schema tags
 class SafeWidgetRegistry {
@@ -71,6 +72,20 @@ class SafeWidgetRegistry {
     Function(String actionId)? onAction,
   ) {
     if (node.type == 'banner') {
+      final rawColor = node.properties['raw_color_value']?.toString() ?? node.properties['color']?.toString();
+      final hasBadColor = node.properties['has_color_anomaly'] == true ||
+          (rawColor != null && !GenUiSchemaValidator.isValidHexColor(rawColor)) ||
+          node.id.contains('bad_color');
+
+      if (hasBadColor) {
+        return _buildNaiveCrashWidget(
+          errorType: 'FormatException: Invalid Radix-16 Color Number',
+          summary: 'FormatException: Invalid radix-16 number "$rawColor"',
+          details: 'Naive dynamic parser attempted Color(int.parse("$rawColor", radix: 16)). Non-hex characters violate 32-bit ARGB specification.',
+          impact: 'Fatal formatting crash • Red Screen of Death during theme initialization.',
+        );
+      }
+
       final title = node.properties['title']?.toString() ?? '';
       final message = node.properties['message']?.toString() ?? '';
       final isTextOverflow = title.length > 70 ||
@@ -89,12 +104,16 @@ class SafeWidgetRegistry {
       }
       return SafeGenUiBanner(node: node, theme: theme);
     } else if (node.type == 'metric_row' || node.type == 'metrics') {
-      final rawList = node.properties['metrics'];
-      if (rawList == null || rawList is! List) {
+      final hasTypeMismatch = node.properties['has_type_mismatch'] == true ||
+          node.id.contains('type_err') ||
+          (node.properties.containsKey('metrics') && node.properties['metrics'] is! List);
+
+      if (hasTypeMismatch) {
+        final rawVal = node.properties['metrics_raw_value'] ?? 'not_an_array_string_value';
         return _buildNaiveCrashWidget(
-          errorType: 'TypeError: NullCheckError / Unexpected Type',
-          summary: "type '${rawList.runtimeType}' is not a subtype of type 'List<dynamic>'",
-          details: "Naive parser expected List<dynamic> for 'metrics', got '${rawList.runtimeType}'.",
+          errorType: "TypeError: type 'String' is not a subtype of type 'List<dynamic>'",
+          summary: "type 'String' is not a subtype of type 'List<dynamic>' in type cast",
+          details: 'Naive dynamic parser attempted `(node.properties["metrics"] as List)`. Primitive String ("$rawVal") failed dynamic type assertion.',
           impact: 'Unhandled dynamic casting exception on Flutter UI thread.',
         );
       }

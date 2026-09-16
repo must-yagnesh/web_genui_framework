@@ -114,5 +114,44 @@ void main() {
       expect(actionId, 'action_blocked_insecure');
       expect(result.warnings.any((w) => w.contains('Security Shield')), true);
     });
+
+    test('Schema validator sanitizes malformed color hex to brand token', () {
+      final payload = {
+        'version': 1,
+        'components': [
+          {
+            'id': 'c_color',
+            'type': 'banner',
+            'title': 'Bad Color Test',
+            'color': '#ZZ9900X'
+          }
+        ]
+      };
+      final result = GenUiSchemaValidator.validateAndSanitize(payload);
+      final comp = result.sanitizedSchema.components[0];
+      expect(comp.properties['color'], '#4F46E5');
+      expect(comp.properties['has_color_anomaly'], true);
+      expect(comp.properties['raw_color_value'], '#ZZ9900X');
+      expect(result.warnings.any((w) => w.contains('[Style Shield]')), true);
+    });
+
+    test('Schema validator coerces non-array metrics string into safe typed list', () {
+      final payload = {
+        'version': 1,
+        'components': [
+          {
+            'id': 'c_type',
+            'type': 'metric_row',
+            'metrics': 'not_an_array_string_value'
+          }
+        ]
+      };
+      final result = GenUiSchemaValidator.validateAndSanitize(payload);
+      final comp = result.sanitizedSchema.components[0];
+      expect(comp.properties['metrics'] is List, true);
+      expect(comp.properties['has_type_mismatch'], true);
+      expect(comp.properties['metrics_raw_value'], 'not_an_array_string_value');
+      expect(result.warnings.any((w) => w.contains('[Type Shield]')), true);
+    });
   });
 }

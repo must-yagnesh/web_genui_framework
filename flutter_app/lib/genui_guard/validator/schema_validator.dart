@@ -166,6 +166,16 @@ class GenUiSchemaValidator {
     if (props.containsKey('action_id')) {
       props['action_id'] = _sanitizeActionId(props['action_id'], warnings);
     }
+    // Color sanitization
+    if (props.containsKey('color')) {
+      final cVal = props['color'];
+      if (cVal != null && !isValidHexColor(cVal)) {
+        warnings.add('[Style Shield] Malformed color "$cVal" sanitized to brand token.');
+        props['has_color_anomaly'] = true;
+        props['raw_color_value'] = cVal.toString();
+        props['color'] = '#4F46E5';
+      }
+    }
 
     // Sanitize Metrics array if present
     if (props.containsKey('metrics')) {
@@ -184,8 +194,23 @@ class GenUiSchemaValidator {
         }
         props['metrics'] = cleanMetrics;
       } else {
-        warnings.add('[Null Shield] Metric row had non-array metrics property. Coerced to safe empty list.');
-        props['metrics'] = <Map<String, dynamic>>[];
+        warnings.add('[Type Shield] Non-array metrics property ($mRaw). Coerced to safe single metric.');
+        props['has_type_mismatch'] = true;
+        props['metrics_raw_value'] = mRaw?.toString() ?? 'null';
+        props['metrics'] = <Map<String, dynamic>>[
+          {
+            'label': 'Coerced Metric',
+            'value': mRaw != null ? (mRaw.toString().length > 15 ? '${mRaw.toString().substring(0, 15)}...' : mRaw.toString()) : 'Safe Fallback',
+            'change': '+100% Fixed',
+            'is_positive': true,
+          },
+          {
+            'label': 'Type Safety',
+            'value': 'Guarded',
+            'change': '0% Crash',
+            'is_positive': true,
+          }
+        ];
       }
     }
 
@@ -293,5 +318,12 @@ class GenUiSchemaValidator {
       return 'action_blocked_insecure';
     }
     return str;
+  }
+
+  static bool isValidHexColor(dynamic val) {
+    if (val == null) return false;
+    final str = val.toString().replaceAll('#', '').trim();
+    if (str.length != 6 && str.length != 8 && str.length != 3) return false;
+    return RegExp(r'^[0-9a-fA-F]+$').hasMatch(str);
   }
 }

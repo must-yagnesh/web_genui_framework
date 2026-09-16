@@ -548,6 +548,12 @@ if (simModeToggleBtn) {
   });
 }
 
+function isValidHexColor(val) {
+  if (typeof val !== "string") return false;
+  const clean = val.replace("#", "").replace("0x", "").replace("0X", "").trim();
+  return (clean.length === 6 || clean.length === 8 || clean.length === 3) && /^[0-9A-Fa-f]+$/.test(clean);
+}
+
 function updateSimulator() {
   simTitle.innerText = activeSchema.header?.title || "Untitled";
   simSubtitle.innerText = activeSchema.header?.subtitle || "";
@@ -568,14 +574,23 @@ function updateSimulator() {
       c.padding === "NaN" ||
       (c.action_id && String(c.action_id).startsWith("javascript:")) ||
       (c.type === "metric_row" && !Array.isArray(c.metrics)) ||
+      (c.color && !isValidHexColor(c.color)) ||
       !["banner", "metric_row", "metrics", "card", "button"].includes(c.type)
     );
-  });
+  }) || (activeSchema.theme?.primary_color && !isValidHexColor(activeSchema.theme.primary_color));
 
   if (isSimGuardedMode && hasAnomaly) {
     const banner = document.createElement("div");
     banner.className = "sim-guard-banner";
-    banner.innerHTML = `🛡 Guard Active: Text Clamped & Layout Shielded (< 0.05ms)`;
+    let guardMsg = "🛡 Guard Active: Layout Shielded & Self-Healed (< 0.05ms)";
+    if ((activeSchema.components || []).some(c => c.type === "metric_row" && !Array.isArray(c.metrics))) {
+      guardMsg = "🛡 Guard Active: Type Mismatch Coerced (String → List<MetricItem>)";
+    } else if (!isValidHexColor(activeSchema.theme?.primary_color) || (activeSchema.components || []).some(c => c.color && !isValidHexColor(c.color))) {
+      guardMsg = "🛡 Guard Active: Malformed Color Hex Sanitized to Token (#4F46E5)";
+    } else if ((activeSchema.components || []).some(c => String(c.title || "").length > 70 || String(c.message || "").length > 120 || String(c.description || "").length > 150 || c.id?.includes("text_bomb"))) {
+      guardMsg = "🛡 Guard Active: Text Clamped & Layout Shielded (< 0.05ms)";
+    }
+    banner.innerHTML = guardMsg;
     simComponentsList.appendChild(banner);
   } else if (!isSimGuardedMode && hasAnomaly) {
     const banner = document.createElement("div");
@@ -585,6 +600,19 @@ function updateSimulator() {
     banner.style.borderColor = "rgba(239, 68, 68, 0.4)";
     banner.innerHTML = `💥 NAIVE UNPROTECTED: Layout Exception Triggered!`;
     simComponentsList.appendChild(banner);
+  }
+
+  // Fatal Theme Exception in Naive mode
+  if (!isSimGuardedMode && activeSchema.theme?.primary_color && !isValidHexColor(activeSchema.theme.primary_color)) {
+    const themeCrash = document.createElement("div");
+    themeCrash.className = "sim-crash-box";
+    themeCrash.innerHTML = `
+      <div class="sim-crash-header">⚠ FATAL THEME PARSE EXCEPTION</div>
+      <div class="sim-crash-title">FormatException: Invalid Radix-16 Color Number</div>
+      <div class="sim-crash-desc">Cannot parse theme primary_color "${activeSchema.theme.primary_color}" as ARGB hex. Unhandled Flutter parse exception.</div>
+      <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
+    `;
+    simComponentsList.appendChild(themeCrash);
   }
 
   (activeSchema.components || []).forEach(comp => {
@@ -600,6 +628,18 @@ function updateSimulator() {
         <div class="sim-crash-header">⚠ RENDERFLEX OVERFLOW HAZARD</div>
         <div class="sim-crash-title">RenderFlexOverflowError</div>
         <div class="sim-crash-desc">A RenderFlex overflowed by 1,420 pixels on the right. Unconstrained Text layout broke parent boundaries.</div>
+        <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
+      `;
+      simComponentsList.appendChild(el);
+      return;
+    }
+
+    if (!isSimGuardedMode && comp.color && !isValidHexColor(comp.color)) {
+      el.className = "sim-crash-box";
+      el.innerHTML = `
+        <div class="sim-crash-header">⚠ FORMAT EXCEPTION (RADIX-16)</div>
+        <div class="sim-crash-title">FormatException: Invalid Radix-16 Color Number</div>
+        <div class="sim-crash-desc">Cannot parse "${comp.color}" as 32-bit ARGB hex color. Unhandled Flutter parse exception.</div>
         <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
       `;
       simComponentsList.appendChild(el);
@@ -634,8 +674,8 @@ function updateSimulator() {
       el.className = "sim-crash-box";
       el.innerHTML = `
         <div class="sim-crash-header">⚠ UNHANDLED TYPE EXCEPTION</div>
-        <div class="sim-crash-title">TypeError: NullCheckError</div>
-        <div class="sim-crash-desc">Expected List&lt;dynamic&gt; for metrics array, received invalid type.</div>
+        <div class="sim-crash-title">TypeError: type 'String' is not a subtype of type 'List&lt;dynamic&gt;'</div>
+        <div class="sim-crash-desc">Expected List&lt;MetricItem&gt; for metrics array, received String ("${comp.metrics}"). Fatal Flutter runtime type exception.</div>
         <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
       `;
       simComponentsList.appendChild(el);
@@ -657,15 +697,23 @@ function updateSimulator() {
     // Normal or Guarded rendering
     if (comp.type === "banner") {
       el.className = "sim-banner";
-      if (comp.color) el.style.background = comp.color;
+      const bannerColor = isValidHexColor(comp.color) ? comp.color : "#4F46E5";
+      el.style.background = bannerColor;
+      const isSanitizedColor = comp.color && !isValidHexColor(comp.color);
       el.innerHTML = `
-        ${comp.badge ? `<div class="sim-banner-badge">${comp.badge}</div>` : ""}
+        ${isSanitizedColor ? `<div class="sim-banner-badge" style="background:#10B981;color:#fff;">COLOR SANITIZED: #4F46E5</div>` : (comp.badge ? `<div class="sim-banner-badge">${comp.badge}</div>` : "")}
         <div class="sim-banner-title" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${title}</div>
         <div class="sim-banner-desc" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;">${msg}</div>
       `;
     } else if (comp.type === "metric_row") {
       el.className = "sim-metrics-row";
-      const metrics = Array.isArray(comp.metrics) ? comp.metrics : [];
+      let metrics = comp.metrics;
+      if (!Array.isArray(metrics)) {
+        metrics = [
+          { label: "Coerced Metric", value: String(comp.metrics || "$0.00").substring(0, 16), change: "+0% Coerced", is_positive: true },
+          { label: "Type Safety", value: "Guarded", change: "Safe", is_positive: true }
+        ];
+      }
       el.innerHTML = metrics.map(m => `
         <div class="sim-metric-card">
           <div class="sim-metric-lbl">${m.label || ""}</div>
@@ -675,17 +723,19 @@ function updateSimulator() {
       `).join("");
     } else if (comp.type === "card") {
       el.className = "sim-feature-card";
+      const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
       el.innerHTML = `
         ${comp.badge ? `<div class="sim-card-badge">${comp.badge}</div>` : ""}
         <div class="sim-card-title" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${title}</div>
         <div class="sim-card-desc" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${desc}</div>
-        <div class="sim-card-action" style="color: ${activeSchema.theme?.primary_color || "#4F46E5"}">
+        <div class="sim-card-action" style="color: ${primaryColor}">
           <span>${comp.action_text || "Explore"}</span> →
         </div>
       `;
     } else if (comp.type === "button") {
+      const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
       el.innerHTML = `
-        <button class="sim-btn-primary" style="background: ${activeSchema.theme?.primary_color || "#4F46E5"}">
+        <button class="sim-btn-primary" style="background: ${primaryColor}">
           ${comp.text || "Click Here"}
         </button>
       `;
@@ -779,7 +829,7 @@ function updateAiAuditor() {
 function renderAll() {
   screenTitleInput.value = activeSchema.header?.title || "";
   screenSubtitleInput.value = activeSchema.header?.subtitle || "";
-  primaryColorPicker.value = activeSchema.theme?.primary_color || "#4F46E5";
+  primaryColorPicker.value = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
   colorHexText.innerText = (activeSchema.theme?.primary_color || "#4F46E5").toUpperCase();
   renderComponentEditors();
   updateSimulator();
@@ -931,7 +981,16 @@ function injectAdversarialPayload(fuzzType) {
       });
     } else if (fuzzType === "bad_color") {
       corrupted.theme.primary_color = "#ZZ9900X";
-      corrupted.components[0].color = "not-a-color-value";
+      corrupted.components.unshift({
+        id: "fuzz_bad_color",
+        type: "banner",
+        title: "Malformed Hex / ARGB Color Crash",
+        message: "Invalid color hex string '#ZZ9900X' and 'not-a-color-value' injected without schema validation.",
+        color: "#ZZ9900X"
+      });
+      if (corrupted.components[1]) {
+        corrupted.components[1].color = "not-a-color-value";
+      }
     } else if (fuzzType === "unregistered_widget") {
       corrupted.components.splice(1, 0, {
         id: "fuzz_alien",
@@ -1023,7 +1082,14 @@ function injectAdversarialPayload(fuzzType) {
     logRepair(`⚠️ AST Fault: Malformed hex token '#ZZ9900X' violates ARGB 32-bit specification.`, "text-danger");
     logRepair(`🩺 Healing Action: Replaced with WCAG-compliant brand fallback primary token '#4F46E5'.`, "text-success");
     healed.theme.primary_color = "#4F46E5";
-    if (healed.components[0]) healed.components[0].color = "#4F46E5";
+    healed.components.unshift({
+      id: "healed_bad_color",
+      type: "banner",
+      title: "Self-Healed Color Palette",
+      message: "Malformed color '#ZZ9900X' sanitized to brand primary '#4F46E5'.",
+      color: "#4F46E5"
+    });
+    if (healed.components[1]) healed.components[1].color = "#4F46E5";
     logRepair(`✅ Diff applied: ARGB sanitized to 0xFF4F46E5. Contrast verified 7.4:1.`, "text-success");
   } else if (fuzzType === "unregistered_widget") {
     logRepair(`⚠️ AST Fault: Unregistered tag <QuantumLaserCard> hallucinated by model (not in registry).`, "text-danger");

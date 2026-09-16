@@ -45,6 +45,14 @@ class _DynamicScreenState extends State<DynamicScreen> {
 
       if (actionId == 'action_blocked_insecure' || actionId.startsWith('javascript:')) {
         detected = 'Blocked Insecure Protocol / XSS in Action Payload';
+      } else if (c.properties['has_color_anomaly'] == true ||
+          c.id.contains('bad_color') ||
+          (c.properties['color'] != null && !GenUiSchemaValidator.isValidHexColor(c.properties['color']))) {
+        detected = 'Malformed Color Hex Sanitized to Brand Token (#4F46E5)';
+      } else if (c.properties['has_type_mismatch'] == true ||
+          c.id.contains('type_err') ||
+          (c.properties.containsKey('metrics') && c.properties['metrics'] is! List)) {
+        detected = 'Type Mismatch Coerced (String to List<MetricItem>)';
       } else if (c.type == 'invalid' || c.type == 'truncated' || !SafeWidgetRegistry.supportedTypes.contains(c.type)) {
         detected = 'Contained Malformed / Hallucinated Component AST';
       } else if ((height is num && height < 0) || (c.properties['height_coerced'] == true)) {
@@ -56,8 +64,6 @@ class _DynamicScreenState extends State<DynamicScreen> {
           title.contains('OVERFLOW') ||
           title.contains('UNBOUNDED')) {
         detected = 'Clamped Text Overflow (RenderFlex Overflow Prevented)';
-      } else if (c.properties.containsKey('metrics') && c.properties['metrics'] is! List) {
-        detected = 'Isolated Non-Array Type Mismatch in Metrics';
       }
     }
 

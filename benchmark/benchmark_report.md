@@ -22,7 +22,7 @@
 | `malicious_injection` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `nan_dimension_trap` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `null_coalescing_hazard` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
-| `stream_race_condition` | 10 | 10/10 (100%) | 0/10 (0%) | 0.03 ms |
+| `stream_race_condition` | 10 | 10/10 (100%) | 0/10 (0%) | 0.01 ms |
 | `text_overflow_bomb` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `tree_corruption` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `type_mismatch` | 10 | 10/10 (100%) | 0/10 (0%) | 0.01 ms |
@@ -31,7 +31,7 @@
 
 | Test ID | Category | Description | Naive Result | flutter_genui_guard Result |
 | :--- | :--- | :--- | :--- | :--- |
-| `TC-01` | `type_mismatch` | String supplied where numeric padding double expected | 💥 CRASH: `TypeError: padding expected do...` | 🛡 SAFE (0.06ms) |
+| `TC-01` | `type_mismatch` | String supplied where numeric padding double expected | 💥 CRASH: `TypeError: padding expected do...` | 🛡 SAFE (0.05ms) |
 | `TC-02` | `type_mismatch` | String supplied where boolean is_positive expected | 💥 CRASH: `TypeError: is_positive expecte...` | 🛡 SAFE (0.00ms) |
 | `TC-03` | `type_mismatch` | String supplied where array of metrics expected | 💥 CRASH: `TypeError: metrics expected Li...` | 🛡 SAFE (0.00ms) |
 | `TC-04` | `type_mismatch` | Integer supplied where string title expected | 💥 CRASH: `TypeError: title expected Stri...` | 🛡 SAFE (0.00ms) |
@@ -128,8 +128,8 @@
 | `TC-95` | `stream_race_condition` | Screen ID mismatch (payload sent for screen A to screen B) | 💥 CRASH: `ArgumentError: Screen ID misma...` | 🛡 SAFE (0.00ms) |
 | `TC-96` | `stream_race_condition` | Non-numeric string version ("v2.0-beta.rc1") | 💥 CRASH: `TypeError: type 'str' is not a...` | 🛡 SAFE (0.00ms) |
 | `TC-97` | `stream_race_condition` | Stale backwards version push (client on v14, received v2) | 💥 CRASH: `StateError: Out of order schem...` | 🛡 SAFE (0.00ms) |
-| `TC-98` | `stream_race_condition` | Rapid state toggle payload (flickering theme between dark/light) | 💥 CRASH: `StateError: Rapid state mutati...` | 🛡 SAFE (0.06ms) |
-| `TC-99` | `stream_race_condition` | Massive payload size (250 components) stressing garbage collection | 💥 CRASH: `MemoryBudgetExceededError: Com...` | 🛡 SAFE (0.20ms) |
+| `TC-98` | `stream_race_condition` | Rapid state toggle payload (flickering theme between dark/light) | 💥 CRASH: `StateError: Rapid state mutati...` | 🛡 SAFE (0.05ms) |
+| `TC-99` | `stream_race_condition` | Massive payload size (250 components) stressing garbage collection | 💥 CRASH: `MemoryBudgetExceededError: Com...` | 🛡 SAFE (0.08ms) |
 | `TC-100` | `stream_race_condition` | Empty string screen_id with null header and empty component array | 💥 CRASH: `AssertionError: screen_id cann...` | 🛡 SAFE (0.00ms) |
 
 ## Production Readiness & Architectural Conclusion
