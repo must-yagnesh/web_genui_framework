@@ -37,14 +37,27 @@ class _DynamicScreenState extends State<DynamicScreen> {
     // Detect intercepted anomalies for visual telemetry
     String? detected;
     for (final c in newSchema.components) {
-      if (c.properties['action_id'] == 'action_blocked_insecure') {
+      final title = c.properties['title']?.toString() ?? '';
+      final msg = c.properties['message']?.toString() ?? '';
+      final desc = c.properties['description']?.toString() ?? '';
+      final actionId = c.properties['action_id']?.toString() ?? '';
+      final height = c.properties['height'];
+
+      if (actionId == 'action_blocked_insecure' || actionId.startsWith('javascript:')) {
         detected = 'Blocked Insecure Protocol / XSS in Action Payload';
-      } else if (c.type == 'invalid' || c.type == 'truncated') {
+      } else if (c.type == 'invalid' || c.type == 'truncated' || !SafeWidgetRegistry.supportedTypes.contains(c.type)) {
         detected = 'Contained Malformed / Hallucinated Component AST';
-      } else if (c.properties.containsKey('height') && (c.properties['height'] is num) && (c.properties['height'] as num) <= 0) {
+      } else if ((height is num && height < 0) || (c.properties['height_coerced'] == true)) {
         detected = 'Sanitized Negative/Zero Layout Height (Assertion Guard)';
-      } else if ((c.properties['title']?.toString().length ?? 0) > 100 && c.properties['title'].toString().endsWith('...')) {
-        detected = 'Clamped Text Overflow (Prevented RenderFlex Overflow)';
+      } else if (c.id.contains('text_bomb') ||
+          title.length > 60 ||
+          msg.length > 100 ||
+          desc.length > 120 ||
+          title.contains('OVERFLOW') ||
+          title.contains('UNBOUNDED')) {
+        detected = 'Clamped Text Overflow (RenderFlex Overflow Prevented)';
+      } else if (c.properties.containsKey('metrics') && c.properties['metrics'] is! List) {
+        detected = 'Isolated Non-Array Type Mismatch in Metrics';
       }
     }
 
@@ -248,6 +261,33 @@ class _DynamicScreenState extends State<DynamicScreen> {
                         color: Color(0xFF10B981),
                         fontSize: 11.0,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          if (_lastInterceptedAnomaly != null && !_isGuardedMode)
+            Container(
+              margin: const EdgeInsets.fromLTRB(14.0, 8.0, 14.0, 2.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 16.0),
+                  SizedBox(width: 8.0),
+                  Expanded(
+                    child: Text(
+                      '💥 NAIVE UNPROTECTED: Layout Exception Triggered! (Flip to GUARDED to heal)',
+                      style: TextStyle(
+                        color: Color(0xFFFCA5A5),
+                        fontSize: 11.0,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),

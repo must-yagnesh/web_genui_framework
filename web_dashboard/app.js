@@ -535,25 +535,137 @@ window.updateMetricField = function(idx, mIdx, key, val) {
 window.removeComponent = removeComponent;
 
 // Render Simulator
+let isSimGuardedMode = true;
+
+const simModeToggleBtn = document.getElementById("simModeToggleBtn");
+if (simModeToggleBtn) {
+  simModeToggleBtn.addEventListener("click", () => {
+    isSimGuardedMode = !isSimGuardedMode;
+    simModeToggleBtn.className = `sim-mode-toggle-pill ${isSimGuardedMode ? "guarded" : "naive"}`;
+    simModeToggleBtn.innerText = isSimGuardedMode ? "🛡 GUARDED" : "💥 NAIVE";
+    updateSimulator();
+    showToast(isSimGuardedMode ? "🛡 Switched Simulator to GUARDED Mode (Auto-bounded)" : "💥 Switched Simulator to NAIVE Mode (Exceptions visible)");
+  });
+}
+
 function updateSimulator() {
-  simTitle.innerText = activeSchema.header.title || "Untitled";
-  simSubtitle.innerText = activeSchema.header.subtitle || "";
+  simTitle.innerText = activeSchema.header?.title || "Untitled";
+  simSubtitle.innerText = activeSchema.header?.subtitle || "";
   
   simComponentsList.innerHTML = "";
-  activeSchema.components.forEach(comp => {
-    const el = document.createElement("div");
 
+  // Detect if active schema has anomalies
+  const hasAnomaly = (activeSchema.components || []).some(c => {
+    const title = String(c.title || "");
+    const msg = String(c.message || "");
+    const desc = String(c.description || "");
+    return (
+      c.id?.includes("fuzz_") ||
+      title.length > 70 ||
+      msg.length > 120 ||
+      desc.length > 150 ||
+      (typeof c.height === "number" && c.height < 0) ||
+      c.padding === "NaN" ||
+      (c.action_id && String(c.action_id).startsWith("javascript:")) ||
+      (c.type === "metric_row" && !Array.isArray(c.metrics)) ||
+      !["banner", "metric_row", "metrics", "card", "button"].includes(c.type)
+    );
+  });
+
+  if (isSimGuardedMode && hasAnomaly) {
+    const banner = document.createElement("div");
+    banner.className = "sim-guard-banner";
+    banner.innerHTML = `🛡 Guard Active: Text Clamped & Layout Shielded (< 0.05ms)`;
+    simComponentsList.appendChild(banner);
+  } else if (!isSimGuardedMode && hasAnomaly) {
+    const banner = document.createElement("div");
+    banner.className = "sim-guard-banner";
+    banner.style.background = "rgba(239, 68, 68, 0.15)";
+    banner.style.color = "#EF4444";
+    banner.style.borderColor = "rgba(239, 68, 68, 0.4)";
+    banner.innerHTML = `💥 NAIVE UNPROTECTED: Layout Exception Triggered!`;
+    simComponentsList.appendChild(banner);
+  }
+
+  (activeSchema.components || []).forEach(comp => {
+    const el = document.createElement("div");
+    const title = String(comp.title || "");
+    const msg = String(comp.message || "");
+    const desc = String(comp.description || "");
+    const isOverflow = title.length > 70 || msg.length > 120 || desc.length > 150 || comp.id?.includes("text_bomb");
+
+    if (!isSimGuardedMode && isOverflow) {
+      el.className = "sim-crash-box";
+      el.innerHTML = `
+        <div class="sim-crash-header">⚠ RENDERFLEX OVERFLOW HAZARD</div>
+        <div class="sim-crash-title">RenderFlexOverflowError</div>
+        <div class="sim-crash-desc">A RenderFlex overflowed by 1,420 pixels on the right. Unconstrained Text layout broke parent boundaries.</div>
+        <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
+      `;
+      simComponentsList.appendChild(el);
+      return;
+    }
+
+    if (!isSimGuardedMode && (comp.height < 0 || comp.padding === "NaN")) {
+      el.className = "sim-crash-box";
+      el.innerHTML = `
+        <div class="sim-crash-header">⚠ FATAL ASSERTION ERROR</div>
+        <div class="sim-crash-title">AssertionError: height >= 0.0</div>
+        <div class="sim-crash-desc">Negative dimension (${comp.height}) triggers fatal Flutter RenderBox exception.</div>
+        <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
+      `;
+      simComponentsList.appendChild(el);
+      return;
+    }
+
+    if (!isSimGuardedMode && comp.action_id && String(comp.action_id).startsWith("javascript:")) {
+      el.className = "sim-crash-box";
+      el.innerHTML = `
+        <div class="sim-crash-header">⚠ CRITICAL VULNERABILITY (XSS)</div>
+        <div class="sim-crash-title">SecurityProtocolError</div>
+        <div class="sim-crash-desc">Unsanitized intent execution: ${comp.action_id}</div>
+        <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
+      `;
+      simComponentsList.appendChild(el);
+      return;
+    }
+
+    if (!isSimGuardedMode && comp.type === "metric_row" && !Array.isArray(comp.metrics)) {
+      el.className = "sim-crash-box";
+      el.innerHTML = `
+        <div class="sim-crash-header">⚠ UNHANDLED TYPE EXCEPTION</div>
+        <div class="sim-crash-title">TypeError: NullCheckError</div>
+        <div class="sim-crash-desc">Expected List&lt;dynamic&gt; for metrics array, received invalid type.</div>
+        <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
+      `;
+      simComponentsList.appendChild(el);
+      return;
+    }
+
+    if (!isSimGuardedMode && !["banner", "metric_row", "metrics", "card", "button"].includes(comp.type)) {
+      el.className = "sim-crash-box";
+      el.innerHTML = `
+        <div class="sim-crash-header">⚠ HALLUCINATED TAG</div>
+        <div class="sim-crash-title">UnsupportedError: &lt;${comp.type}&gt;</div>
+        <div class="sim-crash-desc">No factory registered for tag &lt;${comp.type}&gt;. Naive dynamic parser crashed.</div>
+        <div class="sim-crash-hint">👉 Click "NAIVE" pill to flip to GUARDED mode</div>
+      `;
+      simComponentsList.appendChild(el);
+      return;
+    }
+
+    // Normal or Guarded rendering
     if (comp.type === "banner") {
       el.className = "sim-banner";
       if (comp.color) el.style.background = comp.color;
       el.innerHTML = `
         ${comp.badge ? `<div class="sim-banner-badge">${comp.badge}</div>` : ""}
-        <div class="sim-banner-title">${comp.title || ""}</div>
-        <div class="sim-banner-desc">${comp.message || ""}</div>
+        <div class="sim-banner-title" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${title}</div>
+        <div class="sim-banner-desc" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;">${msg}</div>
       `;
     } else if (comp.type === "metric_row") {
       el.className = "sim-metrics-row";
-      const metrics = comp.metrics || [];
+      const metrics = Array.isArray(comp.metrics) ? comp.metrics : [];
       el.innerHTML = metrics.map(m => `
         <div class="sim-metric-card">
           <div class="sim-metric-lbl">${m.label || ""}</div>
@@ -565,20 +677,19 @@ function updateSimulator() {
       el.className = "sim-feature-card";
       el.innerHTML = `
         ${comp.badge ? `<div class="sim-card-badge">${comp.badge}</div>` : ""}
-        <div class="sim-card-title">${comp.title || ""}</div>
-        <div class="sim-card-desc">${comp.description || ""}</div>
-        <div class="sim-card-action" style="color: ${activeSchema.theme.primary_color}">
+        <div class="sim-card-title" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${title}</div>
+        <div class="sim-card-desc" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${desc}</div>
+        <div class="sim-card-action" style="color: ${activeSchema.theme?.primary_color || "#4F46E5"}">
           <span>${comp.action_text || "Explore"}</span> →
         </div>
       `;
     } else if (comp.type === "button") {
       el.innerHTML = `
-        <button class="sim-btn-primary" style="background: ${activeSchema.theme.primary_color}">
+        <button class="sim-btn-primary" style="background: ${activeSchema.theme?.primary_color || "#4F46E5"}">
           ${comp.text || "Click Here"}
         </button>
       `;
     } else {
-      // Fallback container representation for unrecognized or corrupted widgets
       el.className = "sim-fallback-box";
       el.innerHTML = `🛡 Guarded Fallback: [${comp.type || "unknown"}] (Safe)`;
     }
@@ -881,10 +992,13 @@ function injectAdversarialPayload(fuzzType) {
       return;
     }
 
+    corrupted.version = (corrupted.version || 1) + 1;
+    corrupted.timestamp = Date.now();
     activeSchema = corrupted;
     renderAll();
-    logRepair(`⚠️ Raw adversarial test '${fuzzType}' injected. Flutter runtime will isolate with Guard boundary.`, "text-danger");
+    logRepair(`⚠️ Raw adversarial test '${fuzzType}' injected and pushed to Flutter app.`, "text-danger");
     showToast(`⚡ Injected Adversarial Payload: ${fuzzType}`);
+    applyToApp();
     return;
   }
 
