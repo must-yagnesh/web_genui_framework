@@ -101,16 +101,19 @@ flowchart TD
 
 | Category | Feature | Description |
 | :--- | :--- | :--- |
-| **Web Console** | **Visual UI Builder** | Real-time editing of titles, subtitles, primary brand tokens, and dynamic component lists. |
-| **Web Console** | **Live Phone Simulator** | Side-by-side interactive preview mirroring the physical Flutter screen layout. |
+| **Web Console** | **Visual UI Builder** | Real-time editing of titles, subtitles, primary brand tokens, and arbitrary dynamic component trees. |
+| **Web Console** | **Interactive Phone Simulator** | Side-by-side interactive preview with live typing, textareas, switch/checkbox toggling, and client-side form validation toasts. |
+| **Web Console** | **1-Click Form & Screen Presets** | Instant templates: **Login Form**, **Sign-Up Form**, **Feedback & Review**, **Crypto Wealth**, and **E-Commerce Flash Sale**. |
 | **Web Console** | **Raw JSON AST Editor** | Direct declarative JSON inspection, formatting, and manual AST injection. |
 | **Web Console** | **1-Click AI Persona Switcher** | Instant personalization presets: **Beginner** (educational emerald theme), **VIP Wealth Trader** (gold terminal), and **Flash Shopper** (magenta liquidation). |
 | **Web Console** | **Live AI Accessibility & Cost Auditor** | Evaluates **WCAG AA/AAA Luminance Contrast**, enforces **≥ 48 dp Touch Targets**, and tracks **token context size & micro-dollar cost** (`~$0.00014 / call`). |
 | **Web Console** | **AI Auto-Repair Agent** | Autonomous self-healing toggle with a live telemetry console showing AST diagnostics and repair diffs. |
 | **Web Console** | **Chaos Suite Attacks** | 1-click fuzz buttons for **Text Overflow Bombs**, **NaN/Negative Dimensions**, **Malicious Action Scripts**, and **Strobe State Bursts**. |
 | **Sync Bridge** | **High-Speed SSE Stream** | Lightweight Python sync server broadcasting updates in < 100 ms over HTTP/SSE. |
+| **Flutter Client** | **Standard Flutter Widgets & Layouts** | Full dynamic support for `text`, `image`, `textfield` / `input`, `listtile`, `chip`, `switch`, `checkbox`, `radio`, `icon`, `divider`, `spacer`, alongside `column` and `row` flex layout containers with nested children. |
+| **Flutter Client** | **Dynamic Form Validation Engine** | `GenUiFormRegistry` provides real-time `TextEditingController` state tracking, non-empty field validation, required terms checks, and green/red floating SnackBar toasts with password masking. |
 | **Flutter Client** | **`GenUiSchemaValidator`** | Zero-dependency Dart validator with smart type coercion, runaway text clamping, positive dimension coercion, and schema sanitization (< 0.01 ms). |
-| **Flutter Client** | **`SafeWidgetRegistry`** | Whitelisted mapping of production-safe native Flutter components (`banner`, `metric_row`, `card`, `button`). |
+| **Flutter Client** | **`SafeWidgetRegistry`** | Whitelisted mapping of production-safe native Flutter components and standard layout containers. |
 | **Flutter Client** | **`GenUiErrorBoundary`** | Component-level fault isolation preventing Flutter red-screen exceptions. |
 | **Flutter Client** | **Live Guard Telemetry Badge** | Animated real-time telemetry badge in mobile header visualizing sanitized anomalies, clamped tokens, and blocked exploits with sub-millisecond metrics. |
 | **Flutter Client** | **Guarded vs. Naive Mode Toggle** | Live AppBar switch allowing engineers to demonstrate how standard dynamic parsers crash vs. how `flutter_genui_guard` stays resilient. |
@@ -149,7 +152,95 @@ python3 benchmark/run_benchmark.py
 
 ---
 
-## 5. Developer Guide: How to Integrate in a Real Project
+## 5. Dynamic UI Widgets, Layout Containers & Form Engine
+
+Beyond composite business cards, the framework supports a full catalog of standard Flutter widgets, nested flex layout containers, and an end-to-end dynamic form validation engine.
+
+### A. Supported Widget Catalog
+
+```mermaid
+graph TD
+    UI["<b>Dynamic UI Catalog</b>"] --> Composites["<b>Composite Cards</b>"]
+    UI --> Layouts["<b>Flex Containers</b>"]
+    UI --> Primitives["<b>Standard Primitives</b>"]
+
+    Composites --> C1["📢 Promo Banner (banner)"]
+    Composites --> C2["📊 Metric Row (metric_row)"]
+    Composites --> C3["💳 Feature Card (card)"]
+    Composites --> C4["🔘 Action Button (button)"]
+
+    Layouts --> L1["🏛️ Column (column / layout_column)<br/>Vertical flex with recursive children"]
+    Layouts --> L2["↔️ Row (row / layout_row)<br/>Horizontal flex with auto Flexible wrapping"]
+    Layouts --> L3["➖ Divider (divider)<br/>Configurable thickness, color & padding"]
+    Layouts --> L4["↕️ Spacer (spacer / sized_box)<br/>Non-negative dimensional spacing"]
+
+    Primitives --> P1["📝 Text (text) - alignment, bold, font size"]
+    Primitives --> P2["🖼 Image (image) - border radius, height, fallbacks"]
+    Primitives --> P3["💬 TextField (textfield / input) - single & multi-line"]
+    Primitives --> P4["📋 ListTile (listtile) - Material-isolated with icons"]
+    Primitives --> P5["🏷 Chip (chip) - selectable tag with leading icon"]
+    Primitives --> P6["🎚 Switch (switch) - interactive toggle switch"]
+    Primitives --> P7["☑ Checkbox (checkbox) - rounded themed check tile"]
+    Primitives --> P8["🔘 Radio (radio) - multi-choice radio selector"]
+    Primitives --> P9["⭐ Icon (icon) - Material icon parser"]
+
+    style UI fill:#1e293b,stroke:#6366f1,stroke-width:2px,color:#f8fafc
+    style Composites fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#f8fafc
+    style Layouts fill:#0f172a,stroke:#10b981,stroke-width:1px,color:#f8fafc
+    style Primitives fill:#0f172a,stroke:#f59e0b,stroke-width:1px,color:#f8fafc
+```
+
+### B. Dynamic Form Architecture & Validation Flow
+
+The framework enables creating arbitrary dynamic user-input workflows (e.g. Login, Sign-Up, and Feedback & Review forms) with real-time state synchronization and client-side validation:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User on Web / Mobile
+    participant Web as Web Console UI
+    participant SSE as Real-Time SSE Stream (/api/schema)
+    participant Flutter as Flutter App (GenUiGuard)
+    participant Reg as GenUiFormRegistry
+    participant UI as Dynamic Screen
+
+    User->>Web: Selects / Creates Form (Presets, AI, or Builder)
+    Web->>Web: Live phone simulator enables real-time typing & validation
+    User->>Web: Clicks "Apply to App"
+    Web->>SSE: POST /api/schema
+    SSE->>Flutter: Streams updated JSON Schema
+    Flutter->>Reg: GenUiFormRegistry.clear() (disposes obsolete controllers)
+    Flutter->>UI: Renders SafeGenUiTextField, Checkbox, Switch & Buttons
+    UI->>Reg: Binds TextEditingControllers & field labels by node.id
+    User->>UI: Types inputs, toggles options, and taps Submit Button
+    UI->>Reg: validateNonEmpty() & required terms verification
+    alt Any Required Field Empty / Terms Unchecked
+        Reg-->>UI: Validation failed with error list
+        UI->>User: Red floating SnackBar: "Validation Error: [Field] cannot be empty!"
+    else All Fields Valid
+        Reg-->>UI: Form values collected & sanitized
+        UI->>User: Green floating SnackBar: "Form Validation Passed! [Summary with masked password]"
+    end
+```
+
+### C. Building Dynamic Forms in the Web Console
+
+Users can construct forms using three flexible workflows:
+1. **1-Click Quick Presets**:
+   - 🔐 **Login Form**: Pre-populates Email, Password, and "Sign In to Account" button.
+   - 📝 **Sign-Up Form**: Pre-populates Name, Email, Password, Terms & Conditions Checkbox, and "Create Free Account" button.
+   - ⭐ **Feedback & Review**: Pre-populates Experience Rating chips, Author Name, a 3-line Comment Textarea (`max_lines: 3`), a "Post as Public Review" toggle switch, and a "Submit Customer Feedback" button.
+2. **AI Natural Language Synthesis**:
+   - Type prompt e.g. *"Create a registration form with email, password and terms agreement"* and click **"Synthesize & Preview Layout"**.
+3. **Visual Component Builder**:
+   - Add `textfield` (with custom labels, placeholders, password masking, and `max_lines` up to 8 for textareas).
+   - Add `checkbox` or `switch` components for agreements and preferences.
+   - Add `button` with action IDs containing `login`, `register`, `signup`, `feedback`, or `submit`.
+   - Arrange inputs horizontally or vertically with nested `row` and `column` containers.
+
+---
+
+## 6. Developer Guide: How to Integrate in a Real Project
 
 Integrating `flutter_genui_guard` into an existing Flutter application requires 5 simple steps:
 
@@ -162,9 +253,10 @@ your_flutter_app/lib/
     ├── boundary/                # Component error boundary
     ├── models/                  # UiSchema, ThemeConfig, ComponentNode
     ├── registry/                # SafeWidgetRegistry
+    ├── state/                   # GenUiFormRegistry (form state & validation)
     ├── sync/                    # GenUiSyncClient
     ├── validator/               # GenUiSchemaValidator
-    └── widgets/                 # Built-in native components
+    └── widgets/                 # Built-in native components & safe primitives
 ```
 
 ### Step 2: Register Your Custom App Widgets
@@ -279,7 +371,7 @@ async def sse_endpoint():
 
 ---
 
-## 6. Required Setup, Tools & Prerequisites
+## 7. Required Setup, Tools & Prerequisites
 
 ### Prerequisites
 
@@ -346,7 +438,7 @@ For local development HTTP sync (non-HTTPS), ensure `android/app/src/main/Androi
 
 ---
 
-## 7. Summary of Technical Architecture & Engineering Leverage
+## 8. Summary of Technical Architecture & Engineering Leverage
 
 1. **Distributed System Architecture**: Rather than isolated UI widgets, engineered an end-to-end distributed system connecting web control, real-time sync, and mobile client fault isolation.
 2. **Deterministic Reliability in the AI Era**: Solved the non-deterministic hallucination problem at both client-side (runtime boundaries) and server-side (AI self-healing AST repair).

@@ -76,12 +76,30 @@
           <div class="flex-between">
             <label class="group-title">Dynamic UI Components</label>
             <div class="dropdown">
-              <button class="btn btn-sm btn-outline" id="btnAddDropdown">+ Add Component</button>
+              <button class="btn btn-sm btn-outline" id="btnAddDropdown">+ Add Component ▾</button>
               <div class="dropdown-menu" id="addMenu">
+                <div class="dropdown-category">COMPOSITE SECTIONS</div>
                 <a href="#" data-add="banner">📢 Promo Banner</a>
                 <a href="#" data-add="metric_row">📊 Metric Stats Row</a>
                 <a href="#" data-add="card">💳 Feature Action Card</a>
-                <a href="#" data-add="button">🔘 Call-To-Action Button</a>
+                <a href="#" data-add="button">🔘 Action Button</a>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-category">LAYOUT CONTAINERS</div>
+                <a href="#" data-add="column">🏛️ Column (Vertical)</a>
+                <a href="#" data-add="row">↔️ Row (Horizontal)</a>
+                <a href="#" data-add="divider">➖ Divider Line</a>
+                <a href="#" data-add="spacer">↕️ Spacer Box</a>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-category">FLUTTER DEFAULT WIDGETS</div>
+                <a href="#" data-add="text">📝 Text (Headline/Body)</a>
+                <a href="#" data-add="image">🖼 Image (Network)</a>
+                <a href="#" data-add="textfield">💬 Text Input Field</a>
+                <a href="#" data-add="listtile">📋 List Tile</a>
+                <a href="#" data-add="chip">🏷 Chip Tag</a>
+                <a href="#" data-add="switch">🎚 Switch Toggle</a>
+                <a href="#" data-add="checkbox">☑ Checkbox Tile</a>
+                <a href="#" data-add="radio">🔘 Radio Option</a>
+                <a href="#" data-add="icon">⭐ Material Icon</a>
               </div>
             </div>
           </div>
@@ -114,6 +132,9 @@
             <div class="preset-pills">
               <span class="pill-label">Quick Presets:</span>
               <button class="preset-pill" data-preset="crypto">🪙 Crypto Staking</button>
+              <button class="preset-pill" data-preset="login">🔐 Login Form</button>
+              <button class="preset-pill" data-preset="register">📝 Sign-Up Form</button>
+              <button class="preset-pill" data-preset="feedback">⭐ Feedback & Review</button>
               <button class="preset-pill" data-preset="ecommerce">🛍 Flash Sale</button>
               <button class="preset-pill" data-preset="fintech">💳 VIP Banking</button>
               <button class="preset-pill" data-preset="support">🎧 Help & FAQ</button>

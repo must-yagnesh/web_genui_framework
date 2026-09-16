@@ -106,6 +106,91 @@ const PRESETS = {
       }
     ]
   },
+  login: {
+    title: "Secure Account Sign-In",
+    subtitle: "Real-time Dynamic Form Validation",
+    color: "#4F46E5",
+    components: [
+      {
+        id: "login_header",
+        type: "text",
+        text: "Welcome Back",
+        font_size: 22,
+        is_bold: true,
+        align: "center",
+        padding: 6
+      },
+      {
+        id: "login_sub",
+        type: "text",
+        text: "Enter your credentials to access your protected account",
+        font_size: 13,
+        is_bold: false,
+        align: "center",
+        padding: 2
+      },
+      {
+        id: "input_email",
+        type: "textfield",
+        label: "Email Address",
+        hint: "alex@example.com",
+        is_password: false,
+        padding: 6
+      },
+      {
+        id: "input_password",
+        type: "textfield",
+        label: "Password",
+        hint: "Enter your password",
+        is_password: true,
+        padding: 6
+      },
+      {
+        id: "btn_login",
+        type: "button",
+        text: "Sign In to Account",
+        variant: "primary",
+        action_id: "submit_login"
+      }
+    ]
+  },
+  register: {
+    title: "Member Registration",
+    subtitle: "Real-time Dynamic Sign-Up Form",
+    color: "#059669",
+    components: [
+      { id: "reg_header", type: "text", text: "Create Your Account", font_size: 22, is_bold: true, align: "center", padding: 6 },
+      { id: "reg_sub", type: "text", text: "Fill in the fields below to start your free trial", font_size: 13, is_bold: false, align: "center", padding: 2 },
+      { id: "input_name", type: "textfield", label: "Full Name", hint: "Jane Doe", is_password: false, padding: 6 },
+      { id: "input_email", type: "textfield", label: "Work Email", hint: "jane@company.com", is_password: false, padding: 6 },
+      { id: "input_password", type: "textfield", label: "Create Password", hint: "Must be 8+ characters", is_password: true, padding: 6 },
+      { id: "check_terms", type: "checkbox", label: "I accept the Terms & Privacy Policy", subtitle: "Required to create account", is_checked: false, padding: 4 },
+      { id: "btn_register", type: "button", text: "Create Free Account", variant: "primary", action_id: "submit_register" }
+    ]
+  },
+  feedback: {
+    title: "Customer Review & Feedback",
+    subtitle: "Dynamic Multi-Input Form",
+    color: "#D97706",
+    components: [
+      { id: "fb_header", type: "text", text: "How was your experience?", font_size: 20, is_bold: true, align: "center", padding: 6 },
+      { id: "fb_sub", type: "text", text: "Your feedback helps us continuously improve", font_size: 13, is_bold: false, align: "center", padding: 2 },
+      {
+        id: "fb_rating_row",
+        type: "row",
+        main_axis_alignment: "spaceAround",
+        children: [
+          { id: "chip_1", type: "chip", label: "⭐ Fair", is_selected: false },
+          { id: "chip_2", type: "chip", label: "⭐⭐⭐ Good", is_selected: false },
+          { id: "chip_3", type: "chip", label: "⭐⭐⭐⭐⭐ Excellent", is_selected: true }
+        ]
+      },
+      { id: "input_author", type: "textfield", label: "Your Name or Handle", hint: "e.g. Alex Morgan", is_password: false, padding: 6 },
+      { id: "input_comments", type: "textfield", label: "Your Detailed Feedback", hint: "What did you enjoy most, or what can we improve?", max_lines: 3, is_password: false, padding: 6 },
+      { id: "switch_public", type: "switch", label: "Post as Public Review", subtitle: "Allow displaying on community wall", is_checked: true, padding: 4 },
+      { id: "btn_feedback", type: "button", text: "Submit Customer Feedback", variant: "primary", action_id: "submit_feedback" }
+    ]
+  },
   ecommerce: {
     title: "Flash Deals & Rewards",
     subtitle: "24-Hour VIP Member Campaign",
@@ -396,21 +481,102 @@ addMenu.querySelectorAll("a").forEach(item => {
   });
 });
 
-function addComponent(type) {
-  const id = `comp_${Date.now()}`;
-  let newComp;
-  if (type === "banner") {
-    newComp = { id, type, title: "New Dynamic Announcement", message: "Enter custom text here.", badge: "NEW", color: activeSchema.theme.primary_color };
-  } else if (type === "metric_row") {
-    newComp = { id, type, metrics: [{ label: "Metric A", value: "1,200", change: "+10%", is_positive: true }, { label: "Metric B", value: "98%", change: "+2%", is_positive: true }] };
-  } else if (type === "card") {
-    newComp = { id, type, title: "New Feature Card", description: "Highlight an action or reward.", badge: "ACTION", action_text: "Learn More", action_id: "action_card" };
-  } else if (type === "button") {
-    newComp = { id, type, text: "Primary Action", variant: "primary", action_id: "action_btn" };
+function createDefaultWidget(type, customId) {
+  const id = customId || `comp_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  const primary = (activeSchema && activeSchema.theme && activeSchema.theme.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
+
+  switch (type) {
+    case "banner":
+      return { id, type, title: "New Dynamic Announcement", message: "Enter custom text here.", badge: "NEW", color: primary };
+    case "metric_row":
+    case "metrics":
+      return { id, type: "metric_row", metrics: [{ label: "Metric A", value: "1,200", change: "+10%", is_positive: true }, { label: "Metric B", value: "98%", change: "+2%", is_positive: true }] };
+    case "card":
+      return { id, type, title: "New Feature Card", description: "Highlight an action or reward.", badge: "ACTION", action_text: "Learn More", action_id: "action_card" };
+    case "button":
+      return { id, type, text: "Primary Action", variant: "primary", action_id: "action_btn" };
+    case "text":
+      return { id, type, text: "Dynamic Typography Headline", font_size: 16, align: "left", is_bold: false, padding: 4 };
+    case "image":
+      return { id, type, image_url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80", height: 140, border_radius: 12, padding: 4 };
+    case "textfield":
+    case "input":
+      return { id, type: "textfield", label: "Your Full Name", hint: "e.g. John Doe", max_lines: 1, is_password: false, padding: 4 };
+    case "listtile":
+      return { id, type, title: "Account Security & 2FA", subtitle: "Hardware biometric key active", leading_icon: "lock", trailing_text: "ACTIVE", action_id: "security_click" };
+    case "chip":
+      return { id, type, label: "Verified Member", icon: "check", is_selected: true, action_id: "chip_click" };
+    case "switch":
+      return { id, type, label: "Instant Sync & Alerts", subtitle: "Receive immediate updates", is_checked: true, padding: 4 };
+    case "checkbox":
+      return { id, type, label: "I accept the Terms & Conditions", subtitle: "Required to proceed", is_checked: false, padding: 4 };
+    case "radio":
+      return { id, type, label: "Standard Delivery Tier", subtitle: "Arrives within 2-3 business days", is_selected: true, padding: 4 };
+    case "icon":
+      return { id, type, icon: "star", size: 28, color: primary, align: "center", padding: 4 };
+    case "divider":
+      return { id, type, thickness: 1, color: "#334155", padding: 6 };
+    case "spacer":
+    case "sized_box":
+      return { id, type: "spacer", height: 16, width: 16 };
+    case "column":
+    case "layout_column":
+      return {
+        id,
+        type: "column",
+        main_axis_alignment: "start",
+        cross_axis_alignment: "stretch",
+        children: [
+          { id: `${id}_t1`, type: "text", text: "Inside Vertical Column", font_size: 14, is_bold: true, align: "left" },
+          { id: `${id}_btn`, type: "button", text: "Nested Action", variant: "primary", action_id: "col_btn" }
+        ]
+      };
+    case "row":
+    case "layout_row":
+      return {
+        id,
+        type: "row",
+        main_axis_alignment: "spaceBetween",
+        cross_axis_alignment: "center",
+        children: [
+          { id: `${id}_t1`, type: "text", text: "Row Item", font_size: 14, is_bold: false, align: "left" },
+          { id: `${id}_chip`, type: "chip", label: "Status: Live", is_selected: true, icon: "check" }
+        ]
+      };
+    default:
+      return { id, type, text: `Default ${type}` };
   }
+}
+
+function addComponent(type) {
+  const newComp = createDefaultWidget(type);
   activeSchema.components.push(newComp);
   renderAll();
 }
+
+window.addChildToContainer = function(parentIdx, childType = 'text') {
+  const parent = activeSchema.components[parentIdx];
+  if (!parent.children) parent.children = [];
+  const childId = `${parent.id}_c${parent.children.length + 1}_${Date.now().toString(36)}`;
+  const child = createDefaultWidget(childType, childId);
+  parent.children.push(child);
+  renderAll();
+};
+
+window.removeChildFromContainer = function(parentIdx, childIdx) {
+  if (activeSchema.components[parentIdx]?.children) {
+    activeSchema.components[parentIdx].children.splice(childIdx, 1);
+    renderAll();
+  }
+};
+
+window.updateChildField = function(parentIdx, childIdx, key, val) {
+  if (activeSchema.components[parentIdx]?.children?.[childIdx]) {
+    activeSchema.components[parentIdx].children[childIdx][key] = val;
+    updateSimulator();
+    updateJsonEditor();
+  }
+};
 
 function removeComponent(index) {
   activeSchema.components.splice(index, 1);
@@ -451,6 +617,222 @@ primaryColorPicker.addEventListener("input", (e) => {
   updateJsonEditor();
 });
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderChildEditor(parentIdx, cIdx, child) {
+  const type = (child.type || "text").toLowerCase();
+  let propsHtml = "";
+
+  if (type === "text") {
+    propsHtml = `
+      <div class="nested-child-field" style="grid-column: 1 / -1;">
+        <label>Text Content</label>
+        <input type="text" value="${escapeHtml(child.text || "")}" placeholder="Enter text..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'text', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Font Size</label>
+        <input type="number" min="8" max="48" value="${child.font_size || 14}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'font_size', Number(this.value))">
+      </div>
+      <div class="nested-child-field">
+        <label>Align</label>
+        <select onchange="updateChildField(${parentIdx}, ${cIdx}, 'align', this.value)">
+          <option value="left" ${child.align === 'left' ? 'selected' : ''}>Left</option>
+          <option value="center" ${child.align === 'center' ? 'selected' : ''}>Center</option>
+          <option value="right" ${child.align === 'right' ? 'selected' : ''}>Right</option>
+        </select>
+      </div>
+      <div class="nested-child-field">
+        <label>Weight</label>
+        <select onchange="updateChildField(${parentIdx}, ${cIdx}, 'is_bold', this.value === 'true')">
+          <option value="false" ${!child.is_bold ? 'selected' : ''}>Normal</option>
+          <option value="true" ${child.is_bold ? 'selected' : ''}>Bold</option>
+        </select>
+      </div>
+    `;
+  } else if (type === "button") {
+    propsHtml = `
+      <div class="nested-child-field" style="grid-column: 1 / -1;">
+        <label>Button Text</label>
+        <input type="text" value="${escapeHtml(child.text || "")}" placeholder="Button title..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'text', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Variant</label>
+        <select onchange="updateChildField(${parentIdx}, ${cIdx}, 'variant', this.value)">
+          <option value="primary" ${child.variant === 'primary' ? 'selected' : ''}>Primary</option>
+          <option value="outline" ${child.variant === 'outline' ? 'selected' : ''}>Outline</option>
+          <option value="ghost" ${child.variant === 'ghost' ? 'selected' : ''}>Ghost</option>
+        </select>
+      </div>
+      <div class="nested-child-field">
+        <label>Action ID</label>
+        <input type="text" value="${escapeHtml(child.action_id || "")}" placeholder="action_name" oninput="updateChildField(${parentIdx}, ${cIdx}, 'action_id', this.value)">
+      </div>
+    `;
+  } else if (type === "image") {
+    propsHtml = `
+      <div class="nested-child-field" style="grid-column: 1 / -1;">
+        <label>Image URL</label>
+        <input type="text" value="${escapeHtml(child.image_url || "")}" placeholder="https://..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'image_url', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Height (px)</label>
+        <input type="number" min="20" max="300" value="${child.height || 80}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'height', Number(this.value))">
+      </div>
+      <div class="nested-child-field">
+        <label>Border Radius</label>
+        <input type="number" min="0" max="32" value="${child.border_radius || 8}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'border_radius', Number(this.value))">
+      </div>
+    `;
+  } else if (type === "textfield" || type === "input") {
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Label</label>
+        <input type="text" value="${escapeHtml(child.label || "")}" placeholder="Field label..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'label', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Hint / Placeholder</label>
+        <input type="text" value="${escapeHtml(child.hint || "")}" placeholder="Placeholder..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'hint', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Input Mode</label>
+        <select onchange="updateChildField(${parentIdx}, ${cIdx}, 'is_password', this.value === 'true')">
+          <option value="false" ${!child.is_password ? 'selected' : ''}>Text</option>
+          <option value="true" ${child.is_password ? 'selected' : ''}>Password</option>
+        </select>
+      </div>
+      <div class="nested-child-field">
+        <label>Lines</label>
+        <input type="number" min="1" max="8" value="${child.max_lines || 1}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'max_lines', Number(this.value))">
+      </div>
+    `;
+  } else if (type === "listtile") {
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Title</label>
+        <input type="text" value="${escapeHtml(child.title || child.label || "")}" placeholder="Title..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'title', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Subtitle</label>
+        <input type="text" value="${escapeHtml(child.subtitle || "")}" placeholder="Subtitle..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'subtitle', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Leading Icon</label>
+        <input type="text" value="${escapeHtml(child.leading_icon || "")}" placeholder="lock, star, check" oninput="updateChildField(${parentIdx}, ${cIdx}, 'leading_icon', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Trailing Text</label>
+        <input type="text" value="${escapeHtml(child.trailing_text || "")}" placeholder="ACTIVE, >" oninput="updateChildField(${parentIdx}, ${cIdx}, 'trailing_text', this.value)">
+      </div>
+    `;
+  } else if (type === "chip") {
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Label</label>
+        <input type="text" value="${escapeHtml(child.label || "")}" placeholder="Tag..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'label', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Icon</label>
+        <input type="text" value="${escapeHtml(child.icon || "")}" placeholder="check, star" oninput="updateChildField(${parentIdx}, ${cIdx}, 'icon', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Selected</label>
+        <select onchange="updateChildField(${parentIdx}, ${cIdx}, 'is_selected', this.value === 'true')">
+          <option value="true" ${child.is_selected ? 'selected' : ''}>Yes</option>
+          <option value="false" ${!child.is_selected ? 'selected' : ''}>No</option>
+        </select>
+      </div>
+    `;
+  } else if (type === "switch" || type === "checkbox" || type === "radio") {
+    const isRadio = type === "radio";
+    const isChecked = isRadio ? child.is_selected : child.is_checked;
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Label</label>
+        <input type="text" value="${escapeHtml(child.label || "")}" placeholder="Label..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'label', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Subtitle</label>
+        <input type="text" value="${escapeHtml(child.subtitle || "")}" placeholder="Subtitle..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'subtitle', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>State</label>
+        <select onchange="updateChildField(${parentIdx}, ${cIdx}, '${isRadio ? 'is_selected' : 'is_checked'}', this.value === 'true')">
+          <option value="true" ${isChecked ? 'selected' : ''}>Active / Checked</option>
+          <option value="false" ${!isChecked ? 'selected' : ''}>Inactive / Unchecked</option>
+        </select>
+      </div>
+    `;
+  } else if (type === "icon") {
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Icon Name</label>
+        <input type="text" value="${escapeHtml(child.icon || "star")}" placeholder="star, heart, check, bell, lock" oninput="updateChildField(${parentIdx}, ${cIdx}, 'icon', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Size (px)</label>
+        <input type="number" min="12" max="64" value="${child.size || 24}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'size', Number(this.value))">
+      </div>
+      <div class="nested-child-field">
+        <label>Color (Hex)</label>
+        <input type="text" value="${escapeHtml(child.color || "")}" placeholder="#4F46E5" oninput="updateChildField(${parentIdx}, ${cIdx}, 'color', this.value)">
+      </div>
+    `;
+  } else if (type === "divider") {
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Thickness (px)</label>
+        <input type="number" min="1" max="8" value="${child.thickness || 1}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'thickness', Number(this.value))">
+      </div>
+      <div class="nested-child-field">
+        <label>Spacing</label>
+        <input type="number" min="2" max="32" value="${child.padding || 4}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'padding', Number(this.value))">
+      </div>
+      <div class="nested-child-field">
+        <label>Color</label>
+        <input type="text" value="${escapeHtml(child.color || "#334155")}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'color', this.value)">
+      </div>
+    `;
+  } else if (type === "spacer" || type === "sized_box") {
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Height (px)</label>
+        <input type="number" min="2" max="150" value="${child.height || 16}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'height', Number(this.value))">
+      </div>
+      <div class="nested-child-field">
+        <label>Width (px)</label>
+        <input type="number" min="2" max="150" value="${child.width || 16}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'width', Number(this.value))">
+      </div>
+    `;
+  } else {
+    propsHtml = `
+      <div class="nested-child-field" style="grid-column: 1 / -1;">
+        <label>Value</label>
+        <input type="text" value="${escapeHtml(child.text || child.label || child.title || "")}" placeholder="Value..." oninput="updateChildField(${parentIdx}, ${cIdx}, '${child.label ? 'label' : (child.title ? 'title' : 'text')}', this.value)">
+      </div>
+    `;
+  }
+
+  return `
+    <div class="nested-child-item">
+      <div class="nested-child-item-header">
+        <span>#${cIdx + 1} <strong class="comp-tag">${type.toUpperCase()}</strong></span>
+        <button class="comp-delete-btn" title="Remove Child" onclick="removeChildFromContainer(${parentIdx}, ${cIdx})">✕</button>
+      </div>
+      <div class="nested-child-grid">
+        ${propsHtml}
+      </div>
+    </div>
+  `;
+}
+
 // Render Component List in Editor Panel
 function renderComponentEditors() {
   componentCardsContainer.innerHTML = "";
@@ -482,6 +864,16 @@ function renderComponentEditors() {
             <input type="text" value="${comp.metrics[0]?.value || ""}" oninput="updateMetricField(${idx}, 0, 'value', this.value)">
           </div>
         </div>
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Metric 2 Label</label>
+            <input type="text" value="${comp.metrics[1]?.label || ""}" oninput="updateMetricField(${idx}, 1, 'label', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Metric 2 Value</label>
+            <input type="text" value="${comp.metrics[1]?.value || ""}" oninput="updateMetricField(${idx}, 1, 'value', this.value)">
+          </div>
+        </div>
       `;
     } else if (comp.type === "card") {
       fieldsHtml = `
@@ -493,9 +885,15 @@ function renderComponentEditors() {
           <label>Description</label>
           <input type="text" value="${comp.description || ""}" oninput="updateCompField(${idx}, 'description', this.value)">
         </div>
-        <div class="field">
-          <label>Button Text</label>
-          <input type="text" value="${comp.action_text || ""}" oninput="updateCompField(${idx}, 'action_text', this.value)">
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Badge</label>
+            <input type="text" value="${comp.badge || ""}" oninput="updateCompField(${idx}, 'badge', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Action Text</label>
+            <input type="text" value="${comp.action_text || ""}" oninput="updateCompField(${idx}, 'action_text', this.value)">
+          </div>
         </div>
       `;
     } else if (comp.type === "button") {
@@ -503,6 +901,240 @@ function renderComponentEditors() {
         <div class="field">
           <label>Button Text</label>
           <input type="text" value="${comp.text || ""}" oninput="updateCompField(${idx}, 'text', this.value)">
+        </div>
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Variant</label>
+            <select onchange="updateCompField(${idx}, 'variant', this.value)">
+              <option value="primary" ${comp.variant === 'primary' ? 'selected' : ''}>Primary (Solid)</option>
+              <option value="outline" ${comp.variant === 'outline' ? 'selected' : ''}>Secondary (Outline)</option>
+              <option value="ghost" ${comp.variant === 'ghost' ? 'selected' : ''}>Ghost</option>
+            </select>
+          </div>
+          <div class="field flex-1">
+            <label>Action ID</label>
+            <input type="text" value="${comp.action_id || ""}" oninput="updateCompField(${idx}, 'action_id', this.value)">
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "text") {
+      fieldsHtml = `
+        <div class="field">
+          <label>Text Content</label>
+          <input type="text" value="${comp.text || ""}" oninput="updateCompField(${idx}, 'text', this.value)">
+        </div>
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Font Size (px)</label>
+            <input type="number" min="10" max="48" value="${comp.font_size || 16}" oninput="updateCompField(${idx}, 'font_size', Number(this.value))">
+          </div>
+          <div class="field flex-1">
+            <label>Alignment</label>
+            <select onchange="updateCompField(${idx}, 'align', this.value)">
+              <option value="left" ${comp.align === 'left' ? 'selected' : ''}>Left</option>
+              <option value="center" ${comp.align === 'center' ? 'selected' : ''}>Center</option>
+              <option value="right" ${comp.align === 'right' ? 'selected' : ''}>Right</option>
+            </select>
+          </div>
+          <div class="field flex-1">
+            <label>Bold</label>
+            <select onchange="updateCompField(${idx}, 'is_bold', this.value === 'true')">
+              <option value="false" ${!comp.is_bold ? 'selected' : ''}>Normal</option>
+              <option value="true" ${comp.is_bold ? 'selected' : ''}>Bold</option>
+            </select>
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "image") {
+      fieldsHtml = `
+        <div class="field">
+          <label>Image URL</label>
+          <input type="text" value="${comp.image_url || ""}" oninput="updateCompField(${idx}, 'image_url', this.value)">
+        </div>
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Height (px)</label>
+            <input type="number" min="40" max="400" value="${comp.height || 150}" oninput="updateCompField(${idx}, 'height', Number(this.value))">
+          </div>
+          <div class="field flex-1">
+            <label>Border Radius</label>
+            <input type="number" min="0" max="40" value="${comp.border_radius || 12}" oninput="updateCompField(${idx}, 'border_radius', Number(this.value))">
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "textfield" || comp.type === "input") {
+      fieldsHtml = `
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Label</label>
+            <input type="text" value="${escapeHtml(comp.label || "")}" oninput="updateCompField(${idx}, 'label', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Hint / Placeholder</label>
+            <input type="text" value="${escapeHtml(comp.hint || "")}" oninput="updateCompField(${idx}, 'hint', this.value)">
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Input Mode</label>
+            <select onchange="updateCompField(${idx}, 'is_password', this.value === 'true')">
+              <option value="false" ${!comp.is_password ? 'selected' : ''}>Text</option>
+              <option value="true" ${comp.is_password ? 'selected' : ''}>Password</option>
+            </select>
+          </div>
+          <div class="field flex-1">
+            <label>Max Lines (1 for single line)</label>
+            <input type="number" min="1" max="8" value="${comp.max_lines || 1}" oninput="updateCompField(${idx}, 'max_lines', Number(this.value))">
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "listtile") {
+      fieldsHtml = `
+        <div class="field">
+          <label>Title</label>
+          <input type="text" value="${comp.title || ""}" oninput="updateCompField(${idx}, 'title', this.value)">
+        </div>
+        <div class="field">
+          <label>Subtitle</label>
+          <input type="text" value="${comp.subtitle || ""}" oninput="updateCompField(${idx}, 'subtitle', this.value)">
+        </div>
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Leading Icon</label>
+            <input type="text" value="${comp.leading_icon || ""}" placeholder="lock, star, check" oninput="updateCompField(${idx}, 'leading_icon', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Trailing Badge / Text</label>
+            <input type="text" value="${comp.trailing_text || ""}" placeholder="ACTIVE" oninput="updateCompField(${idx}, 'trailing_text', this.value)">
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "chip") {
+      fieldsHtml = `
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Chip Text</label>
+            <input type="text" value="${comp.label || ""}" oninput="updateCompField(${idx}, 'label', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Icon Name</label>
+            <input type="text" value="${comp.icon || ""}" placeholder="check, star" oninput="updateCompField(${idx}, 'icon', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Selected</label>
+            <select onchange="updateCompField(${idx}, 'is_selected', this.value === 'true')">
+              <option value="true" ${comp.is_selected ? 'selected' : ''}>Yes</option>
+              <option value="false" ${!comp.is_selected ? 'selected' : ''}>No</option>
+            </select>
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "switch" || comp.type === "checkbox" || comp.type === "radio") {
+      const isRadio = comp.type === "radio";
+      const checkedVal = isRadio ? comp.is_selected : comp.is_checked;
+      fieldsHtml = `
+        <div class="field">
+          <label>Label</label>
+          <input type="text" value="${comp.label || ""}" oninput="updateCompField(${idx}, 'label', this.value)">
+        </div>
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Subtitle</label>
+            <input type="text" value="${comp.subtitle || ""}" oninput="updateCompField(${idx}, 'subtitle', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Checked State</label>
+            <select onchange="updateCompField(${idx}, '${isRadio ? 'is_selected' : 'is_checked'}', this.value === 'true')">
+              <option value="true" ${checkedVal ? 'selected' : ''}>Checked / Active</option>
+              <option value="false" ${!checkedVal ? 'selected' : ''}>Unchecked</option>
+            </select>
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "icon") {
+      fieldsHtml = `
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Icon Identifier</label>
+            <input type="text" value="${comp.icon || "star"}" placeholder="star, heart, check, settings" oninput="updateCompField(${idx}, 'icon', this.value)">
+          </div>
+          <div class="field flex-1">
+            <label>Size (px)</label>
+            <input type="number" min="12" max="64" value="${comp.size || 28}" oninput="updateCompField(${idx}, 'size', Number(this.value))">
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "divider") {
+      fieldsHtml = `
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Thickness (px)</label>
+            <input type="number" min="1" max="8" value="${comp.thickness || 1}" oninput="updateCompField(${idx}, 'thickness', Number(this.value))">
+          </div>
+          <div class="field flex-1">
+            <label>Vertical Spacing</label>
+            <input type="number" min="2" max="32" value="${comp.padding || 8}" oninput="updateCompField(${idx}, 'padding', Number(this.value))">
+          </div>
+        </div>
+      `;
+    } else if (comp.type === "spacer") {
+      fieldsHtml = `
+        <div class="field">
+          <label>Height (px)</label>
+          <input type="number" min="4" max="200" value="${comp.height || 20}" oninput="updateCompField(${idx}, 'height', Number(this.value))">
+        </div>
+      `;
+    } else if (comp.type === "column" || comp.type === "row" || comp.type === "layout_column" || comp.type === "layout_row") {
+      const isRow = comp.type === "row" || comp.type === "layout_row";
+      fieldsHtml = `
+        <div class="input-row" style="margin-bottom: 8px;">
+          <div class="field flex-1">
+            <label>Main Axis Alignment</label>
+            <select onchange="updateCompField(${idx}, 'main_axis_alignment', this.value)">
+              <option value="start" ${comp.main_axis_alignment === 'start' || (!comp.main_axis_alignment && !isRow) ? 'selected' : ''}>Start</option>
+              <option value="center" ${comp.main_axis_alignment === 'center' ? 'selected' : ''}>Center</option>
+              <option value="end" ${comp.main_axis_alignment === 'end' ? 'selected' : ''}>End</option>
+              <option value="spaceBetween" ${(!comp.main_axis_alignment && isRow) || comp.main_axis_alignment === 'spaceBetween' ? 'selected' : ''}>Space Between</option>
+              <option value="spaceAround" ${comp.main_axis_alignment === 'spaceAround' ? 'selected' : ''}>Space Around</option>
+              <option value="spaceEvenly" ${comp.main_axis_alignment === 'spaceEvenly' ? 'selected' : ''}>Space Evenly</option>
+            </select>
+          </div>
+          <div class="field flex-1">
+            <label>Cross Axis Alignment</label>
+            <select onchange="updateCompField(${idx}, 'cross_axis_alignment', this.value)">
+              <option value="center" ${comp.cross_axis_alignment === 'center' || (!comp.cross_axis_alignment && isRow) ? 'selected' : ''}>Center</option>
+              <option value="start" ${comp.cross_axis_alignment === 'start' ? 'selected' : ''}>Start</option>
+              <option value="end" ${comp.cross_axis_alignment === 'end' ? 'selected' : ''}>End</option>
+              <option value="stretch" ${comp.cross_axis_alignment === 'stretch' || (!comp.cross_axis_alignment && !isRow) ? 'selected' : ''}>Stretch</option>
+            </select>
+          </div>
+        </div>
+        <div class="nested-child-container">
+          <div class="nested-child-header">
+            <span>${isRow ? 'HORIZONTAL ROW' : 'VERTICAL COLUMN'} CHILDREN (${(comp.children || []).length})</span>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <select class="child-add-dropdown" onchange="if(this.value){ addChildToContainer(${idx}, this.value); this.value=''; }">
+                <option value="">+ Add Child Widget...</option>
+                <option value="text">Text (Typography)</option>
+                <option value="button">Button (Action)</option>
+                <option value="image">Image (Network)</option>
+                <option value="textfield">TextField (Input)</option>
+                <option value="listtile">ListTile (Tile Row)</option>
+                <option value="chip">Chip (Badge)</option>
+                <option value="switch">Switch (Toggle)</option>
+                <option value="checkbox">Checkbox (Check)</option>
+                <option value="radio">Radio (Option)</option>
+                <option value="icon">Icon (Symbol)</option>
+                <option value="divider">Divider (Line)</option>
+                <option value="spacer">Spacer (Spacing)</option>
+              </select>
+              <button class="btn btn-xs btn-outline" title="Quick Add Text" onclick="addChildToContainer(${idx}, 'text')">+ Text</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Icon" onclick="addChildToContainer(${idx}, 'icon')">+ Icon</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Button" onclick="addChildToContainer(${idx}, 'button')">+ Button</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Chip" onclick="addChildToContainer(${idx}, 'chip')">+ Chip</button>
+            </div>
+          </div>
+          ${(comp.children || []).map((child, cIdx) => renderChildEditor(idx, cIdx, child)).join("")}
         </div>
       `;
     }
@@ -554,6 +1186,111 @@ function isValidHexColor(val) {
   return (clean.length === 6 || clean.length === 8 || clean.length === 3) && /^[0-9A-Fa-f]+$/.test(clean);
 }
 
+const ALL_SUPPORTED_TYPES = [
+  "banner", "metric_row", "metrics", "card", "button",
+  "text", "image", "textfield", "input", "listtile", "chip",
+  "switch", "checkbox", "radio", "icon", "divider", "spacer", "sized_box",
+  "column", "layout_column", "row", "layout_row"
+];
+
+function renderSimChildHtml(comp) {
+  if (!comp) return "";
+  const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
+  const type = (comp.type || "").toLowerCase();
+
+  if (type === "text") {
+    return `<div class="sim-text" style="text-align:${comp.align || 'left'}; font-size:${comp.font_size || 14}px; font-weight:${comp.is_bold ? '700' : '400'}; color:${comp.color || '#fff'}; padding:${comp.padding !== undefined ? comp.padding : 2}px 0; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(comp.text || "")}</div>`;
+  }
+  if (type === "button") {
+    const isOutline = comp.variant === 'outline' || comp.variant === 'ghost';
+    const bg = isOutline ? 'transparent' : primaryColor;
+    const border = isOutline ? `1px solid ${primaryColor}` : 'none';
+    const textColor = isOutline ? primaryColor : '#fff';
+    return `<button class="sim-btn-primary" onclick="handleSimulatorAction('${comp.action_id || 'btn_action'}')" style="background:${bg}; border:${border}; color:${textColor}; padding:6px 14px; font-size:12px; height:auto; width:auto; border-radius:6px; cursor:pointer;">${escapeHtml(comp.text || 'Action')}</button>`;
+  }
+  if (type === "image") {
+    const imgUrl = comp.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80";
+    return `<div class="sim-image" style="padding:${comp.padding !== undefined ? comp.padding : 2}px 0;"><img src="${escapeHtml(imgUrl)}" style="height:${comp.height || 80}px; border-radius:${comp.border_radius || 6}px; max-width:100%; object-fit:cover;" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';" /></div>`;
+  }
+  if (type === "textfield" || type === "input") {
+    const isMultiLine = Number(comp.max_lines) > 1;
+    return `
+      <div class="sim-textfield" style="padding:${comp.padding !== undefined ? comp.padding : 2}px 0; width:100%;">
+        ${comp.label ? `<label style="font-size:10px; color:#94A3B8; margin-bottom:2px; display:block;">${escapeHtml(comp.label)}</label>` : ""}
+        ${isMultiLine ? `
+          <textarea id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" rows="${comp.max_lines || 3}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:#0B1120; border:1px solid #334155; color:#fff; resize:vertical; font-family:inherit;"></textarea>
+        ` : `
+          <input type="${comp.is_password ? 'password' : 'text'}" id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:#0B1120; border:1px solid #334155; color:#fff;" />
+        `}
+      </div>
+    `;
+  }
+  if (type === "listtile") {
+    const iconSym = comp.leading_icon === 'lock' ? '🔒' : (comp.leading_icon === 'star' ? '⭐' : (comp.leading_icon === 'check' ? '✓' : (comp.leading_icon === 'bell' ? '🔔' : '🔹')));
+    return `
+      <div class="sim-listtile" style="padding:6px 8px; width:100%; margin:2px 0;">
+        <div class="sim-listtile-leading" style="font-size:16px;">${iconSym}</div>
+        <div class="sim-listtile-content">
+          <div class="sim-listtile-title" style="font-size:12px;">${escapeHtml(comp.title || comp.label || "List Item")}</div>
+          ${comp.subtitle ? `<div class="sim-listtile-sub" style="font-size:10px;">${escapeHtml(comp.subtitle)}</div>` : ""}
+        </div>
+        <div class="sim-listtile-trailing" style="font-size:11px; color:${primaryColor};">${escapeHtml(comp.trailing_text || '›')}</div>
+      </div>
+    `;
+  }
+  if (type === "chip") {
+    return `<div class="sim-chip ${comp.is_selected ? 'selected' : ''}" style="${comp.is_selected ? `background:${primaryColor};` : ''} font-size:11px; padding:4px 10px;">${comp.icon ? `<span>${comp.icon === 'check' ? '✓' : (comp.icon === 'star' ? '★' : '♥')}</span>` : ''}<span>${escapeHtml(comp.label || 'Chip Tag')}</span></div>`;
+  }
+  if (type === "switch") {
+    return `
+      <div class="sim-toggle-row" style="padding:4px 8px; width:100%;">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Switch Option")}</div>
+          ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
+        </div>
+        <div class="sim-switch-pill ${comp.is_checked ? 'active' : ''}" style="${comp.is_checked ? `background:${primaryColor}` : ''}"></div>
+      </div>
+    `;
+  }
+  if (type === "checkbox") {
+    return `
+      <div class="sim-check-row" style="padding:4px 8px; width:100%;">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Checkbox")}</div>
+          ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
+        </div>
+        <div style="width:18px;height:18px;border-radius:4px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:bold;">
+          ${comp.is_checked ? '✓' : ''}
+        </div>
+      </div>
+    `;
+  }
+  if (type === "radio") {
+    return `
+      <div class="sim-radio-row" style="padding:4px 8px; width:100%;">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Radio")}</div>
+          ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
+        </div>
+        <div style="width:18px;height:18px;border-radius:50%;border:2px solid ${comp.is_selected ? primaryColor : '#475569'};display:flex;align-items:center;justify-content:center;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${comp.is_selected ? primaryColor : 'transparent'};"></div>
+        </div>
+      </div>
+    `;
+  }
+  if (type === "icon") {
+    const iconSym = comp.icon === 'star' ? '★' : (comp.icon === 'heart' ? '♥' : (comp.icon === 'check' ? '✓' : (comp.icon === 'lock' ? '🔒' : (comp.icon === 'bell' ? '🔔' : (comp.icon === 'settings' ? '⚙' : '✦')))));
+    return `<span style="font-size:${comp.size || 22}px;color:${comp.color || primaryColor};display:inline-flex;align-items:center;justify-content:center;padding:${comp.padding !== undefined ? comp.padding : 2}px;">${iconSym}</span>`;
+  }
+  if (type === "divider") {
+    return `<div style="width:100%;border-top:${comp.thickness || 1}px solid ${comp.color || '#334155'};margin:${comp.padding || 4}px 0;"></div>`;
+  }
+  if (type === "spacer" || type === "sized_box") {
+    return `<div style="height:${comp.height || 12}px;width:${comp.width || 12}px;flex-shrink:0;"></div>`;
+  }
+  return `<span style="font-size:11px;color:#94A3B8;padding:2px 4px;background:#1E293B;border-radius:4px;">[${comp.type}]</span>`;
+}
+
 function updateSimulator() {
   simTitle.innerText = activeSchema.header?.title || "Untitled";
   simSubtitle.innerText = activeSchema.header?.subtitle || "";
@@ -575,7 +1312,7 @@ function updateSimulator() {
       (c.action_id && String(c.action_id).startsWith("javascript:")) ||
       (c.type === "metric_row" && !Array.isArray(c.metrics)) ||
       (c.color && !isValidHexColor(c.color)) ||
-      !["banner", "metric_row", "metrics", "card", "button"].includes(c.type)
+      !ALL_SUPPORTED_TYPES.includes(c.type)
     );
   }) || (activeSchema.theme?.primary_color && !isValidHexColor(activeSchema.theme.primary_color));
 
@@ -682,7 +1419,7 @@ function updateSimulator() {
       return;
     }
 
-    if (!isSimGuardedMode && !["banner", "metric_row", "metrics", "card", "button"].includes(comp.type)) {
+    if (!isSimGuardedMode && !ALL_SUPPORTED_TYPES.includes(comp.type)) {
       el.className = "sim-crash-box";
       el.innerHTML = `
         <div class="sim-crash-header">⚠ HALLUCINATED TAG</div>
@@ -735,10 +1472,132 @@ function updateSimulator() {
     } else if (comp.type === "button") {
       const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
       el.innerHTML = `
-        <button class="sim-btn-primary" style="background: ${primaryColor}">
+        <button class="sim-btn-primary" onclick="handleSimulatorAction('${comp.action_id || 'btn_action'}')" style="background: ${primaryColor}">
           ${comp.text || "Click Here"}
         </button>
       `;
+    } else if (comp.type === "text") {
+      el.className = "sim-text";
+      el.style.textAlign = comp.align || "left";
+      el.style.fontSize = `${comp.font_size || 15}px`;
+      el.style.fontWeight = comp.is_bold ? "700" : "400";
+      el.style.color = comp.color || "#FFFFFF";
+      el.style.padding = `${comp.padding || 4}px 0`;
+      el.innerText = comp.text || comp.title || "Dynamic Text";
+    } else if (comp.type === "image") {
+      el.className = "sim-image";
+      el.style.padding = `${comp.padding || 6}px 0`;
+      const imgUrl = comp.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80";
+      el.innerHTML = `<img src="${imgUrl}" style="height:${comp.height || 150}px; border-radius:${comp.border_radius || 12}px;" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';" />`;
+    } else if (comp.type === "textfield" || comp.type === "input") {
+      el.className = "sim-textfield";
+      const isMultiLine = Number(comp.max_lines) > 1;
+      el.innerHTML = `
+        ${comp.label ? `<label>${escapeHtml(comp.label)}</label>` : ""}
+        ${isMultiLine ? `
+          <textarea id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter value...')}" rows="${comp.max_lines || 3}" style="width:100%; font-size:13px; padding:10px 12px; border-radius:10px; background:#0F172A; border:1px solid #334155; color:#fff; resize:vertical; font-family:inherit;"></textarea>
+        ` : `
+          <input type="${comp.is_password ? 'password' : 'text'}" id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter value...')}" />
+        `}
+      `;
+    } else if (comp.type === "listtile") {
+      el.className = "sim-listtile";
+      const iconSym = comp.leading_icon === 'lock' ? '🔒' : (comp.leading_icon === 'star' ? '⭐' : (comp.leading_icon === 'check' ? '✓' : '🔹'));
+      el.innerHTML = `
+        <div class="sim-listtile-leading">${iconSym}</div>
+        <div class="sim-listtile-content">
+          <div class="sim-listtile-title">${comp.title || comp.label || "List Item"}</div>
+          ${comp.subtitle ? `<div class="sim-listtile-sub">${comp.subtitle}</div>` : ""}
+        </div>
+        <div class="sim-listtile-trailing">${comp.trailing_text || '›'}</div>
+      `;
+    } else if (comp.type === "chip") {
+      el.className = `sim-chip ${comp.is_selected ? 'selected' : ''}`;
+      if (comp.is_selected) el.style.background = activeSchema.theme?.primary_color || "#4F46E5";
+      el.innerHTML = `
+        ${comp.icon ? `<span>${comp.icon === 'check' ? '✓' : '★'}</span>` : ""}
+        <span>${comp.label || "Chip Tag"}</span>
+      `;
+    } else if (comp.type === "switch") {
+      el.className = "sim-toggle-row";
+      el.innerHTML = `
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Switch Toggle"}</div>
+          ${comp.subtitle ? `<div style="font-size:11px;color:#94A3B8;">${comp.subtitle}</div>` : ""}
+        </div>
+        <div class="sim-switch-pill ${comp.is_checked ? 'active' : ''}" style="${comp.is_checked ? `background:${activeSchema.theme?.primary_color || '#4F46E5'}` : ''}"></div>
+      `;
+    } else if (comp.type === "checkbox") {
+      el.className = "sim-check-row";
+      const primaryColor = activeSchema.theme?.primary_color || "#4F46E5";
+      el.innerHTML = `
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Checkbox Option"}</div>
+          ${comp.subtitle ? `<div style="font-size:11px;color:#94A3B8;">${comp.subtitle}</div>` : ""}
+        </div>
+        <div style="width:20px;height:20px;border-radius:5px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold;">
+          ${comp.is_checked ? '✓' : ''}
+        </div>
+      `;
+    } else if (comp.type === "radio") {
+      el.className = "sim-radio-row";
+      const primaryColor = activeSchema.theme?.primary_color || "#4F46E5";
+      el.innerHTML = `
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Radio Option"}</div>
+          ${comp.subtitle ? `<div style="font-size:11px;color:#94A3B8;">${comp.subtitle}</div>` : ""}
+        </div>
+        <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${comp.is_selected ? primaryColor : '#475569'};display:flex;align-items:center;justify-content:center;">
+          <div style="width:9px;height:9px;border-radius:50%;background:${comp.is_selected ? primaryColor : 'transparent'};"></div>
+        </div>
+      `;
+    } else if (comp.type === "icon") {
+      const iconSym = comp.icon === 'star' ? '★' : (comp.icon === 'heart' ? '♥' : (comp.icon === 'check' ? '✓' : '⚙'));
+      el.style.textAlign = comp.align || "center";
+      el.style.padding = `${comp.padding || 4}px 0`;
+      el.innerHTML = `<span style="font-size:${comp.size || 28}px;color:${comp.color || activeSchema.theme?.primary_color || '#4F46E5'};">${iconSym}</span>`;
+    } else if (comp.type === "divider") {
+      el.className = "sim-divider";
+      el.style.borderTop = `${comp.thickness || 1}px solid ${comp.color || '#334155'}`;
+      el.style.margin = `${comp.padding || 8}px 0`;
+    } else if (comp.type === "spacer" || comp.type === "sized_box") {
+      el.style.height = `${comp.height || 20}px`;
+    } else if (comp.type === "column" || comp.type === "layout_column") {
+      el.className = "sim-column";
+      const mainAlignMap = {
+        start: 'flex-start', center: 'center', end: 'flex-end',
+        spacebetween: 'space-between', space_between: 'space-between',
+        spacearound: 'space-around', space_around: 'space-around',
+        spaceevenly: 'space-evenly', space_evenly: 'space-evenly'
+      };
+      const crossAlignMap = {
+        start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch'
+      };
+      if (comp.main_axis_alignment) {
+        el.style.justifyContent = mainAlignMap[String(comp.main_axis_alignment).toLowerCase()] || 'flex-start';
+      }
+      if (comp.cross_axis_alignment) {
+        el.style.alignItems = crossAlignMap[String(comp.cross_axis_alignment).toLowerCase()] || 'stretch';
+      }
+      el.innerHTML = (comp.children || []).map(renderSimChildHtml).join("");
+    } else if (comp.type === "row" || comp.type === "layout_row") {
+      el.className = "sim-row";
+      const mainAlignMap = {
+        start: 'flex-start', center: 'center', end: 'flex-end',
+        spacebetween: 'space-between', space_between: 'space-between',
+        spacearound: 'space-around', space_around: 'space-around',
+        spaceevenly: 'space-evenly', space_evenly: 'space-evenly'
+      };
+      const crossAlignMap = {
+        start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch'
+      };
+      if (comp.main_axis_alignment) {
+        el.style.justifyContent = mainAlignMap[String(comp.main_axis_alignment).toLowerCase()] || 'space-between';
+      }
+      if (comp.cross_axis_alignment) {
+        el.style.alignItems = crossAlignMap[String(comp.cross_axis_alignment).toLowerCase()] || 'center';
+      }
+      el.innerHTML = (comp.children || []).map(renderSimChildHtml).join("");
     } else {
       el.className = "sim-fallback-box";
       el.innerHTML = `🛡 Guarded Fallback: [${comp.type || "unknown"}] (Safe)`;
@@ -879,7 +1738,13 @@ document.getElementById("btnGenerateAiSchema").addEventListener("click", () => {
   setTimeout(() => {
     let generatedPreset = PRESETS.crypto;
     const lower = prompt.toLowerCase();
-    if (lower.includes("sale") || lower.includes("ecom") || lower.includes("discount") || lower.includes("shop")) {
+    if (lower.includes("login") || lower.includes("signin") || lower.includes("sign in") || lower.includes("auth")) {
+      generatedPreset = PRESETS.login;
+    } else if (lower.includes("register") || lower.includes("signup") || lower.includes("sign up") || lower.includes("create account") || lower.includes("join")) {
+      generatedPreset = PRESETS.register;
+    } else if (lower.includes("feedback") || lower.includes("review") || lower.includes("rating") || lower.includes("survey") || lower.includes("comment")) {
+      generatedPreset = PRESETS.feedback;
+    } else if (lower.includes("sale") || lower.includes("ecom") || lower.includes("discount") || lower.includes("shop")) {
       generatedPreset = PRESETS.ecommerce;
     } else if (lower.includes("bank") || lower.includes("wealth") || lower.includes("wire") || lower.includes("tax")) {
       generatedPreset = PRESETS.fintech;
@@ -1280,11 +2145,71 @@ function connectSseStream() {
   }, 3000);
 }
 
-function showToast(msg) {
+function showToast(msg, isError = false) {
   appToast.innerText = msg;
+  appToast.style.background = isError ? "#EF4444" : "#10B981";
+  appToast.style.boxShadow = isError ? "0 8px 24px rgba(239, 68, 68, 0.4)" : "0 8px 24px rgba(16, 185, 129, 0.4)";
   appToast.classList.add("show");
-  setTimeout(() => appToast.classList.remove("show"), 2800);
+  setTimeout(() => appToast.classList.remove("show"), 3200);
 }
+
+window.handleSimulatorAction = function(actionId) {
+  const actionLower = String(actionId || "").toLowerCase();
+  const isFormSubmit = actionLower.includes("login") ||
+      actionLower.includes("submit") ||
+      actionLower.includes("signin") ||
+      actionLower.includes("register") ||
+      actionLower.includes("signup") ||
+      actionLower.includes("feedback") ||
+      actionLower.includes("review") ||
+      actionLower.includes("auth");
+
+  if (isFormSubmit) {
+    const inputs = document.querySelectorAll("#simComponentsList input, #simComponentsList textarea");
+    if (inputs.length === 0) {
+      showToast(`Triggered Action: "${actionId}"`);
+      return;
+    }
+
+    const values = {};
+    let emptyLabel = null;
+
+    inputs.forEach(input => {
+      if (input.type === "checkbox") {
+        const label = input.getAttribute("data-label") || "Agreement";
+        values[label] = input.checked ? "Yes" : "No";
+      } else {
+        const label = input.getAttribute("data-label") || input.placeholder || "Field";
+        const val = input.value.trim();
+        values[label] = val;
+        if (!val && !emptyLabel) {
+          emptyLabel = label;
+        }
+      }
+    });
+
+    if (emptyLabel) {
+      showToast(`⚠️ Validation Error: "${emptyLabel}" cannot be empty!`, true);
+      return;
+    }
+
+    // Check terms for register action if present
+    if (actionLower.includes("register") || actionLower.includes("signup")) {
+      const termsBox = document.querySelector("#simComponentsList input[type='checkbox']");
+      if (termsBox && !termsBox.checked) {
+        showToast("⚠️ Validation Error: Please accept the Terms & Conditions!", true);
+        return;
+      }
+    }
+
+    const summary = Object.entries(values)
+      .map(([k, v]) => `${k}: ${k.toLowerCase().includes('pass') ? '••••••••' : v}`)
+      .join(", ");
+    showToast(`✅ Validation Passed! ${summary}`);
+  } else {
+    showToast(`Triggered Action: "${actionId}"`);
+  }
+};
 
 // Reset Default
 btnResetDefault.addEventListener("click", () => {

@@ -328,12 +328,127 @@ class _DynamicScreenState extends State<DynamicScreen> {
                         theme: theme,
                         isGuarded: _isGuardedMode,
                         onAction: (actionId) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Triggered Action: "$actionId"'),
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
+                          final actionLower = actionId.toLowerCase();
+                          final isFormSubmit = actionLower.contains('login') ||
+                              actionLower.contains('submit') ||
+                              actionLower.contains('signin') ||
+                              actionLower.contains('register') ||
+                              actionLower.contains('signup') ||
+                              actionLower.contains('feedback') ||
+                              actionLower.contains('review') ||
+                              actionLower.contains('auth');
+
+                          if (isFormSubmit) {
+                            final errors = GenUiFormRegistry.instance.validateNonEmpty();
+                            if (errors.isNotEmpty) {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Validation Error: ${errors.join(", ")}',
+                                          style: const TextStyle(fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                  duration: const Duration(seconds: 3),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Validate required terms agreement if registration
+                            if (actionLower.contains('register') || actionLower.contains('signup')) {
+                              final allValues = GenUiFormRegistry.instance.getValues();
+                              final termsAccepted = allValues.entries.any((e) =>
+                                  (e.key.toLowerCase().contains('terms') ||
+                                   GenUiFormRegistry.instance.getFieldLabel(e.key).toLowerCase().contains('terms')) &&
+                                  e.value == true);
+                              final hasTermsField = allValues.keys.any((k) =>
+                                  k.toLowerCase().contains('terms') ||
+                                  GenUiFormRegistry.instance.getFieldLabel(k).toLowerCase().contains('terms'));
+                              if (hasTermsField && !termsAccepted) {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Please accept the Terms & Conditions to register.',
+                                            style: TextStyle(fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: const Color(0xFFEF4444),
+                                    duration: const Duration(seconds: 3),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                );
+                                return;
+                              }
+                            }
+
+                            final values = GenUiFormRegistry.instance.getValues();
+                            final summary = values.entries.map((e) {
+                              final label = GenUiFormRegistry.instance.getFieldLabel(e.key);
+                              final val = e.key.toLowerCase().contains('pass')
+                                  ? '••••••••'
+                                  : (e.value is bool ? (e.value ? 'Yes' : 'No') : e.value);
+                              return '$label: "$val"';
+                            }).join(', ');
+
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Form Validation Passed!',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      summary.isEmpty ? 'Action: $actionId' : summary,
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0)),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: const Color(0xFF10B981),
+                                duration: const Duration(seconds: 4),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Triggered Action: "$actionId"'),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          }
                         },
                         onError: (compId, err) {
                           if (!_isolatedErrors.contains(compId)) {

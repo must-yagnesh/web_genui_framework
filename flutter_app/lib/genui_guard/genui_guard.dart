@@ -13,3 +13,4 @@ export 'widgets/safe_card.dart';
 export 'widgets/safe_metric.dart';
 export 'widgets/safe_button.dart';
 export 'sync/sync_client.dart';
+export 'state/form_registry.dart';

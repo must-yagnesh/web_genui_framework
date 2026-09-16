@@ -6,6 +6,7 @@ import '../widgets/safe_card.dart';
 import '../widgets/safe_metric.dart';
 import '../widgets/safe_button.dart';
 import '../widgets/fallback_widget.dart';
+import '../widgets/safe_primitives.dart';
 import '../validator/schema_validator.dart';
 
 /// Whitelisted Registry of safe Flutter widgets mapped to declarative schema tags
@@ -16,6 +17,23 @@ class SafeWidgetRegistry {
     'metrics',
     'card',
     'button',
+    'text',
+    'image',
+    'textfield',
+    'input',
+    'listtile',
+    'chip',
+    'switch',
+    'checkbox',
+    'radio',
+    'icon',
+    'divider',
+    'spacer',
+    'sized_box',
+    'column',
+    'layout_column',
+    'row',
+    'layout_row',
   };
 
   /// Build a widget safely with ErrorBoundary and Whitelist protection
@@ -54,6 +72,41 @@ class SafeWidgetRegistry {
             return SafeGenUiCard(node: node, theme: theme, onAction: onAction);
           case 'button':
             return SafeGenUiButton(node: node, theme: theme, onAction: onAction);
+          case 'text':
+            return SafeGenUiText(node: node, theme: theme);
+          case 'image':
+            return SafeGenUiImage(node: node, theme: theme);
+          case 'textfield':
+          case 'input':
+            return SafeGenUiTextField(node: node, theme: theme);
+          case 'listtile':
+            return SafeGenUiListTile(node: node, theme: theme, onAction: onAction);
+          case 'chip':
+            return SafeGenUiChip(node: node, theme: theme, onAction: onAction);
+          case 'switch':
+            return SafeGenUiSwitch(node: node, theme: theme);
+          case 'checkbox':
+            return SafeGenUiCheckbox(node: node, theme: theme);
+          case 'radio':
+            return SafeGenUiRadio(node: node, theme: theme);
+          case 'icon':
+            return SafeGenUiIcon(node: node, theme: theme);
+          case 'divider':
+            return SafeGenUiDivider(node: node, theme: theme);
+          case 'spacer':
+          case 'sized_box':
+            return SafeGenUiSpacer(node: node);
+          case 'column':
+          case 'layout_column':
+          case 'row':
+          case 'layout_row':
+            return SafeGenUiLayoutContainer(
+              node: node,
+              theme: theme,
+              isGuarded: true,
+              onAction: onAction,
+              onError: onError,
+            );
           default:
             return GenUiFallbackWidget(
               componentId: node.id,
@@ -150,6 +203,44 @@ class SafeWidgetRegistry {
         );
       }
       return SafeGenUiButton(node: node, theme: theme, onAction: onAction);
+    } else if (node.type == 'text') {
+      return SafeGenUiText(node: node, theme: theme);
+    } else if (node.type == 'image') {
+      return SafeGenUiImage(node: node, theme: theme);
+    } else if (node.type == 'textfield' || node.type == 'input') {
+      return SafeGenUiTextField(node: node, theme: theme);
+    } else if (node.type == 'listtile') {
+      return SafeGenUiListTile(node: node, theme: theme, onAction: onAction);
+    } else if (node.type == 'chip') {
+      return SafeGenUiChip(node: node, theme: theme, onAction: onAction);
+    } else if (node.type == 'switch') {
+      return SafeGenUiSwitch(node: node, theme: theme);
+    } else if (node.type == 'checkbox') {
+      return SafeGenUiCheckbox(node: node, theme: theme);
+    } else if (node.type == 'radio') {
+      return SafeGenUiRadio(node: node, theme: theme);
+    } else if (node.type == 'icon') {
+      return SafeGenUiIcon(node: node, theme: theme);
+    } else if (node.type == 'divider') {
+      return SafeGenUiDivider(node: node, theme: theme);
+    } else if (node.type == 'spacer' || node.type == 'sized_box') {
+      final h = node.properties['height'];
+      if (h is num && h < 0) {
+        return _buildNaiveCrashWidget(
+          errorType: 'AssertionError: height >= 0.0 is not true',
+          summary: 'Failed assertion: "height >= 0.0": is not true ($h).',
+          details: 'SizedBox height cannot be negative in Flutter layout constraint engine.',
+          impact: 'Fatal framework assertion failure • Immediate red screen.',
+        );
+      }
+      return SafeGenUiSpacer(node: node);
+    } else if (node.type == 'column' || node.type == 'layout_column' || node.type == 'row' || node.type == 'layout_row') {
+      return SafeGenUiLayoutContainer(
+        node: node,
+        theme: theme,
+        isGuarded: false,
+        onAction: onAction,
+      );
     } else {
       return _buildNaiveCrashWidget(
         errorType: 'UnsupportedError: Hallucinated Tag',

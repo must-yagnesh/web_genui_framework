@@ -145,21 +145,38 @@ class GenUiSchemaValidator {
     props.remove('children');
 
     // Strings & Text Overflow Protection
-    for (final textKey in ['title', 'message', 'description', 'text', 'badge']) {
+    for (final textKey in ['title', 'message', 'description', 'text', 'badge', 'hint', 'placeholder', 'label', 'subtitle', 'trailing_text', 'icon', 'leading_icon', 'trailing_icon', 'align']) {
       if (props.containsKey(textKey) && props[textKey] != null) {
         props[textKey] = _sanitizeString(props[textKey], warnings, textKey);
       }
     }
 
     // Dimension & Layout Protection (Prevent RenderFlex overflows and negative assertion errors)
-    for (final dimKey in ['height', 'width', 'padding', 'elevation']) {
+    for (final dimKey in ['height', 'width', 'padding', 'elevation', 'font_size', 'border_radius', 'thickness', 'size']) {
       if (props.containsKey(dimKey)) {
-        props[dimKey] = _coercePositiveDouble(props[dimKey], dimKey == 'padding' ? 16.0 : 0.0, warnings, dimKey);
+        double fallbackVal = 0.0;
+        if (dimKey == 'padding') fallbackVal = 16.0;
+        if (dimKey == 'font_size') fallbackVal = 15.0;
+        if (dimKey == 'thickness') fallbackVal = 1.0;
+        if (dimKey == 'size') fallbackVal = 24.0;
+        props[dimKey] = _coercePositiveDouble(props[dimKey], fallbackVal, warnings, dimKey);
       }
     }
 
-    if (props.containsKey('is_positive')) {
-      props['is_positive'] = _coerceBool(props['is_positive'], true);
+    // Boolean flags coercion
+    for (final boolKey in ['is_positive', 'is_checked', 'is_selected', 'is_bold', 'is_password', 'show_back_button']) {
+      if (props.containsKey(boolKey)) {
+        props[boolKey] = _coerceBool(props[boolKey], boolKey == 'is_positive');
+      }
+    }
+
+    // Image URL Security Protection
+    if (props.containsKey('image_url') && props['image_url'] != null) {
+      final rawUrl = props['image_url'].toString();
+      if (rawUrl.startsWith('javascript:')) {
+        props['image_url'] = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';
+        warnings.add('[Security Shield] Malicious image_url protocol blocked.');
+      }
     }
 
     // Action Security Protection
