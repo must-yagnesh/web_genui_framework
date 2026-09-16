@@ -1,0 +1,2962 @@
+[
+  {
+    "id": "TC-01",
+    "category": "type_mismatch",
+    "description": "String supplied where numeric padding double expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_01",
+      "components": [
+        {
+          "id": "c1",
+          "type": "banner",
+          "title": "Type Error Test",
+          "padding": "sixteen_pixels"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-02",
+    "category": "type_mismatch",
+    "description": "String supplied where boolean is_positive expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_02",
+      "components": [
+        {
+          "id": "c2",
+          "type": "metric_row",
+          "metrics": [
+            {
+              "label": "Revenue",
+              "value": "$1,000",
+              "change": "+5%",
+              "is_positive": "maybe_true"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-03",
+    "category": "type_mismatch",
+    "description": "String supplied where array of metrics expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_03",
+      "components": [
+        {
+          "id": "c3",
+          "type": "metric_row",
+          "metrics": "invalid_string_instead_of_list"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-04",
+    "category": "type_mismatch",
+    "description": "Integer supplied where string title expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_04",
+      "components": [
+        {
+          "id": "c4",
+          "type": "card",
+          "title": 999999,
+          "description": 12345
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-05",
+    "category": "type_mismatch",
+    "description": "Null supplied for required list of components",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_05",
+      "components": null
+    }
+  },
+  {
+    "id": "TC-06",
+    "category": "type_mismatch",
+    "description": "Object supplied where list of children expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_06",
+      "components": [
+        {
+          "id": "c6",
+          "type": "banner",
+          "children": {
+            "child_1": "corrupted"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-07",
+    "category": "type_mismatch",
+    "description": "Floating point string with currency symbol in numeric elevation",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_07",
+      "components": [
+        {
+          "id": "c7",
+          "type": "button",
+          "text": "Click",
+          "elevation": "$4.50"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-08",
+    "category": "type_mismatch",
+    "description": "Boolean true supplied where string title expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_08",
+      "components": [
+        {
+          "id": "c8",
+          "type": "card",
+          "title": true,
+          "action_text": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-09",
+    "category": "type_mismatch",
+    "description": "Negative integer string where double radius expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_09",
+      "components": [
+        {
+          "id": "c9",
+          "type": "banner",
+          "title": "Negative Radius",
+          "border_radius": "-24.0px"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-10",
+    "category": "type_mismatch",
+    "description": "Array supplied where object theme expected",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_10",
+      "theme": [
+        "#4F46E5",
+        "#0F172A"
+      ],
+      "components": []
+    }
+  },
+  {
+    "id": "TC-11",
+    "category": "layout_trap",
+    "description": "Unbounded layout spacer inside unconstrained column",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_11",
+      "components": [
+        {
+          "id": "c11",
+          "type": "layout_column",
+          "children": [
+            {
+              "type": "unbounded_spacer"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-12",
+    "category": "layout_trap",
+    "description": "Extreme flex factor causing render overflow",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_12",
+      "components": [
+        {
+          "id": "c12",
+          "type": "banner",
+          "title": "Flex Trap",
+          "flex": 99999999
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-13",
+    "category": "layout_trap",
+    "description": "Zero width with non-zero fixed padding",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_13",
+      "components": [
+        {
+          "id": "c13",
+          "type": "card",
+          "width": 0.0,
+          "padding": 40.0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-14",
+    "category": "layout_trap",
+    "description": "NaN string supplied for component height",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_14",
+      "components": [
+        {
+          "id": "c14",
+          "type": "button",
+          "height": "NaN"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-15",
+    "category": "layout_trap",
+    "description": "Infinity supplied for container width",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_15",
+      "components": [
+        {
+          "id": "c15",
+          "type": "card",
+          "width": "Infinity"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-16",
+    "category": "layout_trap",
+    "description": "Negative margin causing viewport clipping",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_16",
+      "components": [
+        {
+          "id": "c16",
+          "type": "banner",
+          "margin": -500.0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-17",
+    "category": "layout_trap",
+    "description": "Nested horizontal scrolling rows inside horizontal parent",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_17",
+      "components": [
+        {
+          "id": "c17",
+          "type": "horizontal_row",
+          "children": [
+            {
+              "type": "horizontal_row"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-18",
+    "category": "layout_trap",
+    "description": "Unbounded text block without word wrap or overflow policy",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_18",
+      "components": [
+        {
+          "id": "c18",
+          "type": "banner",
+          "title": "SuperLongUnbrokenStringWithoutAnySpacesToInduceOverflowExceptionsInStandardLayoutEngines1234567890"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-19",
+    "category": "layout_trap",
+    "description": "Zero height container with required children",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_19",
+      "components": [
+        {
+          "id": "c19",
+          "type": "card",
+          "height": 0.0,
+          "children": [
+            {
+              "type": "button",
+              "text": "Hidden"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-20",
+    "category": "layout_trap",
+    "description": "Corrupted aspect ratio ratio string",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_20",
+      "components": [
+        {
+          "id": "c20",
+          "type": "card",
+          "aspect_ratio": "0/0"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-21",
+    "category": "malformed_styling",
+    "description": "Invalid hex color string containing non-hex characters",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_21",
+      "theme": {
+        "primary_color": "#ZZ9900X"
+      },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-22",
+    "category": "malformed_styling",
+    "description": "Short incomplete hex color string (#1)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_22",
+      "components": [
+        {
+          "id": "c22",
+          "type": "banner",
+          "color": "#1"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-23",
+    "category": "malformed_styling",
+    "description": "CSS rgb() function string instead of hex",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_23",
+      "components": [
+        {
+          "id": "c23",
+          "type": "banner",
+          "color": "rgb(255, 0, 0, 999)"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-24",
+    "category": "malformed_styling",
+    "description": "Empty string supplied for primary color",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_24",
+      "theme": {
+        "primary_color": ""
+      },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-25",
+    "category": "malformed_styling",
+    "description": "Numeric color value passed as float",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_25",
+      "components": [
+        {
+          "id": "c25",
+          "type": "button",
+          "color": 16711680.5
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-26",
+    "category": "malformed_styling",
+    "description": "Excessive hex length (12 characters)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_26",
+      "components": [
+        {
+          "id": "c26",
+          "type": "card",
+          "color": "#AABBCCDDEEFF"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-27",
+    "category": "malformed_styling",
+    "description": "Named color string unsupported by native parser ('burnt_orange')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_27",
+      "components": [
+        {
+          "id": "c27",
+          "type": "banner",
+          "color": "burnt_orange"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-28",
+    "category": "malformed_styling",
+    "description": "Gradient stops with mismatch array lengths",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_28",
+      "components": [
+        {
+          "id": "c28",
+          "type": "banner",
+          "colors": [
+            "#FFF"
+          ],
+          "stops": [
+            0.0,
+            0.5,
+            1.0
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-29",
+    "category": "malformed_styling",
+    "description": "Null value inside theme color map",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_29",
+      "theme": {
+        "primary_color": null,
+        "surface_color": null
+      },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-30",
+    "category": "malformed_styling",
+    "description": "Invalid shadow elevation string ('heavy_shadow')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_30",
+      "components": [
+        {
+          "id": "c30",
+          "type": "card",
+          "elevation": "heavy_shadow"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-31",
+    "category": "hallucinated_widget",
+    "description": "LLM hallucinated QuantumLaserCard widget",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_31",
+      "components": [
+        {
+          "id": "c31",
+          "type": "QuantumLaserCard",
+          "power": 9000
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-32",
+    "category": "hallucinated_widget",
+    "description": "LLM invented HTML div tag inside Flutter schema",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_32",
+      "components": [
+        {
+          "id": "c32",
+          "type": "div",
+          "class": "flex flex-col"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-33",
+    "category": "hallucinated_widget",
+    "description": "LLM invented SwiftUI VStack tag inside Flutter schema",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_33",
+      "components": [
+        {
+          "id": "c33",
+          "type": "VStack",
+          "alignment": "leading"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-34",
+    "category": "hallucinated_widget",
+    "description": "LLM hallucinated 3D Hologram viewport widget",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_34",
+      "components": [
+        {
+          "id": "c34",
+          "type": "HologramViewport",
+          "depth": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-35",
+    "category": "hallucinated_widget",
+    "description": "Empty string widget type",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_35",
+      "components": [
+        {
+          "id": "c35",
+          "type": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-36",
+    "category": "hallucinated_widget",
+    "description": "Missing type key entirely on component object",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_36",
+      "components": [
+        {
+          "id": "c36",
+          "title": "No Type Defined"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-37",
+    "category": "hallucinated_widget",
+    "description": "Numeric widget type",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_37",
+      "components": [
+        {
+          "id": "c37",
+          "type": 404
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-38",
+    "category": "hallucinated_widget",
+    "description": "Web React component name ('StyledButton')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_38",
+      "components": [
+        {
+          "id": "c38",
+          "type": "StyledButton",
+          "onClick": "handleClick"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-39",
+    "category": "hallucinated_widget",
+    "description": "Hyphenated web custom element ('super-hero-banner')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_39",
+      "components": [
+        {
+          "id": "c39",
+          "type": "super-hero-banner"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-40",
+    "category": "hallucinated_widget",
+    "description": "Capitalized camel-case unmapped widget ('InteractiveChartGraph')",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_40",
+      "components": [
+        {
+          "id": "c40",
+          "type": "InteractiveChartGraph",
+          "data": [
+            1,
+            2,
+            3
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-41",
+    "category": "tree_corruption",
+    "description": "Extremely deep tree depth (15 levels of nested children)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_41",
+      "components": [
+        {
+          "id": "d1",
+          "type": "card",
+          "children": [
+            {
+              "id": "d2",
+              "type": "card",
+              "children": [
+                {
+                  "id": "d3",
+                  "type": "card",
+                  "children": [
+                    {
+                      "id": "d4",
+                      "type": "card",
+                      "children": [
+                        {
+                          "id": "d5",
+                          "type": "card",
+                          "children": [
+                            {
+                              "id": "d6",
+                              "type": "card",
+                              "children": [
+                                {
+                                  "id": "d7",
+                                  "type": "card",
+                                  "children": [
+                                    {
+                                      "id": "d8",
+                                      "type": "card",
+                                      "children": [
+                                        {
+                                          "id": "d9",
+                                          "type": "card",
+                                          "children": [
+                                            {
+                                              "id": "d10",
+                                              "type": "card",
+                                              "children": [
+                                                {
+                                                  "id": "d11",
+                                                  "type": "card",
+                                                  "children": [
+                                                    {
+                                                      "id": "d12",
+                                                      "type": "card"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-42",
+    "category": "tree_corruption",
+    "description": "Non-object items mixed into components array (strings and numbers)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_42",
+      "components": [
+        "this_is_a_raw_string_not_a_map",
+        42,
+        true,
+        {
+          "id": "c42_valid",
+          "type": "button",
+          "text": "Valid Button"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-43",
+    "category": "tree_corruption",
+    "description": "Completely empty JSON object payload",
+    "payload": {}
+  },
+  {
+    "id": "TC-44",
+    "category": "tree_corruption",
+    "description": "Array of arrays root payload instead of object",
+    "payload": [
+      [
+        {
+          "id": "nested_arr",
+          "type": "banner"
+        }
+      ]
+    ]
+  },
+  {
+    "id": "TC-45",
+    "category": "tree_corruption",
+    "description": "Excessive component count (250 nodes exceeding budget)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_45",
+      "components": [
+        {
+          "id": "c_repeat",
+          "type": "button",
+          "text": "Overload"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-46",
+    "category": "tree_corruption",
+    "description": "XSS / Script injection payload inside component title",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_46",
+      "components": [
+        {
+          "id": "c46",
+          "type": "banner",
+          "title": "<script>alert('pwned')</script>",
+          "message": "\"><img src=x onerror=alert(1)>"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-47",
+    "category": "tree_corruption",
+    "description": "SQL injection string payload inside action_id",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_47",
+      "components": [
+        {
+          "id": "c47",
+          "type": "button",
+          "text": "Exploit",
+          "action_id": "'; DROP TABLE users; --"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-48",
+    "category": "tree_corruption",
+    "description": "Unicode null byte and control character payload",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_48",
+      "components": [
+        {
+          "id": "c48",
+          "type": "card",
+          "title": "Corrupted\u0000\u0007\u001b[31mTitle"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-49",
+    "category": "tree_corruption",
+    "description": "Self-referencing simulated cyclical child ID",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_49",
+      "components": [
+        {
+          "id": "c49",
+          "type": "card",
+          "children": [
+            {
+              "id": "c49",
+              "type": "card"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-50",
+    "category": "tree_corruption",
+    "description": "Truncated / broken JSON simulated string",
+    "payload": "{\"version\": 1, \"screen_id\": \"truncated\", \"components\": [{\"id\": \"c50\", \"type\": \"banner\", \"title\": \"Incomplete"
+  },
+  {
+    "id": "TC-51",
+    "category": "text_overflow_bomb",
+    "description": "1,500-character un-spaced run-on token string in banner title",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_51",
+      "components": [
+        {
+          "id": "c51",
+          "type": "banner",
+          "title": "OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_OVERFLOW_"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-52",
+    "category": "text_overflow_bomb",
+    "description": "2,000-word hallucinated marketing essay in card description",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_52",
+      "components": [
+        {
+          "id": "c52",
+          "type": "card",
+          "title": "Card Title",
+          "description": "Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet Lorem ipsum dolor sit amet "
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-53",
+    "category": "text_overflow_bomb",
+    "description": "Multi-megabyte string token bomb in button label",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_53",
+      "components": [
+        {
+          "id": "c53",
+          "type": "button",
+          "text": "CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_CLICK_ME_NOW_"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-54",
+    "category": "text_overflow_bomb",
+    "description": "Unbounded metric label exceeding screen viewport width",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_54",
+      "components": [
+        {
+          "id": "c54",
+          "type": "metric_row",
+          "metrics": [
+            {
+              "label": "EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_EXTREMELY_LONG_METRIC_LABEL_EXCEEDING_DEVICE_WIDTH_",
+              "value": "100"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-55",
+    "category": "text_overflow_bomb",
+    "description": "Repeated newline spam (100 newlines) in announcement banner",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_55",
+      "components": [
+        {
+          "id": "c55",
+          "type": "banner",
+          "title": "Spam Banner",
+          "message": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nTrailing text"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-56",
+    "category": "text_overflow_bomb",
+    "description": "Nested badge text with 500 characters causing horizontal overflow",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_56",
+      "components": [
+        {
+          "id": "c56",
+          "type": "card",
+          "title": "Title",
+          "badge": "SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_SUPER_BADGE_"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-57",
+    "category": "text_overflow_bomb",
+    "description": "Zero-width space and zalgo text bomb layout destabilization",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_57",
+      "components": [
+        {
+          "id": "c57",
+          "type": "banner",
+          "title": "H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 H\u0338e\u0338l\u0338l\u0338o\u0338 "
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-58",
+    "category": "text_overflow_bomb",
+    "description": "50 continuous emoji sequence in metric change indicator",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_58",
+      "components": [
+        {
+          "id": "c58",
+          "type": "metric_row",
+          "metrics": [
+            {
+              "label": "Status",
+              "value": "$100",
+              "change": "\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1\ud83d\ude80\ud83d\udd25\ud83d\udcc8\ud83c\udf89\u26a1"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-59",
+    "category": "text_overflow_bomb",
+    "description": "Extremely large formatted currency string ($999,999,999,999,999,999.99)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_59",
+      "components": [
+        {
+          "id": "c59",
+          "type": "metric_row",
+          "metrics": [
+            {
+              "label": "Total",
+              "value": "$999,999,999,999,999,999,999,999.999"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-60",
+    "category": "text_overflow_bomb",
+    "description": "Deeply nested multi-line header title exceeding app bar bounds",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_60",
+      "header": {
+        "title": "Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload Header Overload ",
+        "subtitle": "Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload Subtitle Overload "
+      },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-61",
+    "category": "nan_dimension_trap",
+    "description": "Negative height dimension (-240.0dp) triggering engine assertion",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_61",
+      "components": [
+        {
+          "id": "c61",
+          "type": "card",
+          "title": "Negative Height",
+          "height": -240.0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-62",
+    "category": "nan_dimension_trap",
+    "description": "String NaN passed for padding dimension property",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_62",
+      "components": [
+        {
+          "id": "c62",
+          "type": "banner",
+          "title": "NaN Padding",
+          "padding": "NaN"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-63",
+    "category": "nan_dimension_trap",
+    "description": "Negative elevation (-50.0) violating Material shadow specification",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_63",
+      "components": [
+        {
+          "id": "c63",
+          "type": "button",
+          "text": "Button",
+          "elevation": -50.0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-64",
+    "category": "nan_dimension_trap",
+    "description": "Infinity floating point value string in card width",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_64",
+      "components": [
+        {
+          "id": "c64",
+          "type": "card",
+          "title": "Infinity Card",
+          "width": "Infinity"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-65",
+    "category": "nan_dimension_trap",
+    "description": "Negative infinity in border radius styling token",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_65",
+      "components": [
+        {
+          "id": "c65",
+          "type": "banner",
+          "title": "Negative Radius",
+          "border_radius": "-Infinity"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-66",
+    "category": "nan_dimension_trap",
+    "description": "Negative zero (-0.0) dimension triggering precision mismatch",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_66",
+      "components": [
+        {
+          "id": "c66",
+          "type": "card",
+          "title": "Neg Zero",
+          "height": -1e-07
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-67",
+    "category": "nan_dimension_trap",
+    "description": "Giant over-constrained dimension (height: 50,000dp)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_67",
+      "components": [
+        {
+          "id": "c67",
+          "type": "card",
+          "title": "Giant Card",
+          "height": 50000.0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-68",
+    "category": "nan_dimension_trap",
+    "description": "Scientific notation exponent string (1e999) in elevation",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_68",
+      "components": [
+        {
+          "id": "c68",
+          "type": "button",
+          "text": "Exponent",
+          "elevation": "1e999"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-69",
+    "category": "nan_dimension_trap",
+    "description": "Division by zero simulated string expression (0/0) in padding",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_69",
+      "components": [
+        {
+          "id": "c69",
+          "type": "banner",
+          "title": "Div Zero",
+          "padding": "0/0"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-70",
+    "category": "nan_dimension_trap",
+    "description": "Negative margin triggering offscreen clipping exception",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_70",
+      "components": [
+        {
+          "id": "c70",
+          "type": "card",
+          "title": "Neg Margin",
+          "margin": -100.0
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-71",
+    "category": "malicious_injection",
+    "description": "Embedded HTML script tag in button action label",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_71",
+      "components": [
+        {
+          "id": "c71",
+          "type": "button",
+          "text": "<script>alert(\"xss\")</script>Submit"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-72",
+    "category": "malicious_injection",
+    "description": "Javascript URI scheme execution attempt in action_id",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_72",
+      "components": [
+        {
+          "id": "c72",
+          "type": "card",
+          "title": "Card",
+          "action_id": "javascript:eval(atob(\"d2lwZV9kYXRh\"))"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-73",
+    "category": "malicious_injection",
+    "description": "File scheme unauthorized local file access path in deep link",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_73",
+      "components": [
+        {
+          "id": "c73",
+          "type": "button",
+          "text": "Open",
+          "action_id": "file:///etc/passwd"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-74",
+    "category": "malicious_injection",
+    "description": "Null byte injection in component identifier (comp_id\\x00_inject)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_74",
+      "components": [
+        {
+          "id": "comp_\u0000_malicious",
+          "type": "banner",
+          "title": "Null Byte"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-75",
+    "category": "malicious_injection",
+    "description": "SQL injection string in button callback parameter",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_75",
+      "components": [
+        {
+          "id": "c75",
+          "type": "button",
+          "text": "Delete",
+          "action_id": "'; DROP TABLE users;--"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-76",
+    "category": "malicious_injection",
+    "description": "Data URI scheme with base64 embedded binary executable",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_76",
+      "components": [
+        {
+          "id": "c76",
+          "type": "card",
+          "title": "Card",
+          "action_id": "data:text/html;base64,PHNjcmlwdD4="
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-77",
+    "category": "malicious_injection",
+    "description": "Recursive self-triggering deep link scheme (app://loop/self)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_77",
+      "components": [
+        {
+          "id": "c77",
+          "type": "card",
+          "title": "Loop Link",
+          "action_id": "app://infinite/loop"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-78",
+    "category": "malicious_injection",
+    "description": "Malformed unicode directional override attack in title",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_78",
+      "components": [
+        {
+          "id": "c78",
+          "type": "banner",
+          "title": "\u202e\u202dHidden Malicious Admin"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-79",
+    "category": "malicious_injection",
+    "description": "Protobuf binary serialization artifact in property map",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_79",
+      "components": [
+        {
+          "id": "c79",
+          "type": "card",
+          "title": "Binary Artifact",
+          "props": {
+            "\b\u0096\u0001": "\u0012\u0007testing"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-80",
+    "category": "malicious_injection",
+    "description": "Command injection attempt string in button text",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_80",
+      "components": [
+        {
+          "id": "c80",
+          "type": "button",
+          "text": "rm -rf /",
+          "action_id": "reboot_system"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-81",
+    "category": "null_coalescing_hazard",
+    "description": "Null metric item inside metrics collection array",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_81",
+      "components": [
+        {
+          "id": "c81",
+          "type": "metric_row",
+          "metrics": [
+            null,
+            {
+              "label": "Valid",
+              "value": "10"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-82",
+    "category": "null_coalescing_hazard",
+    "description": "Null title and null description in feature card",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_82",
+      "components": [
+        {
+          "id": "c82",
+          "type": "card",
+          "title": null,
+          "description": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-83",
+    "category": "null_coalescing_hazard",
+    "description": "Null action_text causing unhandled null assertion on button label",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_83",
+      "components": [
+        {
+          "id": "c83",
+          "type": "card",
+          "title": "Card",
+          "action_text": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-84",
+    "category": "null_coalescing_hazard",
+    "description": "Entire theme configuration object is null",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_84",
+      "theme": null,
+      "components": [
+        {
+          "id": "c84",
+          "type": "banner",
+          "title": "Null Theme"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-85",
+    "category": "null_coalescing_hazard",
+    "description": "Header title is explicitly null in dynamic header config",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_85",
+      "header": {
+        "title": null,
+        "subtitle": null
+      },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-86",
+    "category": "null_coalescing_hazard",
+    "description": "Null values in every field of metric item Map",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_86",
+      "components": [
+        {
+          "id": "c86",
+          "type": "metric_row",
+          "metrics": [
+            {
+              "label": null,
+              "value": null,
+              "change": null,
+              "is_positive": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-87",
+    "category": "null_coalescing_hazard",
+    "description": "Button component with completely empty properties map ({})",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_87",
+      "components": [
+        {
+          "id": "c87",
+          "type": "button"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-88",
+    "category": "null_coalescing_hazard",
+    "description": "Banner with null message and null color token",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_88",
+      "components": [
+        {
+          "id": "c88",
+          "type": "banner",
+          "title": "Banner",
+          "message": null,
+          "color": null
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-89",
+    "category": "null_coalescing_hazard",
+    "description": "Sparse array with multiple null slots in component list",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_89",
+      "components": [
+        null,
+        null,
+        {
+          "id": "c89",
+          "type": "button",
+          "text": "Live"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-90",
+    "category": "null_coalescing_hazard",
+    "description": "Empty root schema object ({}) with zero keys supplied",
+    "payload": {}
+  },
+  {
+    "id": "TC-91",
+    "category": "stream_race_condition",
+    "description": "Negative schema version number (version: -99999)",
+    "payload": {
+      "version": -99999,
+      "screen_id": "test_91",
+      "components": [
+        {
+          "id": "c91",
+          "type": "card",
+          "title": "Negative Version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-92",
+    "category": "stream_race_condition",
+    "description": "Future epoch timestamp (year 2099) breaking time deltas",
+    "payload": {
+      "version": 1,
+      "timestamp": 4102444800000,
+      "screen_id": "test_92",
+      "components": [
+        {
+          "id": "c92",
+          "type": "banner",
+          "title": "Future Time"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-93",
+    "category": "stream_race_condition",
+    "description": "Duplicate component IDs in sibling layout nodes",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_93",
+      "components": [
+        {
+          "id": "dup_1",
+          "type": "card",
+          "title": "Card 1"
+        },
+        {
+          "id": "dup_1",
+          "type": "card",
+          "title": "Card 2"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-94",
+    "category": "stream_race_condition",
+    "description": "Zero schema version (version: 0) breaking version comparison logic",
+    "payload": {
+      "version": 0,
+      "screen_id": "test_94",
+      "components": [
+        {
+          "id": "c94",
+          "type": "button",
+          "text": "Zero Version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-95",
+    "category": "stream_race_condition",
+    "description": "Screen ID mismatch (payload sent for screen A to screen B)",
+    "payload": {
+      "version": 1,
+      "screen_id": "totally_different_screen_id",
+      "components": [
+        {
+          "id": "c95",
+          "type": "banner",
+          "title": "Mismatched Screen"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-96",
+    "category": "stream_race_condition",
+    "description": "Non-numeric string version (\"v2.0-beta.rc1\")",
+    "payload": {
+      "version": "v2.0-beta.rc1",
+      "screen_id": "test_96",
+      "components": [
+        {
+          "id": "c96",
+          "type": "card",
+          "title": "Semver String"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-97",
+    "category": "stream_race_condition",
+    "description": "Stale backwards version push (client on v14, received v2)",
+    "payload": {
+      "version": 2,
+      "screen_id": "test_97",
+      "components": [
+        {
+          "id": "c97",
+          "type": "card",
+          "title": "Stale Backwards Update"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-98",
+    "category": "stream_race_condition",
+    "description": "Rapid state toggle payload (flickering theme between dark/light)",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_98",
+      "theme": {
+        "primary_color": "#FFFFFF",
+        "background_color": "#FFFFFF"
+      },
+      "components": []
+    }
+  },
+  {
+    "id": "TC-99",
+    "category": "stream_race_condition",
+    "description": "Massive payload size (250 components) stressing garbage collection",
+    "payload": {
+      "version": 1,
+      "screen_id": "test_99",
+      "components": [
+        {
+          "id": "bulk_0",
+          "type": "button",
+          "text": "Bulk Button #0"
+        },
+        {
+          "id": "bulk_1",
+          "type": "button",
+          "text": "Bulk Button #1"
+        },
+        {
+          "id": "bulk_2",
+          "type": "button",
+          "text": "Bulk Button #2"
+        },
+        {
+          "id": "bulk_3",
+          "type": "button",
+          "text": "Bulk Button #3"
+        },
+        {
+          "id": "bulk_4",
+          "type": "button",
+          "text": "Bulk Button #4"
+        },
+        {
+          "id": "bulk_5",
+          "type": "button",
+          "text": "Bulk Button #5"
+        },
+        {
+          "id": "bulk_6",
+          "type": "button",
+          "text": "Bulk Button #6"
+        },
+        {
+          "id": "bulk_7",
+          "type": "button",
+          "text": "Bulk Button #7"
+        },
+        {
+          "id": "bulk_8",
+          "type": "button",
+          "text": "Bulk Button #8"
+        },
+        {
+          "id": "bulk_9",
+          "type": "button",
+          "text": "Bulk Button #9"
+        },
+        {
+          "id": "bulk_10",
+          "type": "button",
+          "text": "Bulk Button #10"
+        },
+        {
+          "id": "bulk_11",
+          "type": "button",
+          "text": "Bulk Button #11"
+        },
+        {
+          "id": "bulk_12",
+          "type": "button",
+          "text": "Bulk Button #12"
+        },
+        {
+          "id": "bulk_13",
+          "type": "button",
+          "text": "Bulk Button #13"
+        },
+        {
+          "id": "bulk_14",
+          "type": "button",
+          "text": "Bulk Button #14"
+        },
+        {
+          "id": "bulk_15",
+          "type": "button",
+          "text": "Bulk Button #15"
+        },
+        {
+          "id": "bulk_16",
+          "type": "button",
+          "text": "Bulk Button #16"
+        },
+        {
+          "id": "bulk_17",
+          "type": "button",
+          "text": "Bulk Button #17"
+        },
+        {
+          "id": "bulk_18",
+          "type": "button",
+          "text": "Bulk Button #18"
+        },
+        {
+          "id": "bulk_19",
+          "type": "button",
+          "text": "Bulk Button #19"
+        },
+        {
+          "id": "bulk_20",
+          "type": "button",
+          "text": "Bulk Button #20"
+        },
+        {
+          "id": "bulk_21",
+          "type": "button",
+          "text": "Bulk Button #21"
+        },
+        {
+          "id": "bulk_22",
+          "type": "button",
+          "text": "Bulk Button #22"
+        },
+        {
+          "id": "bulk_23",
+          "type": "button",
+          "text": "Bulk Button #23"
+        },
+        {
+          "id": "bulk_24",
+          "type": "button",
+          "text": "Bulk Button #24"
+        },
+        {
+          "id": "bulk_25",
+          "type": "button",
+          "text": "Bulk Button #25"
+        },
+        {
+          "id": "bulk_26",
+          "type": "button",
+          "text": "Bulk Button #26"
+        },
+        {
+          "id": "bulk_27",
+          "type": "button",
+          "text": "Bulk Button #27"
+        },
+        {
+          "id": "bulk_28",
+          "type": "button",
+          "text": "Bulk Button #28"
+        },
+        {
+          "id": "bulk_29",
+          "type": "button",
+          "text": "Bulk Button #29"
+        },
+        {
+          "id": "bulk_30",
+          "type": "button",
+          "text": "Bulk Button #30"
+        },
+        {
+          "id": "bulk_31",
+          "type": "button",
+          "text": "Bulk Button #31"
+        },
+        {
+          "id": "bulk_32",
+          "type": "button",
+          "text": "Bulk Button #32"
+        },
+        {
+          "id": "bulk_33",
+          "type": "button",
+          "text": "Bulk Button #33"
+        },
+        {
+          "id": "bulk_34",
+          "type": "button",
+          "text": "Bulk Button #34"
+        },
+        {
+          "id": "bulk_35",
+          "type": "button",
+          "text": "Bulk Button #35"
+        },
+        {
+          "id": "bulk_36",
+          "type": "button",
+          "text": "Bulk Button #36"
+        },
+        {
+          "id": "bulk_37",
+          "type": "button",
+          "text": "Bulk Button #37"
+        },
+        {
+          "id": "bulk_38",
+          "type": "button",
+          "text": "Bulk Button #38"
+        },
+        {
+          "id": "bulk_39",
+          "type": "button",
+          "text": "Bulk Button #39"
+        },
+        {
+          "id": "bulk_40",
+          "type": "button",
+          "text": "Bulk Button #40"
+        },
+        {
+          "id": "bulk_41",
+          "type": "button",
+          "text": "Bulk Button #41"
+        },
+        {
+          "id": "bulk_42",
+          "type": "button",
+          "text": "Bulk Button #42"
+        },
+        {
+          "id": "bulk_43",
+          "type": "button",
+          "text": "Bulk Button #43"
+        },
+        {
+          "id": "bulk_44",
+          "type": "button",
+          "text": "Bulk Button #44"
+        },
+        {
+          "id": "bulk_45",
+          "type": "button",
+          "text": "Bulk Button #45"
+        },
+        {
+          "id": "bulk_46",
+          "type": "button",
+          "text": "Bulk Button #46"
+        },
+        {
+          "id": "bulk_47",
+          "type": "button",
+          "text": "Bulk Button #47"
+        },
+        {
+          "id": "bulk_48",
+          "type": "button",
+          "text": "Bulk Button #48"
+        },
+        {
+          "id": "bulk_49",
+          "type": "button",
+          "text": "Bulk Button #49"
+        },
+        {
+          "id": "bulk_50",
+          "type": "button",
+          "text": "Bulk Button #50"
+        },
+        {
+          "id": "bulk_51",
+          "type": "button",
+          "text": "Bulk Button #51"
+        },
+        {
+          "id": "bulk_52",
+          "type": "button",
+          "text": "Bulk Button #52"
+        },
+        {
+          "id": "bulk_53",
+          "type": "button",
+          "text": "Bulk Button #53"
+        },
+        {
+          "id": "bulk_54",
+          "type": "button",
+          "text": "Bulk Button #54"
+        },
+        {
+          "id": "bulk_55",
+          "type": "button",
+          "text": "Bulk Button #55"
+        },
+        {
+          "id": "bulk_56",
+          "type": "button",
+          "text": "Bulk Button #56"
+        },
+        {
+          "id": "bulk_57",
+          "type": "button",
+          "text": "Bulk Button #57"
+        },
+        {
+          "id": "bulk_58",
+          "type": "button",
+          "text": "Bulk Button #58"
+        },
+        {
+          "id": "bulk_59",
+          "type": "button",
+          "text": "Bulk Button #59"
+        },
+        {
+          "id": "bulk_60",
+          "type": "button",
+          "text": "Bulk Button #60"
+        },
+        {
+          "id": "bulk_61",
+          "type": "button",
+          "text": "Bulk Button #61"
+        },
+        {
+          "id": "bulk_62",
+          "type": "button",
+          "text": "Bulk Button #62"
+        },
+        {
+          "id": "bulk_63",
+          "type": "button",
+          "text": "Bulk Button #63"
+        },
+        {
+          "id": "bulk_64",
+          "type": "button",
+          "text": "Bulk Button #64"
+        },
+        {
+          "id": "bulk_65",
+          "type": "button",
+          "text": "Bulk Button #65"
+        },
+        {
+          "id": "bulk_66",
+          "type": "button",
+          "text": "Bulk Button #66"
+        },
+        {
+          "id": "bulk_67",
+          "type": "button",
+          "text": "Bulk Button #67"
+        },
+        {
+          "id": "bulk_68",
+          "type": "button",
+          "text": "Bulk Button #68"
+        },
+        {
+          "id": "bulk_69",
+          "type": "button",
+          "text": "Bulk Button #69"
+        },
+        {
+          "id": "bulk_70",
+          "type": "button",
+          "text": "Bulk Button #70"
+        },
+        {
+          "id": "bulk_71",
+          "type": "button",
+          "text": "Bulk Button #71"
+        },
+        {
+          "id": "bulk_72",
+          "type": "button",
+          "text": "Bulk Button #72"
+        },
+        {
+          "id": "bulk_73",
+          "type": "button",
+          "text": "Bulk Button #73"
+        },
+        {
+          "id": "bulk_74",
+          "type": "button",
+          "text": "Bulk Button #74"
+        },
+        {
+          "id": "bulk_75",
+          "type": "button",
+          "text": "Bulk Button #75"
+        },
+        {
+          "id": "bulk_76",
+          "type": "button",
+          "text": "Bulk Button #76"
+        },
+        {
+          "id": "bulk_77",
+          "type": "button",
+          "text": "Bulk Button #77"
+        },
+        {
+          "id": "bulk_78",
+          "type": "button",
+          "text": "Bulk Button #78"
+        },
+        {
+          "id": "bulk_79",
+          "type": "button",
+          "text": "Bulk Button #79"
+        },
+        {
+          "id": "bulk_80",
+          "type": "button",
+          "text": "Bulk Button #80"
+        },
+        {
+          "id": "bulk_81",
+          "type": "button",
+          "text": "Bulk Button #81"
+        },
+        {
+          "id": "bulk_82",
+          "type": "button",
+          "text": "Bulk Button #82"
+        },
+        {
+          "id": "bulk_83",
+          "type": "button",
+          "text": "Bulk Button #83"
+        },
+        {
+          "id": "bulk_84",
+          "type": "button",
+          "text": "Bulk Button #84"
+        },
+        {
+          "id": "bulk_85",
+          "type": "button",
+          "text": "Bulk Button #85"
+        },
+        {
+          "id": "bulk_86",
+          "type": "button",
+          "text": "Bulk Button #86"
+        },
+        {
+          "id": "bulk_87",
+          "type": "button",
+          "text": "Bulk Button #87"
+        },
+        {
+          "id": "bulk_88",
+          "type": "button",
+          "text": "Bulk Button #88"
+        },
+        {
+          "id": "bulk_89",
+          "type": "button",
+          "text": "Bulk Button #89"
+        },
+        {
+          "id": "bulk_90",
+          "type": "button",
+          "text": "Bulk Button #90"
+        },
+        {
+          "id": "bulk_91",
+          "type": "button",
+          "text": "Bulk Button #91"
+        },
+        {
+          "id": "bulk_92",
+          "type": "button",
+          "text": "Bulk Button #92"
+        },
+        {
+          "id": "bulk_93",
+          "type": "button",
+          "text": "Bulk Button #93"
+        },
+        {
+          "id": "bulk_94",
+          "type": "button",
+          "text": "Bulk Button #94"
+        },
+        {
+          "id": "bulk_95",
+          "type": "button",
+          "text": "Bulk Button #95"
+        },
+        {
+          "id": "bulk_96",
+          "type": "button",
+          "text": "Bulk Button #96"
+        },
+        {
+          "id": "bulk_97",
+          "type": "button",
+          "text": "Bulk Button #97"
+        },
+        {
+          "id": "bulk_98",
+          "type": "button",
+          "text": "Bulk Button #98"
+        },
+        {
+          "id": "bulk_99",
+          "type": "button",
+          "text": "Bulk Button #99"
+        },
+        {
+          "id": "bulk_100",
+          "type": "button",
+          "text": "Bulk Button #100"
+        },
+        {
+          "id": "bulk_101",
+          "type": "button",
+          "text": "Bulk Button #101"
+        },
+        {
+          "id": "bulk_102",
+          "type": "button",
+          "text": "Bulk Button #102"
+        },
+        {
+          "id": "bulk_103",
+          "type": "button",
+          "text": "Bulk Button #103"
+        },
+        {
+          "id": "bulk_104",
+          "type": "button",
+          "text": "Bulk Button #104"
+        },
+        {
+          "id": "bulk_105",
+          "type": "button",
+          "text": "Bulk Button #105"
+        },
+        {
+          "id": "bulk_106",
+          "type": "button",
+          "text": "Bulk Button #106"
+        },
+        {
+          "id": "bulk_107",
+          "type": "button",
+          "text": "Bulk Button #107"
+        },
+        {
+          "id": "bulk_108",
+          "type": "button",
+          "text": "Bulk Button #108"
+        },
+        {
+          "id": "bulk_109",
+          "type": "button",
+          "text": "Bulk Button #109"
+        },
+        {
+          "id": "bulk_110",
+          "type": "button",
+          "text": "Bulk Button #110"
+        },
+        {
+          "id": "bulk_111",
+          "type": "button",
+          "text": "Bulk Button #111"
+        },
+        {
+          "id": "bulk_112",
+          "type": "button",
+          "text": "Bulk Button #112"
+        },
+        {
+          "id": "bulk_113",
+          "type": "button",
+          "text": "Bulk Button #113"
+        },
+        {
+          "id": "bulk_114",
+          "type": "button",
+          "text": "Bulk Button #114"
+        },
+        {
+          "id": "bulk_115",
+          "type": "button",
+          "text": "Bulk Button #115"
+        },
+        {
+          "id": "bulk_116",
+          "type": "button",
+          "text": "Bulk Button #116"
+        },
+        {
+          "id": "bulk_117",
+          "type": "button",
+          "text": "Bulk Button #117"
+        },
+        {
+          "id": "bulk_118",
+          "type": "button",
+          "text": "Bulk Button #118"
+        },
+        {
+          "id": "bulk_119",
+          "type": "button",
+          "text": "Bulk Button #119"
+        },
+        {
+          "id": "bulk_120",
+          "type": "button",
+          "text": "Bulk Button #120"
+        },
+        {
+          "id": "bulk_121",
+          "type": "button",
+          "text": "Bulk Button #121"
+        },
+        {
+          "id": "bulk_122",
+          "type": "button",
+          "text": "Bulk Button #122"
+        },
+        {
+          "id": "bulk_123",
+          "type": "button",
+          "text": "Bulk Button #123"
+        },
+        {
+          "id": "bulk_124",
+          "type": "button",
+          "text": "Bulk Button #124"
+        },
+        {
+          "id": "bulk_125",
+          "type": "button",
+          "text": "Bulk Button #125"
+        },
+        {
+          "id": "bulk_126",
+          "type": "button",
+          "text": "Bulk Button #126"
+        },
+        {
+          "id": "bulk_127",
+          "type": "button",
+          "text": "Bulk Button #127"
+        },
+        {
+          "id": "bulk_128",
+          "type": "button",
+          "text": "Bulk Button #128"
+        },
+        {
+          "id": "bulk_129",
+          "type": "button",
+          "text": "Bulk Button #129"
+        },
+        {
+          "id": "bulk_130",
+          "type": "button",
+          "text": "Bulk Button #130"
+        },
+        {
+          "id": "bulk_131",
+          "type": "button",
+          "text": "Bulk Button #131"
+        },
+        {
+          "id": "bulk_132",
+          "type": "button",
+          "text": "Bulk Button #132"
+        },
+        {
+          "id": "bulk_133",
+          "type": "button",
+          "text": "Bulk Button #133"
+        },
+        {
+          "id": "bulk_134",
+          "type": "button",
+          "text": "Bulk Button #134"
+        },
+        {
+          "id": "bulk_135",
+          "type": "button",
+          "text": "Bulk Button #135"
+        },
+        {
+          "id": "bulk_136",
+          "type": "button",
+          "text": "Bulk Button #136"
+        },
+        {
+          "id": "bulk_137",
+          "type": "button",
+          "text": "Bulk Button #137"
+        },
+        {
+          "id": "bulk_138",
+          "type": "button",
+          "text": "Bulk Button #138"
+        },
+        {
+          "id": "bulk_139",
+          "type": "button",
+          "text": "Bulk Button #139"
+        },
+        {
+          "id": "bulk_140",
+          "type": "button",
+          "text": "Bulk Button #140"
+        },
+        {
+          "id": "bulk_141",
+          "type": "button",
+          "text": "Bulk Button #141"
+        },
+        {
+          "id": "bulk_142",
+          "type": "button",
+          "text": "Bulk Button #142"
+        },
+        {
+          "id": "bulk_143",
+          "type": "button",
+          "text": "Bulk Button #143"
+        },
+        {
+          "id": "bulk_144",
+          "type": "button",
+          "text": "Bulk Button #144"
+        },
+        {
+          "id": "bulk_145",
+          "type": "button",
+          "text": "Bulk Button #145"
+        },
+        {
+          "id": "bulk_146",
+          "type": "button",
+          "text": "Bulk Button #146"
+        },
+        {
+          "id": "bulk_147",
+          "type": "button",
+          "text": "Bulk Button #147"
+        },
+        {
+          "id": "bulk_148",
+          "type": "button",
+          "text": "Bulk Button #148"
+        },
+        {
+          "id": "bulk_149",
+          "type": "button",
+          "text": "Bulk Button #149"
+        },
+        {
+          "id": "bulk_150",
+          "type": "button",
+          "text": "Bulk Button #150"
+        },
+        {
+          "id": "bulk_151",
+          "type": "button",
+          "text": "Bulk Button #151"
+        },
+        {
+          "id": "bulk_152",
+          "type": "button",
+          "text": "Bulk Button #152"
+        },
+        {
+          "id": "bulk_153",
+          "type": "button",
+          "text": "Bulk Button #153"
+        },
+        {
+          "id": "bulk_154",
+          "type": "button",
+          "text": "Bulk Button #154"
+        },
+        {
+          "id": "bulk_155",
+          "type": "button",
+          "text": "Bulk Button #155"
+        },
+        {
+          "id": "bulk_156",
+          "type": "button",
+          "text": "Bulk Button #156"
+        },
+        {
+          "id": "bulk_157",
+          "type": "button",
+          "text": "Bulk Button #157"
+        },
+        {
+          "id": "bulk_158",
+          "type": "button",
+          "text": "Bulk Button #158"
+        },
+        {
+          "id": "bulk_159",
+          "type": "button",
+          "text": "Bulk Button #159"
+        },
+        {
+          "id": "bulk_160",
+          "type": "button",
+          "text": "Bulk Button #160"
+        },
+        {
+          "id": "bulk_161",
+          "type": "button",
+          "text": "Bulk Button #161"
+        },
+        {
+          "id": "bulk_162",
+          "type": "button",
+          "text": "Bulk Button #162"
+        },
+        {
+          "id": "bulk_163",
+          "type": "button",
+          "text": "Bulk Button #163"
+        },
+        {
+          "id": "bulk_164",
+          "type": "button",
+          "text": "Bulk Button #164"
+        },
+        {
+          "id": "bulk_165",
+          "type": "button",
+          "text": "Bulk Button #165"
+        },
+        {
+          "id": "bulk_166",
+          "type": "button",
+          "text": "Bulk Button #166"
+        },
+        {
+          "id": "bulk_167",
+          "type": "button",
+          "text": "Bulk Button #167"
+        },
+        {
+          "id": "bulk_168",
+          "type": "button",
+          "text": "Bulk Button #168"
+        },
+        {
+          "id": "bulk_169",
+          "type": "button",
+          "text": "Bulk Button #169"
+        },
+        {
+          "id": "bulk_170",
+          "type": "button",
+          "text": "Bulk Button #170"
+        },
+        {
+          "id": "bulk_171",
+          "type": "button",
+          "text": "Bulk Button #171"
+        },
+        {
+          "id": "bulk_172",
+          "type": "button",
+          "text": "Bulk Button #172"
+        },
+        {
+          "id": "bulk_173",
+          "type": "button",
+          "text": "Bulk Button #173"
+        },
+        {
+          "id": "bulk_174",
+          "type": "button",
+          "text": "Bulk Button #174"
+        },
+        {
+          "id": "bulk_175",
+          "type": "button",
+          "text": "Bulk Button #175"
+        },
+        {
+          "id": "bulk_176",
+          "type": "button",
+          "text": "Bulk Button #176"
+        },
+        {
+          "id": "bulk_177",
+          "type": "button",
+          "text": "Bulk Button #177"
+        },
+        {
+          "id": "bulk_178",
+          "type": "button",
+          "text": "Bulk Button #178"
+        },
+        {
+          "id": "bulk_179",
+          "type": "button",
+          "text": "Bulk Button #179"
+        },
+        {
+          "id": "bulk_180",
+          "type": "button",
+          "text": "Bulk Button #180"
+        },
+        {
+          "id": "bulk_181",
+          "type": "button",
+          "text": "Bulk Button #181"
+        },
+        {
+          "id": "bulk_182",
+          "type": "button",
+          "text": "Bulk Button #182"
+        },
+        {
+          "id": "bulk_183",
+          "type": "button",
+          "text": "Bulk Button #183"
+        },
+        {
+          "id": "bulk_184",
+          "type": "button",
+          "text": "Bulk Button #184"
+        },
+        {
+          "id": "bulk_185",
+          "type": "button",
+          "text": "Bulk Button #185"
+        },
+        {
+          "id": "bulk_186",
+          "type": "button",
+          "text": "Bulk Button #186"
+        },
+        {
+          "id": "bulk_187",
+          "type": "button",
+          "text": "Bulk Button #187"
+        },
+        {
+          "id": "bulk_188",
+          "type": "button",
+          "text": "Bulk Button #188"
+        },
+        {
+          "id": "bulk_189",
+          "type": "button",
+          "text": "Bulk Button #189"
+        },
+        {
+          "id": "bulk_190",
+          "type": "button",
+          "text": "Bulk Button #190"
+        },
+        {
+          "id": "bulk_191",
+          "type": "button",
+          "text": "Bulk Button #191"
+        },
+        {
+          "id": "bulk_192",
+          "type": "button",
+          "text": "Bulk Button #192"
+        },
+        {
+          "id": "bulk_193",
+          "type": "button",
+          "text": "Bulk Button #193"
+        },
+        {
+          "id": "bulk_194",
+          "type": "button",
+          "text": "Bulk Button #194"
+        },
+        {
+          "id": "bulk_195",
+          "type": "button",
+          "text": "Bulk Button #195"
+        },
+        {
+          "id": "bulk_196",
+          "type": "button",
+          "text": "Bulk Button #196"
+        },
+        {
+          "id": "bulk_197",
+          "type": "button",
+          "text": "Bulk Button #197"
+        },
+        {
+          "id": "bulk_198",
+          "type": "button",
+          "text": "Bulk Button #198"
+        },
+        {
+          "id": "bulk_199",
+          "type": "button",
+          "text": "Bulk Button #199"
+        },
+        {
+          "id": "bulk_200",
+          "type": "button",
+          "text": "Bulk Button #200"
+        },
+        {
+          "id": "bulk_201",
+          "type": "button",
+          "text": "Bulk Button #201"
+        },
+        {
+          "id": "bulk_202",
+          "type": "button",
+          "text": "Bulk Button #202"
+        },
+        {
+          "id": "bulk_203",
+          "type": "button",
+          "text": "Bulk Button #203"
+        },
+        {
+          "id": "bulk_204",
+          "type": "button",
+          "text": "Bulk Button #204"
+        },
+        {
+          "id": "bulk_205",
+          "type": "button",
+          "text": "Bulk Button #205"
+        },
+        {
+          "id": "bulk_206",
+          "type": "button",
+          "text": "Bulk Button #206"
+        },
+        {
+          "id": "bulk_207",
+          "type": "button",
+          "text": "Bulk Button #207"
+        },
+        {
+          "id": "bulk_208",
+          "type": "button",
+          "text": "Bulk Button #208"
+        },
+        {
+          "id": "bulk_209",
+          "type": "button",
+          "text": "Bulk Button #209"
+        },
+        {
+          "id": "bulk_210",
+          "type": "button",
+          "text": "Bulk Button #210"
+        },
+        {
+          "id": "bulk_211",
+          "type": "button",
+          "text": "Bulk Button #211"
+        },
+        {
+          "id": "bulk_212",
+          "type": "button",
+          "text": "Bulk Button #212"
+        },
+        {
+          "id": "bulk_213",
+          "type": "button",
+          "text": "Bulk Button #213"
+        },
+        {
+          "id": "bulk_214",
+          "type": "button",
+          "text": "Bulk Button #214"
+        },
+        {
+          "id": "bulk_215",
+          "type": "button",
+          "text": "Bulk Button #215"
+        },
+        {
+          "id": "bulk_216",
+          "type": "button",
+          "text": "Bulk Button #216"
+        },
+        {
+          "id": "bulk_217",
+          "type": "button",
+          "text": "Bulk Button #217"
+        },
+        {
+          "id": "bulk_218",
+          "type": "button",
+          "text": "Bulk Button #218"
+        },
+        {
+          "id": "bulk_219",
+          "type": "button",
+          "text": "Bulk Button #219"
+        },
+        {
+          "id": "bulk_220",
+          "type": "button",
+          "text": "Bulk Button #220"
+        },
+        {
+          "id": "bulk_221",
+          "type": "button",
+          "text": "Bulk Button #221"
+        },
+        {
+          "id": "bulk_222",
+          "type": "button",
+          "text": "Bulk Button #222"
+        },
+        {
+          "id": "bulk_223",
+          "type": "button",
+          "text": "Bulk Button #223"
+        },
+        {
+          "id": "bulk_224",
+          "type": "button",
+          "text": "Bulk Button #224"
+        },
+        {
+          "id": "bulk_225",
+          "type": "button",
+          "text": "Bulk Button #225"
+        },
+        {
+          "id": "bulk_226",
+          "type": "button",
+          "text": "Bulk Button #226"
+        },
+        {
+          "id": "bulk_227",
+          "type": "button",
+          "text": "Bulk Button #227"
+        },
+        {
+          "id": "bulk_228",
+          "type": "button",
+          "text": "Bulk Button #228"
+        },
+        {
+          "id": "bulk_229",
+          "type": "button",
+          "text": "Bulk Button #229"
+        },
+        {
+          "id": "bulk_230",
+          "type": "button",
+          "text": "Bulk Button #230"
+        },
+        {
+          "id": "bulk_231",
+          "type": "button",
+          "text": "Bulk Button #231"
+        },
+        {
+          "id": "bulk_232",
+          "type": "button",
+          "text": "Bulk Button #232"
+        },
+        {
+          "id": "bulk_233",
+          "type": "button",
+          "text": "Bulk Button #233"
+        },
+        {
+          "id": "bulk_234",
+          "type": "button",
+          "text": "Bulk Button #234"
+        },
+        {
+          "id": "bulk_235",
+          "type": "button",
+          "text": "Bulk Button #235"
+        },
+        {
+          "id": "bulk_236",
+          "type": "button",
+          "text": "Bulk Button #236"
+        },
+        {
+          "id": "bulk_237",
+          "type": "button",
+          "text": "Bulk Button #237"
+        },
+        {
+          "id": "bulk_238",
+          "type": "button",
+          "text": "Bulk Button #238"
+        },
+        {
+          "id": "bulk_239",
+          "type": "button",
+          "text": "Bulk Button #239"
+        },
+        {
+          "id": "bulk_240",
+          "type": "button",
+          "text": "Bulk Button #240"
+        },
+        {
+          "id": "bulk_241",
+          "type": "button",
+          "text": "Bulk Button #241"
+        },
+        {
+          "id": "bulk_242",
+          "type": "button",
+          "text": "Bulk Button #242"
+        },
+        {
+          "id": "bulk_243",
+          "type": "button",
+          "text": "Bulk Button #243"
+        },
+        {
+          "id": "bulk_244",
+          "type": "button",
+          "text": "Bulk Button #244"
+        },
+        {
+          "id": "bulk_245",
+          "type": "button",
+          "text": "Bulk Button #245"
+        },
+        {
+          "id": "bulk_246",
+          "type": "button",
+          "text": "Bulk Button #246"
+        },
+        {
+          "id": "bulk_247",
+          "type": "button",
+          "text": "Bulk Button #247"
+        },
+        {
+          "id": "bulk_248",
+          "type": "button",
+          "text": "Bulk Button #248"
+        },
+        {
+          "id": "bulk_249",
+          "type": "button",
+          "text": "Bulk Button #249"
+        }
+      ]
+    }
+  },
+  {
+    "id": "TC-100",
+    "category": "stream_race_condition",
+    "description": "Empty string screen_id with null header and empty component array",
+    "payload": {
+      "version": 1,
+      "screen_id": "",
+      "header": {},
+      "components": []
+    }
+  }
+]

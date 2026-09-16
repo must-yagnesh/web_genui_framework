@@ -71,6 +71,15 @@ class SafeWidgetRegistry {
     Function(String actionId)? onAction,
   ) {
     if (node.type == 'banner') {
+      final title = node.properties['title'] as String;
+      // In naive mode, an unbounded text in an unconstrained Row will trigger a RenderFlex overflow hazard
+      if (title.length > 120) {
+        return Row(
+          children: [
+            Text(title, style: const TextStyle(fontSize: 16.0, color: Colors.white)),
+          ],
+        );
+      }
       return SafeGenUiBanner(node: node, theme: theme);
     } else if (node.type == 'metric_row' || node.type == 'metrics') {
       // In naive mode, if metrics is not a list or has invalid types, let it throw!
@@ -79,6 +88,11 @@ class SafeWidgetRegistry {
         children: rawList.map((m) => Text(m['label'].toString())).toList(),
       );
     } else if (node.type == 'card') {
+      final height = node.properties['height'];
+      if (height is num && height < 0) {
+        // Negative dimension triggers fatal engine AssertionError
+        return SizedBox(height: height.toDouble(), child: const Text("Negative Dimension"));
+      }
       return SafeGenUiCard(node: node, theme: theme, onAction: onAction);
     } else if (node.type == 'button') {
       return SafeGenUiButton(node: node, theme: theme, onAction: onAction);

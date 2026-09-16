@@ -65,6 +65,8 @@ class SafeGenUiBanner extends StatelessWidget {
           ],
           Text(
             title,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16.0,
@@ -76,6 +78,8 @@ class SafeGenUiBanner extends StatelessWidget {
             const SizedBox(height: 6.0),
             Text(
               message,
+              maxLines: 8,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 13.0,

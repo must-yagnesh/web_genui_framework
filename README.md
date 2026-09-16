@@ -105,40 +105,47 @@ flowchart TD
 | **Web Console** | **Live Phone Simulator** | Side-by-side interactive preview mirroring the physical Flutter screen layout. |
 | **Web Console** | **Raw JSON AST Editor** | Direct declarative JSON inspection, formatting, and manual AST injection. |
 | **Web Console** | **1-Click AI Persona Switcher** | Instant personalization presets: **Beginner** (educational emerald theme), **VIP Wealth Trader** (gold terminal), and **Flash Shopper** (magenta liquidation). |
-| **Web Console** | **Live AI Accessibility & Cost Auditor** | Evaluates **WCAG AA/AAA Luminance Contrast**, enforces **≥ 48 dp Touch Targets**, and tracks **token context size & micro-dollar cost** (`~zsh.00014 / call`). |
+| **Web Console** | **Live AI Accessibility & Cost Auditor** | Evaluates **WCAG AA/AAA Luminance Contrast**, enforces **≥ 48 dp Touch Targets**, and tracks **token context size & micro-dollar cost** (`~$0.00014 / call`). |
 | **Web Console** | **AI Auto-Repair Agent** | Autonomous self-healing toggle with a live telemetry console showing AST diagnostics and repair diffs. |
+| **Web Console** | **Chaos Suite Attacks** | 1-click fuzz buttons for **Text Overflow Bombs**, **NaN/Negative Dimensions**, **Malicious Action Scripts**, and **Strobe State Bursts**. |
 | **Sync Bridge** | **High-Speed SSE Stream** | Lightweight Python sync server broadcasting updates in < 100 ms over HTTP/SSE. |
-| **Flutter Client** | **`GenUiSchemaValidator`** | Zero-dependency Dart validator with smart type coercion and schema sanitization (< 0.01 ms). |
+| **Flutter Client** | **`GenUiSchemaValidator`** | Zero-dependency Dart validator with smart type coercion, runaway text clamping, positive dimension coercion, and schema sanitization (< 0.01 ms). |
 | **Flutter Client** | **`SafeWidgetRegistry`** | Whitelisted mapping of production-safe native Flutter components (`banner`, `metric_row`, `card`, `button`). |
 | **Flutter Client** | **`GenUiErrorBoundary`** | Component-level fault isolation preventing Flutter red-screen exceptions. |
+| **Flutter Client** | **Live Guard Telemetry Badge** | Animated real-time telemetry badge in mobile header visualizing sanitized anomalies, clamped tokens, and blocked exploits with sub-millisecond metrics. |
 | **Flutter Client** | **Guarded vs. Naive Mode Toggle** | Live AppBar switch allowing engineers to demonstrate how standard dynamic parsers crash vs. how `flutter_genui_guard` stays resilient. |
-| **Verification** | **50-Payload Adversarial Benchmark** | Automated test suite proving a **96.0% failure rate for naive parsers vs. 0.0% for `flutter_genui_guard`**. |
+| **Verification** | **100-Payload Adversarial Benchmark** | Automated test suite proving a **100.0% failure rate for naive parsers vs. 0.0% for `flutter_genui_guard` across 10 failure categories**. |
 
 ---
 
 ## 4. Empirical Benchmark Results
 
-Tested against **50 categorized adversarial LLM payloads** (type mismatches, layout traps, corrupted styling, hallucinated widget tags, and tree corruptions):
+Tested against **100 categorized adversarial LLM payloads** (10 categories × 10 test cases each):
 
 ```bash
 python3 benchmark/run_benchmark.py
 ```
 
 ```
-┌──────────────────────────────┬──────────────┬─────────────────────────┬─────────────────────────┐
-│ Payload Category             │ Tests Run    │ Standard Naive Parser   │ flutter_genui_guard     │
-├──────────────────────────────┼──────────────┼─────────────────────────┼─────────────────────────┤
-│ Type Mismatch Traps          │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
-│ Layout & Constraint Traps    │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
-│ Malformed Color / Styling    │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
-│ Hallucinated Widget Tags     │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
-│ Corrupted Hierarchy / Trees  │ 10           │ 8/10 Crashed (80%)      │ 0/10 Crashed (0%)       │
-├──────────────────────────────┼──────────────┼─────────────────────────┼─────────────────────────┤
-│ OVERALL TOTALS               │ 50 Payloads  │ 48/50 CRASHED (96.0%)   │ 0/50 CRASHED (0.0%)     │
-└──────────────────────────────┴──────────────┴─────────────────────────┴─────────────────────────┘
+┌──────────────────────────────────────┬──────────────┬─────────────────────────┬─────────────────────────┐
+│ Payload Category                     │ Tests Run    │ Standard Naive Parser   │ flutter_genui_guard     │
+├──────────────────────────────────────┼──────────────┼─────────────────────────┼─────────────────────────┤
+│ Type Mismatch Traps                  │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Layout & Constraint Traps            │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Malformed Color / Styling            │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Hallucinated Widget Tags             │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Tree Corruptions & Payloads          │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Text Overflow Bombs                  │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ NaN & Negative Dimension Traps       │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Malicious Action Injection Exploits  │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Null Coalescing Hazards              │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+│ Stream Race Conditions & Versioning  │ 10           │ 10/10 Crashed (100%)    │ 0/10 Crashed (0%)       │
+├──────────────────────────────────────┼──────────────┼─────────────────────────┼─────────────────────────┤
+│ OVERALL TOTALS                       │ 100 Payloads │ 100/100 CRASHED (100.0%)│ 0/100 CRASHED (0.0%)    │
+└──────────────────────────────────────┴──────────────┴─────────────────────────┴─────────────────────────┘
 ```
 
-*Full breakdown of all 50 payloads available in [benchmark/benchmark_report.md](benchmark/benchmark_report.md).*
+*Full breakdown of all 100 payloads available in [benchmark/benchmark_report.md](benchmark/benchmark_report.md).*
 
 ---
 

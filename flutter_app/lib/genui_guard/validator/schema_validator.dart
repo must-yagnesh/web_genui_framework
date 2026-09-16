@@ -144,15 +144,27 @@ class GenUiSchemaValidator {
     props.remove('type');
     props.remove('children');
 
-    // Type Coercion for common widget properties
-    if (props.containsKey('padding')) {
-      props['padding'] = _coerceDouble(props['padding'], 16.0);
+    // Strings & Text Overflow Protection
+    for (final textKey in ['title', 'message', 'description', 'text', 'badge']) {
+      if (props.containsKey(textKey) && props[textKey] != null) {
+        props[textKey] = _sanitizeString(props[textKey], warnings, textKey);
+      }
     }
-    if (props.containsKey('elevation')) {
-      props['elevation'] = _coerceDouble(props['elevation'], 0.0);
+
+    // Dimension & Layout Protection (Prevent RenderFlex overflows and negative assertion errors)
+    for (final dimKey in ['height', 'width', 'padding', 'elevation']) {
+      if (props.containsKey(dimKey)) {
+        props[dimKey] = _coercePositiveDouble(props[dimKey], dimKey == 'padding' ? 16.0 : 0.0, warnings, dimKey);
+      }
     }
+
     if (props.containsKey('is_positive')) {
       props['is_positive'] = _coerceBool(props['is_positive'], true);
+    }
+
+    // Action Security Protection
+    if (props.containsKey('action_id')) {
+      props['action_id'] = _sanitizeActionId(props['action_id'], warnings);
     }
 
     // Sanitize Metrics array if present
@@ -163,16 +175,16 @@ class GenUiSchemaValidator {
         for (final m in mRaw) {
           if (m is Map) {
             cleanMetrics.add({
-              'label': m['label']?.toString() ?? 'Metric',
-              'value': m['value']?.toString() ?? '0',
-              'change': m['change']?.toString() ?? '',
+              'label': _sanitizeString(m['label'] ?? 'Metric', warnings, 'label', maxLen: 80),
+              'value': _sanitizeString(m['value'] ?? '0', warnings, 'value', maxLen: 80),
+              'change': _sanitizeString(m['change'] ?? '', warnings, 'change', maxLen: 80),
               'is_positive': _coerceBool(m['is_positive'], true),
             });
           }
         }
         props['metrics'] = cleanMetrics;
       } else {
-        warnings.add('Metric row had non-array metrics property. Replaced with empty list.');
+        warnings.add('[Null Shield] Metric row had non-array metrics property. Coerced to safe empty list.');
         props['metrics'] = <Map<String, dynamic>>[];
       }
     }
@@ -239,5 +251,47 @@ class GenUiSchemaValidator {
       if (s == 'false' || s == '0' || s == 'no') return false;
     }
     return fallback;
+  }
+
+  static String _sanitizeString(dynamic val, List<String> warnings, String field, {int maxLen = 350}) {
+    if (val == null) return '';
+    String str = val.toString();
+    
+    // Check for null bytes or script injection
+    if (str.contains('\x00') || str.contains('<script') || str.contains('javascript:')) {
+      warnings.add('[Security Shield] Malicious injection characters stripped from "$field".');
+      str = str.replaceAll('\x00', '').replaceAll(RegExp(r'<script.*?>.*?</script>', caseSensitive: false), '');
+    }
+
+    // Layout overflow prevention (protects RenderFlex)
+    if (str.length > maxLen) {
+      warnings.add('[Layout Shield] Runaway text in "$field" (${str.length} chars) clamped to $maxLen.');
+      str = '${str.substring(0, maxLen)}...';
+    }
+    return str;
+  }
+
+  static double _coercePositiveDouble(dynamic val, double fallback, List<String> warnings, String field, {double maxVal = 1000.0}) {
+    final d = _coerceDouble(val, fallback);
+    if (d.isNaN || d.isInfinite || d < 0) {
+      warnings.add('[Dimension Shield] Invalid/negative "$field" ($val) coerced to safe positive bound ($fallback).');
+      return fallback;
+    }
+    if (d > maxVal) {
+      warnings.add('[Dimension Shield] Over-sized "$field" ($d) clamped to max ($maxVal).');
+      return maxVal;
+    }
+    return d;
+  }
+
+  static String _sanitizeActionId(dynamic val, List<String> warnings) {
+    if (val == null) return 'action_default';
+    final str = val.toString().trim();
+    final lower = str.toLowerCase();
+    if (lower.startsWith('javascript:') || lower.startsWith('file:') || lower.startsWith('data:') || lower.contains('eval(')) {
+      warnings.add('[Security Shield] Blocked insecure action protocol: "$str".');
+      return 'action_blocked_insecure';
+    }
+    return str;
   }
 }

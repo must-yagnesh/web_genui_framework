@@ -61,6 +61,8 @@ class SafeGenUiCard extends StatelessWidget {
           ],
           Text(
             title,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: theme.textPrimary,
               fontSize: 16.0,
@@ -72,6 +74,8 @@ class SafeGenUiCard extends StatelessWidget {
             const SizedBox(height: 6.0),
             Text(
               description,
+              maxLines: 8,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: theme.textSecondary,
                 fontSize: 13.0,

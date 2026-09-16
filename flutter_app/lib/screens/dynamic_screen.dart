@@ -15,6 +15,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
   String _serverUrl = '';
   int _lastRenderDurationMs = 0;
   final List<String> _isolatedErrors = [];
+  String? _lastInterceptedAnomaly;
 
   @override
   void initState() {
@@ -32,9 +33,25 @@ class _DynamicScreenState extends State<DynamicScreen> {
 
   void _onSchemaUpdated(UiSchema newSchema) {
     final stopwatch = Stopwatch()..start();
+    
+    // Detect intercepted anomalies for visual telemetry
+    String? detected;
+    for (final c in newSchema.components) {
+      if (c.properties['action_id'] == 'action_blocked_insecure') {
+        detected = 'Blocked Insecure Protocol / XSS in Action Payload';
+      } else if (c.type == 'invalid' || c.type == 'truncated') {
+        detected = 'Contained Malformed / Hallucinated Component AST';
+      } else if (c.properties.containsKey('height') && (c.properties['height'] is num) && (c.properties['height'] as num) <= 0) {
+        detected = 'Sanitized Negative/Zero Layout Height (Assertion Guard)';
+      } else if ((c.properties['title']?.toString().length ?? 0) > 100 && c.properties['title'].toString().endsWith('...')) {
+        detected = 'Clamped Text Overflow (Prevented RenderFlex Overflow)';
+      }
+    }
+
     setState(() {
       _currentSchema = newSchema;
       _isolatedErrors.clear();
+      _lastInterceptedAnomaly = detected;
     });
     stopwatch.stop();
     _lastRenderDurationMs = stopwatch.elapsedMilliseconds;
@@ -209,6 +226,34 @@ class _DynamicScreenState extends State<DynamicScreen> {
               ],
             ),
           ),
+
+          // Live Guard Telemetry Banner (Visual proof of attack interception)
+          if (_lastInterceptedAnomaly != null && _isGuardedMode)
+            Container(
+              margin: const EdgeInsets.fromLTRB(14.0, 8.0, 14.0, 2.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.shield_rounded, color: Color(0xFF10B981), size: 16.0),
+                  const SizedBox(width: 8.0),
+                  Expanded(
+                    child: Text(
+                      '🛡 Guard Active: $_lastInterceptedAnomaly',
+                      style: const TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 11.0,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Dynamic Component Feed
           Expanded(

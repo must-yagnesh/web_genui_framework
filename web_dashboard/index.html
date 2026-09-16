@@ -277,6 +277,22 @@
               <strong>6. Circular / Corrupted Tree</strong>
               <small>Sends deeply nested recursive nodes</small>
             </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="text_overflow">
+              <strong>7. Text Overflow Layout Bomb</strong>
+              <small>Sends 1,200-word runaway text (RenderFlex hazard)</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="nan_dimension">
+              <strong>8. NaN & Negative Dimension</strong>
+              <small>Sends height: -120dp & padding: "NaN"</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="malicious_action">
+              <strong>9. Malicious Action / XSS Trap</strong>
+              <small>Sends &lt;script&gt; & javascript:eval action</small>
+            </button>
+            <button class="btn btn-outline fuzz-btn" data-fuzz="strobe_burst">
+              <strong>10. Rapid Stream Strobe Burst</strong>
+              <small>Simulates 20 rapid LLM updates in 500ms</small>
+            </button>
           </div>
 
           <div class="stress-explanation">
