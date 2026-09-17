@@ -1,16 +1,29 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../genui_guard/genui_guard.dart';
 
 class DynamicScreen extends StatefulWidget {
-  const DynamicScreen({super.key});
+  final String? route;
+  final String? screenId;
+  final dynamic arguments;
+  final bool? enableLiveSync;
+
+  const DynamicScreen({
+    super.key,
+    this.route,
+    this.screenId,
+    this.arguments,
+    this.enableLiveSync,
+  });
 
   @override
   State<DynamicScreen> createState() => _DynamicScreenState();
 }
 
 class _DynamicScreenState extends State<DynamicScreen> {
-  late GenUiSyncClient _syncClient;
+  GenUiSyncClient? _syncClient;
+  StreamSubscription? _screenRegistrySub;
   UiSchema _currentSchema = UiSchema.empty();
   bool _isGuardedMode = true;
   String _serverUrl = '';
@@ -18,13 +31,41 @@ class _DynamicScreenState extends State<DynamicScreen> {
   final List<String> _isolatedErrors = [];
   String? _lastInterceptedAnomaly;
 
+  bool get _shouldSync =>
+      widget.enableLiveSync ??
+      (widget.route == null || widget.route == '/' || widget.screenId == 'home');
+
   @override
   void initState() {
     super.initState();
     _initServerUrl();
-    _syncClient = GenUiSyncClient(serverBaseUrl: _serverUrl);
-    _syncClient.schemaStream.listen(_onSchemaUpdated);
-    _syncClient.start();
+
+    // 1. Preload from local screen registry if cached
+    final cached = GenUiScreenRegistry.instance.getSchemaForRoute(widget.route ?? widget.screenId);
+    if (cached != null) {
+      _currentSchema = cached;
+    }
+
+    // 2. Start sync client if this is the primary sync screen
+    if (_shouldSync) {
+      _syncClient = GenUiSyncClient(serverBaseUrl: _serverUrl);
+      _syncClient!.schemaStream.listen((newSchema) {
+        final isHome = widget.route == null || widget.route == '/' || widget.screenId == 'home';
+        final matchesRoute = newSchema.route == widget.route || newSchema.screenId == widget.screenId || newSchema.screenId == widget.route?.replaceAll('/', '');
+        if (matchesRoute || (isHome && (newSchema.route == '/' || newSchema.screenId == 'home'))) {
+          _onSchemaUpdated(newSchema);
+        }
+      });
+      _syncClient!.start();
+    }
+
+    // 3. Listen to multi-screen registry stream for reactive live updates
+    _screenRegistrySub = GenUiScreenRegistry.instance.screensStream.listen((_) {
+      final updated = GenUiScreenRegistry.instance.getSchemaForRoute(widget.route ?? widget.screenId);
+      if (updated != null && mounted) {
+        _onSchemaUpdated(updated);
+      }
+    });
   }
 
   void _initServerUrl() {
@@ -144,10 +185,12 @@ class _DynamicScreenState extends State<DynamicScreen> {
                 _serverUrl = controller.text.trim();
               });
               Navigator.pop(ctx);
-              _syncClient.dispose();
-              _syncClient = GenUiSyncClient(serverBaseUrl: _serverUrl);
-              _syncClient.schemaStream.listen(_onSchemaUpdated);
-              _syncClient.start();
+              if (_shouldSync) {
+                _syncClient?.dispose();
+                _syncClient = GenUiSyncClient(serverBaseUrl: _serverUrl);
+                _syncClient!.schemaStream.listen(_onSchemaUpdated);
+                _syncClient!.start();
+              }
             },
             child: const Text('Connect'),
           ),
@@ -158,7 +201,8 @@ class _DynamicScreenState extends State<DynamicScreen> {
 
   @override
   void dispose() {
-    _syncClient.dispose();
+    _screenRegistrySub?.cancel();
+    _syncClient?.dispose();
     super.dispose();
   }
 
@@ -311,11 +355,17 @@ class _DynamicScreenState extends State<DynamicScreen> {
       appBar: AppBar(
         backgroundColor: theme.surfaceColor,
         elevation: 0,
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                onPressed: () => Navigator.maybePop(context),
+              )
+            : null,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              header.title,
+              header.title.isNotEmpty ? header.title : (widget.route ?? 'Generative UI'),
               style: TextStyle(
                 color: theme.textPrimary,
                 fontSize: 16.0,
@@ -376,6 +426,33 @@ class _DynamicScreenState extends State<DynamicScreen> {
       ),
       body: Column(
         children: [
+          // Arguments Info Banner (if navigated with route arguments)
+          if (widget.arguments != null)
+            Container(
+              margin: const EdgeInsets.fromLTRB(14.0, 8.0, 14.0, 2.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Color(0xFF818CF8), size: 16.0),
+                  const SizedBox(width: 8.0),
+                  Expanded(
+                    child: Text(
+                      'Route Arguments: ${widget.arguments}',
+                      style: const TextStyle(
+                        color: Color(0xFFE0E7FF),
+                        fontSize: 11.0,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Live Sync Status Banner
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
@@ -389,7 +466,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
                       width: 8.0,
                       height: 8.0,
                       decoration: BoxDecoration(
-                        color: _syncClient.isConnected
+                        color: (_syncClient?.isConnected ?? true)
                             ? const Color(0xFF10B981)
                             : const Color(0xFFF59E0B),
                         shape: BoxShape.circle,
@@ -397,9 +474,9 @@ class _DynamicScreenState extends State<DynamicScreen> {
                     ),
                     const SizedBox(width: 8.0),
                     Text(
-                      _syncClient.isConnected
-                          ? 'Live Sync v${_currentSchema.version} • ${_syncClient.activeUrl.replaceFirst("http://", "")}'
-                          : 'Connecting to ${_syncClient.activeUrl.replaceFirst("http://", "")}...',
+                      (_syncClient?.isConnected ?? true)
+                          ? 'Live Sync v${_currentSchema.version} • ${(_syncClient?.activeUrl ?? _serverUrl).replaceFirst("http://", "")}'
+                          : 'Connecting to ${(_syncClient?.activeUrl ?? _serverUrl).replaceFirst("http://", "")}...',
                       style: const TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 11.0,

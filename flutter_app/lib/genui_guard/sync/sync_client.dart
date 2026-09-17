@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/ui_schema.dart';
 import '../validator/schema_validator.dart';
+import 'screen_registry.dart';
 
 /// Real-time Sync Client for receiving live UI schema updates from the Web Console
 class GenUiSyncClient {
@@ -16,6 +17,9 @@ class GenUiSyncClient {
   http.Client? _streamingClient;
 
   String _activeServerUrl;
+
+  Timer? _discoveryTimer;
+  Timer? _reconnectTimer;
 
   GenUiSyncClient({
     String serverBaseUrl = 'http://localhost:8080',
@@ -39,6 +43,7 @@ class GenUiSyncClient {
 
   /// Try candidate URLs concurrently to automatically find the working sync host
   Future<void> _discoverAndFetchSchema() async {
+    if (_isDisposed) return;
     final Set<String> candidateHosts = {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
         'http://10.0.2.2:8080',
@@ -55,9 +60,13 @@ class GenUiSyncClient {
     };
 
     final completer = Completer<bool>();
+    _discoveryTimer?.cancel();
+    _discoveryTimer = Timer(const Duration(milliseconds: 2000), () {
+      if (!completer.isCompleted) completer.complete(false);
+    });
 
     for (final host in candidateHosts) {
-      if (_isDisposed) return;
+      if (_isDisposed) break;
       http
           .get(Uri.parse('$host/api/schema/current'))
           .timeout(const Duration(milliseconds: 1800))
@@ -74,17 +83,22 @@ class GenUiSyncClient {
       });
     }
 
-    await Future.any([
-      completer.future,
-      Future.delayed(const Duration(milliseconds: 2000), () => false),
-    ]);
+    await completer.future;
+    _discoveryTimer?.cancel();
+    _discoveryTimer = null;
   }
 
   /// Stop the listener and clean up resources
   void dispose() {
     _isDisposed = true;
+    _discoveryTimer?.cancel();
+    _discoveryTimer = null;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _streamingClient?.close();
-    _schemaStreamController.close();
+    if (!_schemaStreamController.isClosed) {
+      _schemaStreamController.close();
+    }
   }
 
   /// Persistent Server-Sent Events (SSE) stream listener
@@ -104,6 +118,7 @@ class GenUiSyncClient {
         StringBuffer buffer = StringBuffer();
 
         await for (String chunk in streamedResponse.stream.transform(utf8.decoder)) {
+          if (_isDisposed) break;
           buffer.write(chunk);
           String content = buffer.toString();
 
@@ -121,14 +136,21 @@ class GenUiSyncClient {
         }
       } catch (e) {
         _isConnected = false;
-        debugPrint('[GenUiSync] SSE stream dropped ($e). Re-discovering sync host...');
-        await _discoverAndFetchSchema();
+        if (!_isDisposed) {
+          debugPrint('[GenUiSync] SSE stream dropped ($e). Re-discovering sync host...');
+          await _discoverAndFetchSchema();
+        }
       } finally {
         _streamingClient?.close();
       }
 
       if (!_isDisposed) {
-        await Future.delayed(const Duration(seconds: 2));
+        final delayCompleter = Completer<void>();
+        _reconnectTimer = Timer(const Duration(seconds: 2), () {
+          if (!delayCompleter.isCompleted) delayCompleter.complete();
+        });
+        await delayCompleter.future;
+        _reconnectTimer = null;
       }
     }
   }
@@ -147,9 +169,18 @@ class GenUiSyncClient {
         }
       }
 
-      if (eventType == 'schema_update' && dataPayload != null && dataPayload.isNotEmpty) {
+      if (dataPayload == null || dataPayload.isEmpty) return;
+
+      if (eventType == 'screens_bundle') {
+        debugPrint('[GenUiSync] Received live multi-screen bundle from Web Console');
+        final decoded = json.decode(dataPayload);
+        if (decoded is Map<String, dynamic>) {
+          GenUiScreenRegistry.instance.updateFromBundle(decoded);
+        }
+      } else if (eventType == 'schema_update') {
         debugPrint('[GenUiSync] Received live schema update from Web Dashboard');
         final result = GenUiSchemaValidator.validateAndSanitize(dataPayload);
+        GenUiScreenRegistry.instance.registerScreen(result.sanitizedSchema);
         _schemaStreamController.add(result.sanitizedSchema);
       }
     } catch (e) {

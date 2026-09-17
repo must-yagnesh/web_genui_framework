@@ -35,8 +35,24 @@
         <span>Apply to App</span>
         <span class="shortcut">Ctrl+Enter</span>
       </button>
-    </div>
   </header>
+
+  <!-- Screen Management & Routing Bar -->
+  <nav class="screens-navbar">
+    <div class="screens-nav-left">
+      <span class="screens-nav-label">📱 Screens:</span>
+      <div class="screen-tabs" id="screenTabsContainer">
+        <!-- Injected dynamically by JS -->
+      </div>
+      <button class="btn btn-sm btn-outline-dashed" id="btnOpenNewScreenModal">
+        <span>➕ New Screen</span>
+      </button>
+    </div>
+    <div class="screens-nav-right">
+      <span class="active-route-pill" id="currentScreenRouteBadge">Route: <code>/</code></span>
+      <button class="btn btn-xs btn-outline-danger" id="btnDeleteCurrentScreen" style="display: none;" title="Delete this custom screen">🗑 Delete Screen</button>
+    </div>
+  </nav>
 
   <!-- Main 3-Column Layout -->
   <main class="dashboard-grid">
@@ -346,6 +362,7 @@
             
             <!-- Mobile App Bar -->
             <div class="sim-app-bar" id="simAppBar">
+              <button class="sim-back-btn" id="simBackBtn" style="display:none;" title="Go Back">‹</button>
               <div class="sim-app-title-group">
                 <span class="sim-title" id="simTitle">Crypto & Multi-Asset Hub</span>
                 <span class="sim-sub" id="simSubtitle">Live Web-Controlled Dynamic View</span>
@@ -393,6 +410,40 @@
     </section>
 
   </main>
+
+  <!-- Create New Screen Modal -->
+  <div class="modal-backdrop" id="newScreenModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>✨ Create New Generative Screen</h3>
+        <button class="modal-close" id="btnCloseNewScreenModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Screen Name / Title *</label>
+          <input type="text" id="newScreenNameInput" placeholder="e.g. User Profile, Checkout, Wallet" />
+        </div>
+        <div class="field">
+          <label>Route Path *</label>
+          <input type="text" id="newScreenRouteInput" placeholder="e.g. /profile, /checkout, /cart" />
+          <small class="field-hint">Route used in Flutter navigation (e.g. <code>Navigator.pushNamed(context, '/checkout')</code> or <code>Get.toNamed('/checkout')</code>)</small>
+        </div>
+        <div class="field">
+          <label>Starter Template</label>
+          <select id="newScreenTemplateSelect">
+            <option value="form">📝 Form & Validation (Text Inputs + Validator Action)</option>
+            <option value="card">💳 Feature Action Cards & Banners</option>
+            <option value="checkout">🛒 Checkout / Payment Summary</option>
+            <option value="blank">📄 Blank Dynamic Canvas</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelNewScreenModal">Cancel</button>
+        <button class="btn btn-primary" id="btnSubmitCreateScreen">Create & Open Screen</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Notification Toast -->
   <div class="toast" id="appToast">Changes Applied Instantly!</div>

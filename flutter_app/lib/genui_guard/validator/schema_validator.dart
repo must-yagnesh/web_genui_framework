@@ -102,10 +102,16 @@ class GenUiSchemaValidator {
       warnings.add('Missing or non-array components field in payload.');
     }
 
+    final sId = rawMap['screen_id']?.toString() ?? 'dynamic_screen';
+    final sName = rawMap['screen_name']?.toString() ?? headerMap['title']?.toString() ?? sId;
+    final sRoute = rawMap['route']?.toString() ?? (sId == 'home' ? '/' : '/$sId');
+
     final schema = UiSchema(
       version: _coerceInt(rawMap['version'], 1),
       timestamp: _coerceInt(rawMap['timestamp'], DateTime.now().millisecondsSinceEpoch),
-      screenId: rawMap['screen_id']?.toString() ?? 'dynamic_screen',
+      screenId: sId,
+      screenName: sName,
+      route: sRoute,
       theme: ThemeConfig.fromMap(themeMap),
       header: HeaderConfig.fromMap(headerMap),
       components: sanitizedComponents,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/dynamic_screen.dart';
-import 'screens/demo_screens.dart';
+import 'genui_guard/genui_guard.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,13 +20,22 @@ class GenUiFrameworkApp extends StatelessWidget {
         fontFamily: 'Inter',
         useMaterial3: true,
       ),
-      home: const DynamicScreen(),
-      routes: {
-        '/profile': (context) => const UserProfileDemoScreen(),
-        '/settings': (context) => const SettingsDemoScreen(),
-      },
+      home: const DynamicScreen(route: '/'),
       onGenerateRoute: (settings) {
         final name = settings.name ?? '';
+
+        // 1. Check if route is a dynamic screen created in Web Console
+        if (GenUiScreenRegistry.instance.hasRoute(name)) {
+          return MaterialPageRoute(
+            builder: (ctx) => DynamicScreen(
+              route: name,
+              arguments: settings.arguments,
+            ),
+            settings: settings,
+          );
+        }
+
+        // 2. Predefined project screens fallback
         if (name == '/profile') {
           return MaterialPageRoute(
             builder: (ctx) => UserProfileDemoScreen(arguments: settings.arguments),
@@ -38,7 +47,8 @@ class GenUiFrameworkApp extends StatelessWidget {
             settings: settings,
           );
         }
-        // Fallback for any real-project route written by developer
+
+        // 3. Fallback for any real-project route written by developer
         return MaterialPageRoute(
           builder: (ctx) => GenericProjectScreen(
             routeName: name.isEmpty ? '/custom' : name,

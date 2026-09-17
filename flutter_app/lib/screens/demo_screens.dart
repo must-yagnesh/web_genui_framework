@@ -21,7 +21,6 @@ class UserProfileDemoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Extract argument data if passed (from Navigator or GetX)
     final args = arguments ?? ModalRoute.of(context)?.settings.arguments;
-    final dynamic userId = args is Map ? args['userId'] ?? args['id'] : args;
     final dynamic customTitle = args is Map ? args['title'] : null;
 
     return Scaffold(

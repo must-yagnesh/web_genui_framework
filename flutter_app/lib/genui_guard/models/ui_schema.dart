@@ -5,6 +5,8 @@ class UiSchema {
   final int version;
   final int timestamp;
   final String screenId;
+  final String screenName;
+  final String route;
   final ThemeConfig theme;
   final HeaderConfig header;
   final List<ComponentNode> components;
@@ -13,6 +15,8 @@ class UiSchema {
     required this.version,
     required this.timestamp,
     required this.screenId,
+    this.screenName = 'Screen',
+    this.route = '/',
     required this.theme,
     required this.header,
     required this.components,
@@ -23,6 +27,8 @@ class UiSchema {
       version: 0,
       timestamp: 0,
       screenId: 'default',
+      screenName: 'Default Screen',
+      route: '/',
       theme: ThemeConfig.fallback(),
       header: HeaderConfig.fallback(),
       components: const [],
@@ -59,10 +65,16 @@ class UiSchema {
       }
     }
 
+    final rawScreenId = map['screen_id']?.toString() ?? 'unknown_screen';
+    final rawScreenName = map['screen_name']?.toString() ?? (map['header'] is Map ? map['header']['title']?.toString() : null) ?? rawScreenId;
+    final rawRoute = map['route']?.toString() ?? (rawScreenId == 'home' ? '/' : '/$rawScreenId');
+
     return UiSchema(
       version: _parseInt(map['version'], 1),
       timestamp: _parseInt(map['timestamp'], DateTime.now().millisecondsSinceEpoch),
-      screenId: map['screen_id']?.toString() ?? 'unknown_screen',
+      screenId: rawScreenId,
+      screenName: rawScreenName,
+      route: rawRoute,
       theme: theme,
       header: header,
       components: components,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_genui_guard_app/genui_guard/genui_guard.dart';
+import 'package:flutter_genui_guard_app/screens/dynamic_screen.dart';
 
 void main() {
   group('flutter_genui_guard Unit Tests', () {
@@ -585,6 +586,233 @@ void main() {
       // Pop back
       await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('GenUiDartExecutor extracts input, validates email, blocks on return, and navigates with arguments when valid', (WidgetTester tester) async {
+      GenUiFormRegistry.instance.clear();
+
+      const inputNode = ComponentNode(
+        id: 'input_email',
+        type: 'textfield',
+        properties: {'label': 'Email Address', 'hint': 'Enter email'},
+      );
+
+      const script = """
+        final email = GenUiFormRegistry.instance.getValue('email');
+        if (email.isEmpty || !email.contains('@')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please enter a valid email address!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        Navigator.pushNamed(context, '/profile', arguments: {'email': email});
+      """;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          routes: {
+            '/profile': (context) => const UserProfileDemoScreen(),
+          },
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Column(
+                children: [
+                  SafeWidgetRegistry.buildNode(
+                    node: inputNode,
+                    theme: ThemeConfig.fallback(),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: script,
+                    ),
+                    child: const Text('Submit & Navigate'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Phase 1: Test with empty email -> triggers validation SnackBar, blocks navigation
+      await tester.tap(find.text('Submit & Navigate'));
+      await tester.pump();
+      expect(find.text('Please enter a valid email address!'), findsOneWidget);
+      expect(find.byType(UserProfileDemoScreen), findsNothing);
+
+      // Phase 2: Enter invalid text without '@' -> still blocks navigation
+      await tester.enterText(find.byType(TextField), 'invalidemail');
+      await tester.pump();
+      await tester.tap(find.text('Submit & Navigate'));
+      await tester.pump();
+      expect(find.text('Please enter a valid email address!'), findsOneWidget);
+      expect(find.byType(UserProfileDemoScreen), findsNothing);
+
+      // Phase 3: Enter valid email -> validation passes, navigates to /profile with arguments
+      await tester.enterText(find.byType(TextField), 'alex@enterprise.io');
+      await tester.pump();
+      await tester.tap(find.text('Submit & Navigate'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(UserProfileDemoScreen), findsOneWidget);
+      expect(find.textContaining('alex@enterprise.io'), findsOneWidget);
+    });
+
+    testWidgets('GenUiDartExecutor interpolates scope variables in SnackBar and supports isValidEmail', (WidgetTester tester) async {
+      GenUiFormRegistry.instance.clear();
+      GenUiFormRegistry.instance.getController('email').text = 'test@example.com';
+
+      const script = """
+        final email = GenUiFormRegistry.instance.getValue('email');
+        if (GenUiFormRegistry.instance.isValidEmail('email')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Verified email: \$email')),
+          );
+        }
+      """;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => GenUiDartExecutor.execute(
+                  context: context,
+                  code: script,
+                ),
+                child: const Text('Verify'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Verify'));
+      await tester.pump();
+      expect(find.text('Verified email: test@example.com'), findsOneWidget);
+    });
+  });
+
+  group('Multi-Screen Registry and Dynamic Routing Tests', () {
+    test('GenUiScreenRegistry registers, indexes routes, and retrieves schema', () {
+      final registry = GenUiScreenRegistry.instance;
+      registry.clear();
+
+      expect(registry.hasRoute('/checkout'), isFalse);
+      expect(registry.getSchemaForRoute('/checkout'), isNull);
+
+      final checkoutSchema = UiSchema(
+        version: 1,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        screenId: 'checkout',
+        screenName: 'Checkout & Payment',
+        route: '/checkout',
+        theme: ThemeConfig.fallback(),
+        header: const HeaderConfig(title: 'Order Checkout', subtitle: 'Review items', showBackButton: true, actionIcon: 'more'),
+        components: const [
+          ComponentNode(
+            id: 'btn_pay',
+            type: 'button',
+            properties: {'text': 'Pay Now'},
+          ),
+        ],
+      );
+
+      registry.registerScreen(checkoutSchema);
+      expect(registry.hasRoute('/checkout'), isTrue);
+      expect(registry.hasRoute('checkout'), isTrue);
+
+      final resolved = registry.getSchemaForRoute('/checkout');
+      expect(resolved, isNotNull);
+      expect(resolved!.screenName, 'Checkout & Payment');
+      expect(resolved.header.title, 'Order Checkout');
+      expect(resolved.components.length, 1);
+    });
+
+    test('GenUiScreenRegistry.updateFromBundle batch registers schemas', () {
+      final registry = GenUiScreenRegistry.instance;
+      registry.clear();
+
+      final bundle = {
+        'active_screen_id': 'orders',
+        'screens': {
+          'home': {
+            'version': 1,
+            'screen_id': 'home',
+            'screen_name': 'Home Dashboard',
+            'route': '/',
+            'header': {'title': 'Home'},
+            'components': [],
+          },
+          'orders': {
+            'version': 2,
+            'screen_id': 'orders',
+            'screen_name': 'My Orders',
+            'route': '/orders',
+            'header': {'title': 'Order History'},
+            'components': [],
+          },
+        }
+      };
+
+      registry.updateFromBundle(bundle);
+      expect(registry.hasRoute('/'), isTrue);
+      expect(registry.hasRoute('/orders'), isTrue);
+      expect(registry.getSchemaForRoute('/orders')?.screenName, 'My Orders');
+    });
+
+    testWidgets('GenUiDartExecutor navigates to dynamic screen registered in registry with arguments', (WidgetTester tester) async {
+      final registry = GenUiScreenRegistry.instance;
+      registry.clear();
+
+      final profileSchema = UiSchema(
+        version: 1,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        screenId: 'profile',
+        screenName: 'Dynamic User Profile',
+        route: '/profile',
+        theme: ThemeConfig.fallback(),
+        header: const HeaderConfig(title: 'Live Dynamic Profile', subtitle: 'Console Generated', showBackButton: true, actionIcon: 'more'),
+        components: const [
+          ComponentNode(
+            id: 'profile_btn',
+            type: 'button',
+            properties: {'text': 'Edit Profile'},
+          ),
+        ],
+      );
+      registry.registerScreen(profileSchema);
+
+      const navCode = "Navigator.pushNamed(context, '/profile', arguments: {'tier': 'VIP', 'score': 100});";
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => GenUiDartExecutor.execute(
+                  context: context,
+                  code: navCode,
+                ),
+                child: const Text('Open Dynamic Profile'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Dynamic Profile'));
+      await tester.pumpAndSettle();
+
+      // DynamicScreen was pushed because /profile is in GenUiScreenRegistry
+      expect(find.byType(DynamicScreen), findsOneWidget);
+      expect(find.text('Live Dynamic Profile'), findsOneWidget);
+      expect(find.text('Edit Profile'), findsOneWidget);
+      expect(find.textContaining('tier: VIP'), findsOneWidget);
     });
   });
 }

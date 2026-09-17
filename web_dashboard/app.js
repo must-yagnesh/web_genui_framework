@@ -3,7 +3,9 @@
 let activeSchema = {
   version: 1,
   timestamp: Date.now(),
-  screen_id: "home_feed",
+  screen_id: "home",
+  screen_name: "Crypto & Multi-Asset Hub",
+  route: "/",
   theme: {
     primary_color: "#4F46E5",
     background_color: "#0F172A",
@@ -65,6 +67,13 @@ let activeSchema = {
     }
   ]
 };
+
+// Multi-Screen Registry State
+let screens = {
+  home: activeSchema
+};
+let activeScreenId = "home";
+let simNavStack = ["home"];
 
 // Preset Templates
 const PRESETS = {
@@ -454,6 +463,236 @@ const appToast = document.getElementById("appToast");
 const simTitle = document.getElementById("simTitle");
 const simSubtitle = document.getElementById("simSubtitle");
 const simComponentsList = document.getElementById("simComponentsList");
+const simBackBtn = document.getElementById("simBackBtn");
+
+// Screen Manager DOM Elements
+const screenTabsContainer = document.getElementById("screenTabsContainer");
+const btnOpenNewScreenModal = document.getElementById("btnOpenNewScreenModal");
+const currentScreenRouteBadge = document.getElementById("currentScreenRouteBadge");
+const btnDeleteCurrentScreen = document.getElementById("btnDeleteCurrentScreen");
+const newScreenModal = document.getElementById("newScreenModal");
+const btnCloseNewScreenModal = document.getElementById("btnCloseNewScreenModal");
+const btnCancelNewScreenModal = document.getElementById("btnCancelNewScreenModal");
+const btnSubmitCreateScreen = document.getElementById("btnSubmitCreateScreen");
+const newScreenNameInput = document.getElementById("newScreenNameInput");
+const newScreenRouteInput = document.getElementById("newScreenRouteInput");
+const newScreenTemplateSelect = document.getElementById("newScreenTemplateSelect");
+
+// Multi-Screen Management Functions
+async function loadScreensFromServer() {
+  try {
+    const res = await fetch("/api/screens");
+    const data = await res.json();
+    if (data.screens && Object.keys(data.screens).length > 0) {
+      screens = data.screens;
+      activeScreenId = data.active_screen_id || activeScreenId || "home";
+      if (screens[activeScreenId]) {
+        activeSchema = screens[activeScreenId];
+      }
+    }
+    renderScreenTabs();
+    renderAll();
+  } catch (err) {
+    console.warn("Could not load screens list from server:", err);
+    renderScreenTabs();
+  }
+}
+
+function renderScreenTabs() {
+  if (!screenTabsContainer) return;
+  screenTabsContainer.innerHTML = "";
+
+  const screenIds = Object.keys(screens);
+  screenIds.sort((a, b) => {
+    if (a === "home") return -1;
+    if (b === "home") return 1;
+    return a.localeCompare(b);
+  });
+
+  screenIds.forEach((sid) => {
+    const scr = screens[sid];
+    const isAct = sid === activeScreenId;
+    const btn = document.createElement("button");
+    btn.className = `screen-tab ${isAct ? "active" : ""}`;
+    btn.dataset.screenId = sid;
+    const icon = sid === "home" ? "🏠" : "📄";
+    const name = scr.screen_name || scr.header?.title || sid;
+    const route = scr.route || (sid === "home" ? "/" : `/${sid}`);
+    btn.innerHTML = `<span>${icon} ${escapeHtml(name)}</span> <span class="screen-tab-route">${escapeHtml(route)}</span>`;
+    btn.onclick = () => switchScreen(sid);
+    screenTabsContainer.appendChild(btn);
+  });
+
+  // Update current screen route badge and delete button
+  const currentScr = screens[activeScreenId] || activeSchema;
+  if (currentScreenRouteBadge) {
+    const currentRoute = currentScr.route || (activeScreenId === "home" ? "/" : `/${activeScreenId}`);
+    const scrTitle = currentScr.screen_name || currentScr.header?.title || activeScreenId;
+    currentScreenRouteBadge.innerHTML = `Screen: <strong>${escapeHtml(scrTitle)}</strong> • Route: <code>${escapeHtml(currentRoute)}</code>`;
+  }
+  if (btnDeleteCurrentScreen) {
+    btnDeleteCurrentScreen.style.display = activeScreenId === "home" ? "none" : "inline-flex";
+  }
+}
+
+async function switchScreen(screenId) {
+  if (!screens[screenId]) return;
+
+  // Save current active schema into screens dictionary
+  if (screens[activeScreenId]) {
+    screens[activeScreenId] = JSON.parse(JSON.stringify(activeSchema));
+  }
+
+  activeScreenId = screenId;
+  activeSchema = screens[screenId];
+  simNavStack = [screenId];
+
+  // Remove any open simulator overlays
+  const simScreen = document.getElementById("phoneSimulatorScreen");
+  const overlay = simScreen?.querySelector(".sim-screen-overlay, .sim-bottomsheet-wrapper, .sim-modal-backdrop");
+  if (overlay) overlay.remove();
+  if (simBackBtn) simBackBtn.style.display = "none";
+
+  renderScreenTabs();
+  renderAll();
+
+  // Notify backend switch
+  try {
+    await fetch("/api/screens/switch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: screenId })
+    });
+  } catch (err) {
+    console.warn("Switch notify error:", err);
+  }
+}
+
+function openNewScreenModal() {
+  if (!newScreenModal) return;
+  newScreenNameInput.value = "";
+  newScreenRouteInput.value = "";
+  delete newScreenRouteInput.dataset.touched;
+  newScreenModal.style.display = "flex";
+  newScreenNameInput.focus();
+}
+
+function closeNewScreenModal() {
+  if (newScreenModal) newScreenModal.style.display = "none";
+}
+
+async function createNewScreen(name, route, template) {
+  let cleanRoute = route.trim();
+  if (!cleanRoute.startsWith("/")) cleanRoute = "/" + cleanRoute;
+  const screenId = cleanRoute.replaceAll("/", "").replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase() || `screen_${Date.now()}`;
+
+  try {
+    const res = await fetch("/api/screens/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: screenId,
+        name: name.trim(),
+        route: cleanRoute,
+        template: template || "form"
+      })
+    });
+    const data = await res.json();
+    if (data.screen) {
+      screens[data.screen.screen_id || screenId] = data.screen;
+      closeNewScreenModal();
+      await switchScreen(data.screen.screen_id || screenId);
+      showToast(`✨ Screen "${name}" created with route ${cleanRoute}!`);
+    } else {
+      alert("Could not create screen: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Create screen error:", err);
+    alert("Failed to create screen: " + err.message);
+  }
+}
+
+async function deleteCurrentScreen() {
+  if (activeScreenId === "home") {
+    alert("The Home screen cannot be deleted.");
+    return;
+  }
+  const scrTitle = screens[activeScreenId]?.screen_name || screens[activeScreenId]?.header?.title || activeScreenId;
+  if (!confirm(`Are you sure you want to delete the screen "${scrTitle}"?`)) return;
+
+  const toDelete = activeScreenId;
+  try {
+    const res = await fetch("/api/screens/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: toDelete })
+    });
+    const data = await res.json();
+    delete screens[toDelete];
+    await switchScreen("home");
+    showToast(`🗑 Screen "${scrTitle}" deleted`);
+  } catch (err) {
+    console.error("Delete screen error:", err);
+    alert("Failed to delete screen: " + err.message);
+  }
+}
+
+// Modal & Screen Manager Event Listeners
+if (btnOpenNewScreenModal) {
+  btnOpenNewScreenModal.addEventListener("click", openNewScreenModal);
+}
+if (btnCloseNewScreenModal) {
+  btnCloseNewScreenModal.addEventListener("click", closeNewScreenModal);
+}
+if (btnCancelNewScreenModal) {
+  btnCancelNewScreenModal.addEventListener("click", closeNewScreenModal);
+}
+if (newScreenModal) {
+  newScreenModal.addEventListener("click", (e) => {
+    if (e.target === newScreenModal) closeNewScreenModal();
+  });
+}
+if (newScreenNameInput && newScreenRouteInput) {
+  newScreenNameInput.addEventListener("input", (e) => {
+    if (!newScreenRouteInput.dataset.touched) {
+      const slug = e.target.value.toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      if (slug) newScreenRouteInput.value = `/${slug}`;
+    }
+  });
+  newScreenRouteInput.addEventListener("input", () => {
+    newScreenRouteInput.dataset.touched = "true";
+  });
+}
+if (btnSubmitCreateScreen) {
+  btnSubmitCreateScreen.addEventListener("click", () => {
+    const name = newScreenNameInput.value.trim();
+    const route = newScreenRouteInput.value.trim();
+    const template = newScreenTemplateSelect.value;
+    if (!name) {
+      alert("Please enter a screen name!");
+      return;
+    }
+    if (!route) {
+      alert("Please enter a route path (e.g. /profile, /checkout)!");
+      return;
+    }
+    createNewScreen(name, route, template);
+  });
+}
+if (btnDeleteCurrentScreen) {
+  btnDeleteCurrentScreen.addEventListener("click", deleteCurrentScreen);
+}
+if (simBackBtn) {
+  simBackBtn.addEventListener("click", () => {
+    const screen = document.getElementById("phoneSimulatorScreen");
+    const overlay = screen?.querySelector(".sim-screen-overlay, .sim-bottomsheet-wrapper, .sim-modal-backdrop");
+    if (overlay) {
+      overlay.remove();
+      simBackBtn.style.display = "none";
+      showToast("‹ Returned to previous screen");
+    }
+  });
+}
 
 // Tabs Handling
 document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -631,6 +870,8 @@ function escapeHtml(str) {
 function getDartSnippetTemplate(kind, name) {
   const safeName = (name || "Component").replace(/['"\\]/g, "");
   switch (kind) {
+    case "form_nav":
+      return `final email = GenUiFormRegistry.instance.getValue('email');\nif (email.isEmpty || !email.contains('@')) {\n  ScaffoldMessenger.of(context).showSnackBar(\n    SnackBar(\n      content: Text('Please enter a valid email address!'),\n      backgroundColor: Color(0xFFEF4444),\n    ),\n  );\n  return;\n}\nNavigator.pushNamed(\n  context,\n  '/profile',\n  arguments: {'email': email, 'source': '${safeName}'},\n);`;
     case "nav_profile":
       return `Navigator.pushNamed(\n  context,\n  '/profile',\n  arguments: {'userId': 'alex_vip', 'source': '${safeName}'},\n);`;
     case "nav_settings":
@@ -673,6 +914,7 @@ function renderOnClickCodeEditor(comp, idx, isChild = false, parentIdx = null) {
           <select style="width: 100%; font-size: 11px; padding: 3px 6px;" onchange="${isChild ? `handleChildActionTypeChange(${parentIdx}, ${idx}, this.value)` : `handleCompActionTypeChange(${idx}, this.value)`}">
             <option value="none" ${actionType === 'none' ? 'selected' : ''}>Action: None</option>
             <option value="custom_code" ${actionType === 'custom_code' ? 'selected' : ''}>Custom Flutter Code</option>
+            <option value="form_nav" ${actionType === 'form_nav' ? 'selected' : ''}>Preset: Form Validate &amp; Nav</option>
             <option value="nav_profile" ${actionType === 'nav_profile' ? 'selected' : ''}>Preset: /profile Navigation</option>
             <option value="nav_settings" ${actionType === 'nav_settings' ? 'selected' : ''}>Preset: /settings Navigation</option>
             <option value="custom_sheet" ${actionType === 'custom_sheet' ? 'selected' : ''}>Preset: Custom BottomSheet</option>
@@ -701,6 +943,7 @@ function renderOnClickCodeEditor(comp, idx, isChild = false, parentIdx = null) {
 
       <div class="dart-snippets-row">
         <span class="snippet-label">Insert Snippet:</span>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'form_nav')` : `insertCompDartSnippet(${idx}, 'form_nav')`}">+ Form Email Nav</button>
         <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'nav_profile')` : `insertCompDartSnippet(${idx}, 'nav_profile')`}">+ Nav /profile</button>
         <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'nav_settings')` : `insertCompDartSnippet(${idx}, 'nav_settings')`}">+ Nav /settings</button>
         <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'custom_sheet')` : `insertCompDartSnippet(${idx}, 'custom_sheet')`}">+ Custom Sheet</button>
@@ -2266,7 +2509,17 @@ function applyToApp() {
   btnApplyToApp.disabled = true;
   btnApplyToApp.innerHTML = `<span>⏳ Broadcasting...</span>`;
 
-  fetch("/api/schema/apply", {
+  // Ensure activeSchema metadata
+  activeSchema.screen_id = activeScreenId;
+  activeSchema.screen_name = activeSchema.header?.title || activeScreenId;
+  activeSchema.route = screens[activeScreenId]?.route || (activeScreenId === "home" ? "/" : `/${activeScreenId}`);
+  activeSchema.timestamp = Date.now();
+
+  // Save in local screens dictionary
+  screens[activeScreenId] = JSON.parse(JSON.stringify(activeSchema));
+  renderScreenTabs();
+
+  fetch(`/api/schema/apply?screen=${encodeURIComponent(activeScreenId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(activeSchema)
@@ -2276,11 +2529,11 @@ function applyToApp() {
     const elapsed = Math.round(performance.now() - startTime);
     teleLatency.innerText = `${elapsed} ms`;
     schemaVersionDisplay.innerText = `v${data.version || activeSchema.version}`;
-    showToast(`🚀 Applied Instantly to Mobile in ${elapsed} ms!`);
+    showToast(`🚀 Screen "${activeSchema.screen_name}" Applied to Mobile in ${elapsed} ms!`);
   })
   .catch(err => {
     console.error("Apply error:", err);
-    showToast("⚠️ Could not broadcast to server. Is sync server running?");
+    showToast("⚠️ Could not broadcast to server. Is sync server running?", true);
   })
   .finally(() => {
     btnApplyToApp.disabled = false;
@@ -2299,13 +2552,34 @@ function connectSseStream() {
   evtSource.addEventListener("schema_update", (e) => {
     try {
       const data = JSON.parse(e.data);
-      if (data.version && data.version !== activeSchema.version) {
+      const sid = data.screen_id || (data.route === "/" ? "home" : null);
+      if (sid) {
+        screens[sid] = data;
+      }
+      if (data.version && (data.screen_id === activeScreenId || (!data.screen_id && activeScreenId === "home"))) {
         activeSchema = data;
         schemaVersionDisplay.innerText = `v${data.version}`;
         renderAll();
       }
+      renderScreenTabs();
     } catch (err) {
       console.error("SSE parse error:", err);
+    }
+  });
+
+  evtSource.addEventListener("screens_bundle", (e) => {
+    try {
+      const bundle = JSON.parse(e.data);
+      if (bundle.screens) {
+        screens = bundle.screens;
+        if (screens[activeScreenId]) {
+          activeSchema = screens[activeScreenId];
+          renderAll();
+        }
+        renderScreenTabs();
+      }
+    } catch (err) {
+      console.error("SSE screens_bundle parse error:", err);
     }
   });
 
@@ -2405,11 +2679,29 @@ window.handleSimulatorDartClick = function(compId, event) {
   }
 
   let comp = null;
-  for (const c of activeSchema.components) {
+  // 1. Search in activeSchema
+  for (const c of (activeSchema.components || [])) {
     if (c.id === compId) { comp = c; break; }
     if (c.children && Array.isArray(c.children)) {
       for (const ch of c.children) {
         if (ch.id === compId) { comp = ch; break; }
+      }
+      if (comp) break;
+    }
+  }
+
+  // 2. Search across other registered screens
+  if (!comp && typeof screens === 'object') {
+    for (const sid in screens) {
+      const scr = screens[sid];
+      for (const c of (scr.components || [])) {
+        if (c.id === compId) { comp = c; break; }
+        if (c.children && Array.isArray(c.children)) {
+          for (const ch of c.children) {
+            if (ch.id === compId) { comp = ch; break; }
+          }
+          if (comp) break;
+        }
       }
       if (comp) break;
     }
@@ -2431,8 +2723,41 @@ window.handleSimulatorDartClick = function(compId, event) {
   }
 };
 
+function getSimulatorInputValue(keyOrId) {
+  const query = (keyOrId || '').toLowerCase().trim();
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return '';
+
+  // 1. Direct match by id: sim_input_{keyOrId} or sim_input_input_{keyOrId}
+  let el = document.getElementById(`sim_input_${keyOrId}`) ||
+           document.getElementById(`sim_input_input_${keyOrId}`) ||
+           document.getElementById(keyOrId);
+  if (el && el.value !== undefined) return el.value.trim();
+
+  // 2. Search inputs & textareas
+  const inputs = screen.querySelectorAll('input, textarea');
+  for (const input of inputs) {
+    const id = (input.id || '').toLowerCase();
+    const label = (input.getAttribute('data-label') || '').toLowerCase();
+    const placeholder = (input.getAttribute('placeholder') || '').toLowerCase();
+    if (id === query || id.includes(query) || label === query || label.includes(query) || placeholder.includes(query)) {
+      return input.value.trim();
+    }
+  }
+  return '';
+}
+
 function executeSimulatorDartSnippet(code, comp) {
   const compName = comp.text || comp.title || comp.label || comp.icon || comp.id || comp.type;
+  const scope = {};
+
+  // Extract variables: final|var|String <varName> = ...getValue('key')
+  const varMatches = code.matchAll(/(?:final|var|String|dynamic)?\s*([a-zA-Z0-9_]+)\s*=\s*(?:GenUi)?FormRegistry\.instance\.getValue\(\s*['"](.+?)['"]\s*\)/g);
+  for (const vm of varMatches) {
+    const vName = vm[1];
+    const fieldKey = vm[2];
+    scope[vName] = getSimulatorInputValue(fieldKey);
+  }
 
   // 0. Navigator Pop / Get.back
   if (code.includes("Navigator.pop") || code.includes("Get.back")) {
@@ -2452,7 +2777,50 @@ function executeSimulatorDartSnippet(code, comp) {
     return;
   }
 
-  // 2. Navigation: Navigator.push, Navigator.pushNamed, Get.to, Get.toNamed, UserProfileDemoScreen, SettingsDemoScreen
+  // 2. Check for Conditional Validation (if (...) { ... showSnackBar ... return; })
+  const ifMatch = code.match(/if\s*\(([\s\S]+?)\)\s*\{([\s\S]+?)\}/);
+  if (ifMatch) {
+    const condStr = ifMatch[1];
+    const blockStr = ifMatch[2];
+
+    let condPassed = false;
+    // Check common conditions
+    if (condStr.includes(".isEmpty") || condStr.includes("contains('@')") || condStr.includes("isValidEmail")) {
+      // Find variable value from scope or simulator
+      let targetVal = scope["email"] !== undefined ? scope["email"] : "";
+      for (const k in scope) {
+        if (condStr.includes(k)) { targetVal = scope[k]; break; }
+      }
+      if (!targetVal) {
+        targetVal = getSimulatorInputValue("email");
+      }
+
+      // If condition checks if invalid
+      if (condStr.includes(".isEmpty") && (!targetVal || targetVal.trim().length === 0)) {
+        condPassed = true;
+      } else if (condStr.includes("contains('@')") && (!targetVal || !targetVal.includes("@"))) {
+        condPassed = true;
+      } else if (condStr.includes("isValidEmail") && (!targetVal || !targetVal.includes("@") || !targetVal.includes("."))) {
+        condPassed = true;
+      }
+    }
+
+    if (condPassed) {
+      // Validation failed -> execute inside if block (usually SnackBar + return)
+      if (blockStr.includes("showSnackBar") || blockStr.includes("SnackBar(")) {
+        let msg = "Please enter a valid value!";
+        const tMatch = blockStr.match(/Text\(\s*['"](.+?)['"]\s*\)/);
+        if (tMatch && tMatch[1]) msg = tMatch[1];
+        showSimulatorSnackBar(msg, "#EF4444");
+        showToast(`⚡ Validation Error: "${msg}"`);
+      }
+      if (blockStr.includes("return")) {
+        return; // Halt on return!
+      }
+    }
+  }
+
+  // 3. Navigation: Navigator.push, Navigator.pushNamed, Get.to, Get.toNamed, UserProfileDemoScreen, SettingsDemoScreen
   if (code.includes("Navigator.push") || code.includes("Navigator.of(context).push") || code.includes("Get.to") || code.includes("UserProfileDemoScreen") || code.includes("SettingsDemoScreen")) {
     let routeName = "/profile";
     const slashMatch = code.match(/['"](\/[a-zA-Z0-9_\-\/]*)['"]/);
@@ -2465,20 +2833,42 @@ function executeSimulatorDartSnippet(code, comp) {
     }
 
     let args = null;
-    const argMatch = code.match(/arguments:\s*(\{.+?\}|\[.+?\]|['"][^'"]*['"]|\d+)/);
+    const argMatch = code.match(/arguments:\s*(\{[\s\S]+?\}|\[[\s\S]+?\]|['"][^'"]*['"]|[a-zA-Z0-9_]+)/);
     if (argMatch && argMatch[1]) {
-      args = argMatch[1].trim();
+      let rawArgs = argMatch[1].trim();
+      // Substitute variables from scope
+      for (const k in scope) {
+        rawArgs = rawArgs.replace(new RegExp(`\\b${k}\\b`, 'g'), `'${scope[k]}'`);
+      }
+      args = rawArgs;
+    }
+
+    // 1. Check if routeName matches any screen in our multi-screen registry!
+    const matchingScreenEntry = Object.entries(screens).find(([sid, scr]) => {
+      const scrRoute = scr.route || (sid === "home" ? "/" : `/${sid}`);
+      return scrRoute === routeName || sid === routeName.replaceAll('/', '') || sid === routeName;
+    });
+
+    if (matchingScreenEntry) {
+      const [matchedSid, matchedScr] = matchingScreenEntry;
+      showSimulatorDynamicScreen(matchedSid, matchedScr, args);
+      if (simBackBtn) simBackBtn.style.display = "inline-flex";
+      showToast(`⚡ Navigated to Dynamic Screen: "${matchedScr.screen_name || matchedScr.header?.title}" (${routeName})`);
+      return;
     }
 
     if (routeName === "/profile") {
       showSimulatorProfileScreen(args);
-      showToast(`⚡ Navigated to /profile ${args ? `with arguments` : ''}`);
+      if (simBackBtn) simBackBtn.style.display = "inline-flex";
+      showToast(`⚡ Navigated to /profile ${args ? `with arguments: ${args}` : ''}`);
     } else if (routeName === "/settings") {
       showSimulatorSettingsScreen(args);
-      showToast(`⚡ Navigated to /settings ${args ? `with arguments` : ''}`);
+      if (simBackBtn) simBackBtn.style.display = "inline-flex";
+      showToast(`⚡ Navigated to /settings ${args ? `with arguments: ${args}` : ''}`);
     } else {
       showSimulatorGenericScreen(routeName, args);
-      showToast(`⚡ Navigated to ${routeName} ${args ? `with arguments` : ''}`);
+      if (simBackBtn) simBackBtn.style.display = "inline-flex";
+      showToast(`⚡ Navigated to ${routeName} ${args ? `with arguments: ${args}` : ''}`);
     }
     return;
   }
@@ -2492,6 +2882,10 @@ function executeSimulatorDartSnippet(code, comp) {
     } else {
       const contentMatch = code.match(/content:\s*['"](.+?)['"]/);
       if (contentMatch && contentMatch[1]) msg = contentMatch[1];
+    }
+
+    for (const k in scope) {
+      msg = msg.replaceAll(`$${k}`, scope[k]).replaceAll(`\${${k}}`, scope[k]);
     }
 
     let bg = activeSchema.theme?.primary_color || "#4F46E5";
@@ -2603,6 +2997,50 @@ function showSimulatorCustomBottomSheet() {
     if (e.target === wrapper) wrapper.remove();
   };
   screen.appendChild(wrapper);
+}
+
+function showSimulatorDynamicScreen(sid, scr, args) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-screen-overlay");
+  if (old) old.remove();
+
+  if (simBackBtn) simBackBtn.style.display = "inline-flex";
+
+  const overlay = document.createElement("div");
+  overlay.className = "sim-screen-overlay";
+
+  let componentsHtml = "";
+  if (scr.components && scr.components.length > 0) {
+    componentsHtml = scr.components.map(comp => renderSimChildHtml(comp)).join("");
+  } else {
+    componentsHtml = `
+      <div style="text-align:center; padding:36px 16px; color:#94A3B8; font-size:12px;">
+        <div style="font-size:28px; margin-bottom:8px;">📄</div>
+        <strong>Blank Dynamic Screen Canvas</strong>
+        <p style="margin-top:6px; color:#64748B;">Select this screen tab in the designer to add components and actions.</p>
+      </div>`;
+  }
+
+  overlay.innerHTML = `
+    <div class="sim-screen-appbar">
+      <button class="sim-appbar-btn" onclick="this.closest('.sim-screen-overlay').remove(); if(document.getElementById('simBackBtn')) document.getElementById('simBackBtn').style.display='none';">‹ Back</button>
+      <div class="sim-appbar-title">${escapeHtml(scr.header?.title || scr.screen_name || sid)}</div>
+      <div style="font-size:10px; color:#818CF8; font-weight:700; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); padding:2px 6px; border-radius:4px;">GENUI</div>
+    </div>
+    <div class="sim-screen-body" style="padding: 12px; overflow-y: auto;">
+      ${args ? `
+        <div class="sim-arg-box" style="margin-bottom: 12px;">
+          <div style="color:#818CF8; font-weight:700; margin-bottom:2px; font-size:11px;">📥 Received Route Arguments:</div>
+          <div style="font-size:11px; font-family:monospace; color:#E2E8F0;">${escapeHtml(typeof args === 'object' ? JSON.stringify(args) : args)}</div>
+        </div>
+      ` : ''}
+      <div class="sim-dynamic-components-inner" style="display:flex; flex-direction:column; gap:8px;">
+        ${componentsHtml}
+      </div>
+    </div>
+  `;
+  screen.appendChild(overlay);
 }
 
 function showSimulatorProfileScreen(args) {
@@ -2864,7 +3302,8 @@ btnResetDefault.addEventListener("click", () => {
 });
 
 // Initialization
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   renderAll();
+  await loadScreensFromServer();
   connectSseStream();
 });

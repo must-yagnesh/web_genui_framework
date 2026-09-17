@@ -14,6 +14,7 @@ export 'widgets/safe_metric.dart';
 export 'widgets/safe_button.dart';
 export 'sync/sync_client.dart';
 export 'state/form_registry.dart';
+export 'sync/screen_registry.dart';
 export 'executor/dart_executor.dart';
 export 'widgets/safe_primitives.dart';
 export '../screens/demo_screens.dart';

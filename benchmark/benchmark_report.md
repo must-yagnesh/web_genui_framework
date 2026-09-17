@@ -31,7 +31,7 @@
 
 | Test ID | Category | Description | Naive Result | flutter_genui_guard Result |
 | :--- | :--- | :--- | :--- | :--- |
-| `TC-01` | `type_mismatch` | String supplied where numeric padding double expected | 💥 CRASH: `TypeError: padding expected do...` | 🛡 SAFE (0.05ms) |
+| `TC-01` | `type_mismatch` | String supplied where numeric padding double expected | 💥 CRASH: `TypeError: padding expected do...` | 🛡 SAFE (0.06ms) |
 | `TC-02` | `type_mismatch` | String supplied where boolean is_positive expected | 💥 CRASH: `TypeError: is_positive expecte...` | 🛡 SAFE (0.00ms) |
 | `TC-03` | `type_mismatch` | String supplied where array of metrics expected | 💥 CRASH: `TypeError: metrics expected Li...` | 🛡 SAFE (0.00ms) |
 | `TC-04` | `type_mismatch` | Integer supplied where string title expected | 💥 CRASH: `TypeError: title expected Stri...` | 🛡 SAFE (0.00ms) |

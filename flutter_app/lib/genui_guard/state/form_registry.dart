@@ -31,6 +31,51 @@ class GenUiFormRegistry {
     return _fieldLabels[id] ?? id;
   }
 
+  /// Retrieve a specific field's string value by ID, partial name, or label
+  String getValue(String keyOrId) {
+    final query = keyOrId.toLowerCase().trim();
+
+    // 1. Exact match in text controllers
+    if (_controllers.containsKey(keyOrId)) {
+      return _controllers[keyOrId]!.text.trim();
+    }
+
+    // 2. Exact match in custom values
+    if (_customValues.containsKey(keyOrId)) {
+      return _customValues[keyOrId]?.toString().trim() ?? '';
+    }
+
+    // 3. Partial or case-insensitive match on controller ID or label
+    for (final entry in _controllers.entries) {
+      final id = entry.key.toLowerCase();
+      final label = (_fieldLabels[entry.key] ?? '').toLowerCase();
+      if (id == query || id.contains(query) || label == query || label.contains(query)) {
+        return entry.value.text.trim();
+      }
+    }
+
+    // 4. Partial match on custom values
+    for (final entry in _customValues.entries) {
+      final id = entry.key.toLowerCase();
+      final label = (_fieldLabels[entry.key] ?? '').toLowerCase();
+      if (id == query || id.contains(query) || label == query || label.contains(query)) {
+        return entry.value?.toString().trim() ?? '';
+      }
+    }
+
+    return '';
+  }
+
+  /// Check if a field exists and has non-empty text
+  bool hasValue(String keyOrId) => getValue(keyOrId).isNotEmpty;
+
+  /// Check if a field value is a valid email address
+  bool isValidEmail(String keyOrId) {
+    final val = getValue(keyOrId);
+    if (val.isEmpty) return false;
+    return val.contains('@') && val.contains('.');
+  }
+
   /// Retrieve all current field values as a Map
   Map<String, dynamic> getValues() {
     final Map<String, dynamic> result = {};
