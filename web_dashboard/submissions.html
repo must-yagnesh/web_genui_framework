@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shows Submission — GenUI Form Submissions</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="submissions.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <span class="logo-icon">📋</span>
+        <div class="brand-text">
+          <span class="brand-title">Shows Submission</span>
+          <span class="brand-sub">Every form submitted from the Flutter app &amp; Web Simulator</span>
+        </div>
+      </div>
+      <div class="sync-badge" id="syncStatusBadge">
+        <span class="status-dot"></span>
+        <span id="statusText">Connecting...</span>
+        <span class="sub-counter" id="totalCounter">0 submissions</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="version-tag">API: <strong><code>GET /api/submissions</code></strong></div>
+      <label class="auto-refresh-toggle" title="Poll the API every 2 seconds">
+        <input type="checkbox" id="autoRefreshToggle" checked>
+        <span>Auto-refresh</span>
+      </label>
+      <button class="btn btn-secondary" id="btnRefresh">🔄 Refresh</button>
+      <button class="btn btn-secondary btn-danger-outline" id="btnClearAll">🗑 Clear All</button>
+      <a class="btn btn-primary" href="/" title="Back to the Web Control Console">
+        <span class="btn-icon">⚡</span>
+        <span>Open Console</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Summary Stats -->
+  <section class="sub-stats">
+    <div class="sub-stat-card">
+      <span class="sub-stat-label">Total Submissions</span>
+      <span class="sub-stat-value" id="statTotal">0</span>
+    </div>
+    <div class="sub-stat-card">
+      <span class="sub-stat-label">From Flutter App</span>
+      <span class="sub-stat-value text-success" id="statFlutter">0</span>
+    </div>
+    <div class="sub-stat-card">
+      <span class="sub-stat-label">From Web Simulator</span>
+      <span class="sub-stat-value text-primary" id="statWeb">0</span>
+    </div>
+    <div class="sub-stat-card">
+      <span class="sub-stat-label">Last Received</span>
+      <span class="sub-stat-value sub-stat-small" id="statLast">—</span>
+    </div>
+  </section>
+
+  <!-- Filters -->
+  <section class="sub-toolbar">
+    <input type="text" id="searchInput" class="sub-search" placeholder="🔍 Search by screen, field label, or value...">
+    <select id="screenFilter" class="sub-select">
+      <option value="">All screens</option>
+    </select>
+    <select id="sourceFilter" class="sub-select">
+      <option value="">All sources</option>
+      <option value="flutter_app">Flutter App</option>
+      <option value="web_simulator">Web Simulator</option>
+    </select>
+    <span class="sub-result-count" id="resultCount"></span>
+  </section>
+
+  <!-- Submission Cards -->
+  <main class="sub-list" id="submissionList">
+    <div class="sub-empty" id="emptyState">
+      <div class="sub-empty-icon">📭</div>
+      <h3>No submissions yet</h3>
+      <p>Open the <a href="/">Web Control Console</a>, pick the <strong>⭐ Feedback &amp; Review</strong> preset, click <strong>Apply to App</strong>, then submit the form from the Flutter app or the Live App Simulator. Every submission will appear here instantly.</p>
+      <code id="emptyApiHint">POST /api/submissions</code>
+    </div>
+  </main>
+
+  <div class="toast" id="appToast"></div>
+
+  <script src="submissions.js"></script>
+</body>
+</html>

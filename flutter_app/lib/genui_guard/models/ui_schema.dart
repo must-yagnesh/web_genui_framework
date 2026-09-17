@@ -22,6 +22,21 @@ class UiSchema {
     required this.components,
   });
 
+  /// IDs of every component in this screen, including nested children.
+  /// Used to scope form validation and submission to the current screen.
+  Set<String> get allComponentIds {
+    final Set<String> ids = {};
+    void collect(List<ComponentNode> nodes) {
+      for (final node in nodes) {
+        ids.add(node.id);
+        if (node.children.isNotEmpty) collect(node.children);
+      }
+    }
+
+    collect(components);
+    return ids;
+  }
+
   factory UiSchema.empty() {
     return UiSchema(
       version: 0,

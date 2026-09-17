@@ -76,29 +76,49 @@ class GenUiFormRegistry {
     return val.contains('@') && val.contains('.');
   }
 
-  /// Retrieve all current field values as a Map
-  Map<String, dynamic> getValues() {
+  /// Retrieve all current field values as a Map.
+  /// Pass [onlyIds] to restrict the result to the fields of one screen.
+  Map<String, dynamic> getValues({Iterable<String>? onlyIds}) {
+    final Set<String>? filter = onlyIds?.toSet();
     final Map<String, dynamic> result = {};
     _controllers.forEach((key, controller) {
-      result[key] = controller.text.trim();
+      if (filter == null || filter.contains(key)) {
+        result[key] = controller.text.trim();
+      }
     });
     _customValues.forEach((key, val) {
-      result[key] = val;
+      if (filter == null || filter.contains(key)) {
+        result[key] = val;
+      }
     });
     return result;
   }
 
   /// Check if any registered field is empty.
   /// Returns a list of error messages (e.g. "Email Address cannot be empty").
-  List<String> validateNonEmpty() {
+  /// Pass [onlyIds] to validate just the fields of one screen.
+  List<String> validateNonEmpty({Iterable<String>? onlyIds}) {
+    final Set<String>? filter = onlyIds?.toSet();
     final List<String> errors = [];
     _controllers.forEach((id, controller) {
+      if (filter != null && !filter.contains(id)) return;
       if (controller.text.trim().isEmpty) {
         final label = getFieldLabel(id);
         errors.add('$label cannot be empty');
       }
     });
     return errors;
+  }
+
+  /// Remove (and dispose) the fields with the given IDs. Used when a pushed
+  /// dynamic screen is closed so its values do not leak into other screens.
+  void removeFields(Iterable<String> ids) {
+    for (final id in ids) {
+      final controller = _controllers.remove(id);
+      controller?.dispose();
+      _customValues.remove(id);
+      _fieldLabels.remove(id);
+    }
   }
 
   /// Reset all form controllers

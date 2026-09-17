@@ -765,6 +765,104 @@ void main() {
       expect(registry.getSchemaForRoute('/orders')?.screenName, 'My Orders');
     });
 
+    test('UiSchema.allComponentIds includes nested children and form registry scopes by screen', () {
+      final schema = GenUiSchemaValidator.validateAndSanitize({
+        'version': 1,
+        'screen_id': 'contact',
+        'route': '/contact',
+        'components': [
+          {'id': 'contact_name', 'type': 'textfield', 'label': 'Full Name'},
+          {
+            'id': 'rating_row',
+            'type': 'row',
+            'children': [
+              {'id': 'chip_good', 'type': 'chip', 'label': 'Good'},
+            ]
+          },
+        ]
+      }).sanitizedSchema;
+
+      expect(schema.allComponentIds, containsAll(['contact_name', 'rating_row', 'chip_good']));
+
+      final registry = GenUiFormRegistry.instance;
+      registry.clear();
+      registry.getController('contact_name', label: 'Full Name').text = 'Alex';
+      registry.getController('home_email', label: 'Email').text = '';
+      registry.setValue('chip_good', true, label: 'Good');
+
+      // Unscoped validation sees the empty home field; scoped validation does not
+      expect(registry.validateNonEmpty(), isNotEmpty);
+      expect(registry.validateNonEmpty(onlyIds: schema.allComponentIds), isEmpty);
+
+      final scoped = registry.getValues(onlyIds: schema.allComponentIds);
+      expect(scoped.keys, containsAll(['contact_name', 'chip_good']));
+      expect(scoped.containsKey('home_email'), isFalse);
+
+      final fields = GenUiSubmissionClient.buildFieldsFromRegistry(onlyIds: schema.allComponentIds);
+      expect(fields.map((f) => f['id']), containsAll(['contact_name', 'chip_good']));
+      expect(fields.any((f) => f['id'] == 'home_email'), isFalse);
+
+      // Closing the pushed screen drops only its own fields
+      registry.removeFields(schema.allComponentIds);
+      expect(registry.getValues().containsKey('contact_name'), isFalse);
+      expect(registry.getValues().containsKey('home_email'), isTrue);
+      registry.clear();
+    });
+
+    testWidgets('GenUiSuccessDialog shows title, message and pops back to the first route', (WidgetTester tester) async {
+      final dialogConfig = GenUiSuccessDialog.fromProperties({
+        'success_dialog': {
+          'title': 'Message Sent!',
+          'message': 'We will reply within 24 hours.',
+          'button_text': 'Back to Home Screen',
+          'navigate_to': '/',
+        }
+      });
+      expect(dialogConfig, isNotNull);
+      expect(GenUiSuccessDialog.fromProperties({'text': 'plain'}), isNull);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (ctx) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(
+                  ctx,
+                  MaterialPageRoute(
+                    builder: (_) => Builder(
+                      builder: (innerCtx) => Scaffold(
+                        body: ElevatedButton(
+                          onPressed: () => GenUiSuccessDialog.show(innerCtx, dialogConfig!),
+                          child: const Text('Submit Contact'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                child: const Text('Open Contact'),
+              ),
+            ),
+          ),
+        ),
+      ));
+
+      await tester.tap(find.text('Open Contact'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Submit Contact'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Message Sent!'), findsOneWidget);
+      expect(find.text('We will reply within 24 hours.'), findsOneWidget);
+
+      await tester.tap(find.text('Back to Home Screen'));
+      await tester.pumpAndSettle();
+
+      // Dialog and the pushed Contact screen are both gone; Home is visible again
+      expect(find.text('Message Sent!'), findsNothing);
+      expect(find.text('Submit Contact'), findsNothing);
+      expect(find.text('Open Contact'), findsOneWidget);
+    });
+
     testWidgets('GenUiDartExecutor navigates to dynamic screen registered in registry with arguments', (WidgetTester tester) async {
       final registry = GenUiScreenRegistry.instance;
       registry.clear();

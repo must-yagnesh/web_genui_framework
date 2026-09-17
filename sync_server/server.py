@@ -18,6 +18,14 @@ import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
+# Ensure emoji in log output never crashes the server on cp1252 consoles (Windows)
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
 # Global State
 SERVER_PORT = 8080
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -93,12 +101,131 @@ home_schema = {
             "variant": "primary",
             "action_id": "action_explore",
             "custom_dart_code": "ScaffoldMessenger.of(context).showSnackBar(\n  SnackBar(\n    content: Text('Exploring all vaults!'),\n    backgroundColor: Color(0xFF4F46E5),\n  ),\n);"
+        },
+        {
+            "id": "btn_contact_us",
+            "type": "button",
+            "text": "📞 Contact Us",
+            "variant": "outline",
+            "action_id": "open_contact",
+            "custom_dart_code": "Navigator.pushNamed(context, '/contact');"
+        },
+        {
+            "id": "btn_feedback_review",
+            "type": "button",
+            "text": "⭐ Feedback & Review",
+            "variant": "outline",
+            "action_id": "open_feedback",
+            "custom_dart_code": "Navigator.pushNamed(context, '/feedback');"
+        }
+    ]
+}
+
+# Contact Us screen: opened from the Home "Contact Us" button.
+# The submit button carries a `success_dialog` so the app shows a confirmation
+# dialog with a "Back to Home Screen" action after the submission is stored.
+contact_schema = {
+    "version": schema_version,
+    "timestamp": int(time.time()),
+    "screen_id": "contact",
+    "screen_name": "Contact Us",
+    "route": "/contact",
+    "theme": {
+        "primary_color": "#0284C7",
+        "background_color": "#0F172A",
+        "surface_color": "#1E293B",
+        "text_primary": "#F8FAFC",
+        "text_secondary": "#94A3B8",
+        "accent_color": "#10B981"
+    },
+    "header": {
+        "title": "Contact Us",
+        "subtitle": "We usually reply within 24 hours",
+        "show_back_button": True,
+        "action_icon": "support_agent"
+    },
+    "components": [
+        {"id": "contact_header", "type": "text", "text": "Get in touch", "font_size": 20, "is_bold": True, "align": "center", "padding": 6},
+        {"id": "contact_sub", "type": "text", "text": "Tell us how we can help and our team will reach out.", "font_size": 13, "is_bold": False, "align": "center", "padding": 2},
+        {"id": "contact_name", "type": "textfield", "label": "Full Name", "hint": "e.g. Alex Morgan", "padding": 6},
+        {"id": "contact_email", "type": "textfield", "label": "Email Address", "hint": "alex@example.com", "padding": 6},
+        {"id": "contact_phone", "type": "textfield", "label": "Phone Number", "hint": "+1 555 0100", "padding": 6},
+        {"id": "contact_subject", "type": "textfield", "label": "Subject", "hint": "What is this about?", "padding": 6},
+        {"id": "contact_message", "type": "textfield", "label": "Message", "hint": "Describe your request in detail...", "max_lines": 4, "padding": 6},
+        {"id": "contact_callback", "type": "switch", "label": "Request a callback", "subtitle": "We will phone you on the number above", "is_checked": False, "padding": 4},
+        {
+            "id": "btn_submit_contact",
+            "type": "button",
+            "text": "Submit Contact Request",
+            "variant": "primary",
+            "action_id": "submit_contact",
+            "success_dialog": {
+                "title": "Message Sent!",
+                "message": "Thank you for contacting us. Your request has been received and our support team will get back to you within 24 hours.",
+                "button_text": "Back to Home Screen",
+                "navigate_to": "/"
+            }
+        }
+    ]
+}
+
+# Feedback & Review screen: opened from the Home "Feedback & Review" button.
+feedback_schema = {
+    "version": schema_version,
+    "timestamp": int(time.time()),
+    "screen_id": "feedback",
+    "screen_name": "Feedback & Review",
+    "route": "/feedback",
+    "theme": {
+        "primary_color": "#D97706",
+        "background_color": "#0F172A",
+        "surface_color": "#1E293B",
+        "text_primary": "#F8FAFC",
+        "text_secondary": "#94A3B8",
+        "accent_color": "#10B981"
+    },
+    "header": {
+        "title": "Customer Review & Feedback",
+        "subtitle": "Dynamic Multi-Input Form",
+        "show_back_button": True,
+        "action_icon": "star"
+    },
+    "components": [
+        {"id": "fb_header", "type": "text", "text": "How was your experience?", "font_size": 20, "is_bold": True, "align": "center", "padding": 6},
+        {"id": "fb_sub", "type": "text", "text": "Your feedback helps us continuously improve", "font_size": 13, "is_bold": False, "align": "center", "padding": 2},
+        {
+            "id": "fb_rating_row",
+            "type": "row",
+            "main_axis_alignment": "spaceAround",
+            "children": [
+                {"id": "fb_chip_fair", "type": "chip", "label": "⭐ Fair", "is_selected": False},
+                {"id": "fb_chip_good", "type": "chip", "label": "⭐⭐⭐ Good", "is_selected": False},
+                {"id": "fb_chip_excellent", "type": "chip", "label": "⭐⭐⭐⭐⭐ Excellent", "is_selected": True}
+            ]
+        },
+        {"id": "fb_author", "type": "textfield", "label": "Your Name or Handle", "hint": "e.g. Alex Morgan", "padding": 6},
+        {"id": "fb_comments", "type": "textfield", "label": "Your Detailed Feedback", "hint": "What did you enjoy most, or what can we improve?", "max_lines": 3, "padding": 6},
+        {"id": "fb_public", "type": "switch", "label": "Post as Public Review", "subtitle": "Allow displaying on community wall", "is_checked": True, "padding": 4},
+        {
+            "id": "btn_submit_feedback",
+            "type": "button",
+            "text": "Submit Customer Feedback",
+            "variant": "primary",
+            "action_id": "submit_feedback",
+            "success_dialog": {
+                "title": "Thanks for your feedback!",
+                "message": "Your review has been submitted successfully. We read every piece of feedback and use it to make the app better for everyone.",
+                "button_text": "Back to Home Screen",
+                "navigate_to": "/"
+            }
         }
     ]
 }
 
 screens = {
-    "home": home_schema
+    "home": home_schema,
+    "contact": contact_schema,
+    "feedback": feedback_schema
 }
 active_schema = home_schema
 
@@ -109,6 +236,54 @@ sse_lock = threading.Lock()
 # Telemetry Log
 telemetry_events = []
 telemetry_lock = threading.Lock()
+
+# Form Submission Store (in-memory array of every submitted form)
+# Populated by POST /api/submissions from the Flutter app and the Web Simulator.
+# Viewed on the "Shows Submission" page: http://localhost:8080/submissions
+submissions = []
+submissions_lock = threading.Lock()
+submission_counter = 0
+
+
+def _normalize_fields(raw_fields):
+    """Accept fields as a list of {id,label,value} or a {key: value} dict and
+    always return a list of {id, label, value} entries."""
+    normalized = []
+    if isinstance(raw_fields, dict):
+        for key, value in raw_fields.items():
+            normalized.append({"id": str(key), "label": str(key), "value": value})
+    elif isinstance(raw_fields, list):
+        for item in raw_fields:
+            if isinstance(item, dict):
+                field_id = str(item.get("id") or item.get("label") or "field")
+                normalized.append({
+                    "id": field_id,
+                    "label": str(item.get("label") or field_id),
+                    "value": item.get("value", "")
+                })
+    return normalized
+
+
+def store_submission(payload):
+    """Append a submission record to the in-memory array and return it."""
+    global submission_counter
+    now = time.time()
+    with submissions_lock:
+        submission_counter += 1
+        record = {
+            "id": submission_counter,
+            "submitted_at": int(now),
+            "submitted_at_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now)),
+            "screen_id": str(payload.get("screen_id") or "unknown"),
+            "screen_title": str(payload.get("screen_title") or payload.get("screen_id") or "Untitled Screen"),
+            "action_id": str(payload.get("action_id") or "submit"),
+            "source": str(payload.get("source") or "flutter_app"),
+            "fields": _normalize_fields(payload.get("fields") or payload.get("values") or {}),
+        }
+        submissions.append(record)
+        total = len(submissions)
+    print(f"[SyncServer] Stored submission #{record['id']} from {record['source']} ({record['screen_id']}). Total: {total}")
+    return record, total
 
 def get_local_ip():
     """Retrieve local LAN IP so real Android devices on WiFi can connect easily."""
@@ -305,6 +480,27 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
             self.wfile.write(data.encode("utf-8"))
             return
 
+        elif path == "/api/submissions":
+            # Return every stored form submission (newest first)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            with submissions_lock:
+                resp = {
+                    "total": len(submissions),
+                    "timestamp": int(time.time()),
+                    "submissions": list(reversed(submissions)),
+                }
+                data = json.dumps(resp)
+            self.wfile.write(data.encode("utf-8"))
+            return
+
+        elif path == "/submissions" or path == "/submissions/":
+            # Friendly route for the "Shows Submission" page
+            self.path = "/submissions.html"
+            return super().do_GET()
+
         # Serve Web Control Dashboard files by default
         return super().do_GET()
 
@@ -402,7 +598,7 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
                         "type": "button",
                         "text": "Submit Information",
                         "variant": "primary",
-                        "custom_dart_code": f"final email = GenUiFormRegistry.instance.getValue('email');\nif (email.isEmpty || !email.contains('@')) {{\n  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please enter a valid email!'), backgroundColor: Colors.red));\n  return;\n}}\nScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully saved for \$email!'), backgroundColor: Colors.green));"
+                        "custom_dart_code": f"final email = GenUiFormRegistry.instance.getValue('email');\nif (email.isEmpty || !email.contains('@')) {{\n  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please enter a valid email!'), backgroundColor: Colors.red));\n  return;\n}}\nScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully saved for \\$email!'), backgroundColor: Colors.green));"
                     }
                 ]
             elif template == "card" or template == "feed":
@@ -558,6 +754,47 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(resp).encode("utf-8"))
             return
 
+        elif path == "/api/submissions":
+            # Store a form submission from the Flutter app or Web Simulator
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length).decode("utf-8", errors="replace")
+            try:
+                payload = json.loads(body)
+                if not isinstance(payload, dict):
+                    raise ValueError("Submission body must be a JSON object")
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": f"Invalid JSON: {str(e)}"}).encode("utf-8"))
+                return
+
+            record, total = store_submission(payload)
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            resp = {
+                "success": True,
+                "id": record["id"],
+                "total": total,
+                "submission": record,
+                "message": f"Submission #{record['id']} stored. View all at /submissions",
+            }
+            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            return
+
+        elif path == "/api/submissions/clear":
+            with submissions_lock:
+                cleared = len(submissions)
+                submissions.clear()
+            print(f"[SyncServer] Cleared {cleared} stored submission(s).")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "cleared": cleared, "total": 0}).encode("utf-8"))
+            return
+
         elif path == "/api/telemetry":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length).decode("utf-8")
@@ -588,6 +825,8 @@ def run_server(port=SERVER_PORT):
     print("=" * 70)
     print(f"🚀 Web-Controlled Gen UI Sync Server running on port {port}")
     print(f"👉 Web Control Dashboard: http://localhost:{port}/")
+    print(f"👉 Shows Submission Page:  http://localhost:{port}/submissions")
+    print(f"👉 Submissions API:        http://localhost:{port}/api/submissions")
     print(f"👉 Local Machine (macOS):  http://localhost:{port}/api/stream")
     print(f"👉 Android Emulator URL:   http://10.0.2.2:{port}/api/stream")
     print(f"👉 Real Android Device:    http://{local_ip}:{port}/api/stream")

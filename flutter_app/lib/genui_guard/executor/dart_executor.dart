@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/ui_schema.dart';
 import '../state/form_registry.dart';
 import '../sync/screen_registry.dart';
+import '../sync/submission_client.dart';
+import '../widgets/success_dialog.dart';
 import '../../screens/demo_screens.dart';
 import '../../screens/dynamic_screen.dart';
 
@@ -911,7 +913,11 @@ class GenUiDartExecutor {
   static void _executeFormSubmit(BuildContext context, String code, ComponentNode? node) {
     if (!context.mounted) return;
 
-    final errors = GenUiFormRegistry.instance.validateNonEmpty();
+    // Scope validation to the fields of the screen this button lives on
+    final routeName = ModalRoute.of(context)?.settings.name ?? '/';
+    final scopedIds = GenUiScreenRegistry.instance.getSchemaForRoute(routeName)?.allComponentIds;
+
+    final errors = GenUiFormRegistry.instance.validateNonEmpty(onlyIds: scopedIds);
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -935,7 +941,16 @@ class GenUiDartExecutor {
       return;
     }
 
-    final values = GenUiFormRegistry.instance.getValues();
+    // Buttons with a `success_dialog` show a confirmation dialog with a
+    // "Back to Home Screen" action instead of the summary snackbar.
+    final successDialog = GenUiSuccessDialog.fromProperties(node?.properties);
+    if (successDialog != null) {
+      _storeSubmission(context, node);
+      GenUiSuccessDialog.show(context, successDialog);
+      return;
+    }
+
+    final values = GenUiFormRegistry.instance.getValues(onlyIds: scopedIds);
     final summary = values.entries.map((e) {
       final label = GenUiFormRegistry.instance.getFieldLabel(e.key);
       final val = e.key.toLowerCase().contains('pass')
@@ -967,6 +982,62 @@ class GenUiDartExecutor {
         ),
         backgroundColor: const Color(0xFF10B981),
         duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+
+    // Persist to the Sync Server so it shows up on the Shows Submission page
+    _storeSubmission(context, node);
+  }
+
+  /// Resolve the current screen from the route and POST the form values.
+  static Future<void> _storeSubmission(BuildContext context, ComponentNode? node) async {
+    final routeName = ModalRoute.of(context)?.settings.name ?? '/';
+    final schema = GenUiScreenRegistry.instance.getSchemaForRoute(routeName);
+    final actionId = node?.properties['action_id']?.toString() ??
+        (node != null ? 'dart:${node.id}' : 'submit_form');
+
+    final fallbackId = routeName.replaceAll('/', '');
+    final result = await GenUiSubmissionClient.submit(
+      screenId: schema?.screenId ?? (fallbackId.isEmpty ? 'home' : fallbackId),
+      screenTitle: (schema?.header.title.isNotEmpty ?? false)
+          ? schema!.header.title
+          : (schema?.screenName ?? routeName),
+      actionId: actionId,
+      onlyIds: schema?.allComponentIds,
+    );
+
+    onTelemetry?.call(
+      result.synced
+          ? 'Stored form submission #${result.id} on sync server'
+          : 'Submission not stored (server unreachable)',
+      !result.synced,
+    );
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              result.synced ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                result.synced
+                    ? 'Stored as submission #${result.id} • View on Show Submissions page'
+                    : 'Sync server unreachable • Submission not stored',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: result.synced ? const Color(0xFF0284C7) : const Color(0xFFF59E0B),
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

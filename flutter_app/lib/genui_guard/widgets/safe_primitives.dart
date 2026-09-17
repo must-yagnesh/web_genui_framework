@@ -349,8 +349,10 @@ class SafeGenUiListTile extends StatelessWidget {
   }
 }
 
-/// Safe Dynamic Chip Component
-class SafeGenUiChip extends StatelessWidget {
+/// Safe Dynamic Chip Component with selectable local state.
+/// The selection is registered in [GenUiFormRegistry] so it is included in
+/// form submissions (e.g. a "rating" chip in the Feedback & Review screen).
+class SafeGenUiChip extends StatefulWidget {
   final ComponentNode node;
   final ThemeConfig theme;
   final Function(String actionId)? onAction;
@@ -363,18 +365,58 @@ class SafeGenUiChip extends StatelessWidget {
   });
 
   @override
+  State<SafeGenUiChip> createState() => _SafeGenUiChipState();
+}
+
+class _SafeGenUiChipState extends State<SafeGenUiChip> {
+  late bool _isSelected;
+
+  String get _label =>
+      widget.node.properties['label']?.toString() ??
+      widget.node.properties['text']?.toString() ??
+      'Chip Tag';
+
+  @override
+  void initState() {
+    super.initState();
+    _isSelected = widget.node.properties['is_selected'] == true ||
+        widget.node.properties['selected'] == true;
+    GenUiFormRegistry.instance.setValue(widget.node.id, _isSelected, label: _label);
+  }
+
+  @override
+  void didUpdateWidget(covariant SafeGenUiChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasSelected = oldWidget.node.properties['is_selected'] == true ||
+        oldWidget.node.properties['selected'] == true;
+    final nowSelected = widget.node.properties['is_selected'] == true ||
+        widget.node.properties['selected'] == true;
+    if (wasSelected != nowSelected) {
+      _isSelected = nowSelected;
+      GenUiFormRegistry.instance.setValue(widget.node.id, _isSelected, label: _label);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final label = node.properties['label']?.toString() ??
-        node.properties['text']?.toString() ??
-        'Chip Tag';
-    final isSelected = node.properties['is_selected'] == true || node.properties['selected'] == true;
+    final node = widget.node;
+    final theme = widget.theme;
+    final label = _label;
+    final isSelected = _isSelected;
     final iconName = node.properties['icon']?.toString();
     final actionId = node.properties['action_id']?.toString() ?? 'chip_click';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
       child: ActionChip(
-        onPressed: () => onAction?.call(actionId),
+        onPressed: () {
+          setState(() => _isSelected = !_isSelected);
+          GenUiFormRegistry.instance.setValue(node.id, _isSelected, label: label);
+          // Only forward explicit actions; plain chips act as selectable tags.
+          if (node.properties['action_id'] != null) {
+            widget.onAction?.call(actionId);
+          }
+        },
         avatar: iconName != null
             ? Icon(
                 getMaterialIcon(iconName),

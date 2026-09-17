@@ -21,6 +21,10 @@ class GenUiSyncClient {
   Timer? _discoveryTimer;
   Timer? _reconnectTimer;
 
+  /// Last server base URL that answered successfully. Shared so other
+  /// clients (e.g. form submissions from non-syncing screens) can reuse it.
+  static String? lastDiscoveredUrl;
+
   GenUiSyncClient({
     String serverBaseUrl = 'http://localhost:8080',
   }) : _activeServerUrl = serverBaseUrl,
@@ -73,6 +77,7 @@ class GenUiSyncClient {
           .then((response) {
         if (!_isDisposed && !completer.isCompleted && response.statusCode == 200) {
           _activeServerUrl = host;
+          lastDiscoveredUrl = host;
           debugPrint('[GenUiSync] Discovered live sync host at $_activeServerUrl');
           final result = GenUiSchemaValidator.validateAndSanitize(response.body);
           _schemaStreamController.add(result.sanitizedSchema);

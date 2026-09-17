@@ -199,10 +199,19 @@ class _DynamicScreenState extends State<DynamicScreen> {
     );
   }
 
+  bool get _isPushedScreen =>
+      widget.route != null && widget.route != '/' && widget.screenId != 'home';
+
   @override
   void dispose() {
     _screenRegistrySub?.cancel();
     _syncClient?.dispose();
+    // Pushed screens (Contact Us, Feedback & Review, ...) drop their form
+    // values on close so the next visit starts clean and nothing leaks into
+    // other screens' submissions. The Home screen keeps its state.
+    if (_isPushedScreen) {
+      GenUiFormRegistry.instance.removeFields(_screenFieldIds);
+    }
     super.dispose();
   }
 
@@ -217,11 +226,15 @@ class _DynamicScreenState extends State<DynamicScreen> {
       );
     } else {
       final actionId = node.properties['action_id']?.toString() ?? 'action_default';
-      _handleAction(actionId);
+      _handleAction(actionId, node: node);
     }
   }
 
-  void _handleAction(String actionId) {
+  /// IDs of the fields rendered on this screen (used to scope validation and
+  /// submission so values from other screens are never mixed in).
+  Set<String> get _screenFieldIds => _currentSchema.allComponentIds;
+
+  void _handleAction(String actionId, {ComponentNode? node}) {
     final actionLower = actionId.toLowerCase();
     final isFormSubmit = actionLower.contains('login') ||
         actionLower.contains('submit') ||
@@ -233,7 +246,8 @@ class _DynamicScreenState extends State<DynamicScreen> {
         actionLower.contains('auth');
 
     if (isFormSubmit) {
-      final errors = GenUiFormRegistry.instance.validateNonEmpty();
+      final scopedIds = _screenFieldIds;
+      final errors = GenUiFormRegistry.instance.validateNonEmpty(onlyIds: scopedIds);
       if (errors.isNotEmpty) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -261,7 +275,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
 
       // Validate required terms agreement if registration
       if (actionLower.contains('register') || actionLower.contains('signup')) {
-        final allValues = GenUiFormRegistry.instance.getValues();
+        final allValues = GenUiFormRegistry.instance.getValues(onlyIds: scopedIds);
         final termsAccepted = allValues.entries.any((e) =>
             (e.key.toLowerCase().contains('terms') ||
              GenUiFormRegistry.instance.getFieldLabel(e.key).toLowerCase().contains('terms')) &&
@@ -295,7 +309,17 @@ class _DynamicScreenState extends State<DynamicScreen> {
         }
       }
 
-      final values = GenUiFormRegistry.instance.getValues();
+      // Buttons configured with a `success_dialog` (e.g. Contact Us, Feedback &
+      // Review) show a confirmation dialog with a "Back to Home Screen" action
+      // instead of the summary snackbar.
+      final successDialog = GenUiSuccessDialog.fromProperties(node?.properties);
+      if (successDialog != null) {
+        _storeSubmissionOnServer(actionId);
+        GenUiSuccessDialog.show(context, successDialog);
+        return;
+      }
+
+      final values = GenUiFormRegistry.instance.getValues(onlyIds: scopedIds);
       final summary = values.entries.map((e) {
         final label = GenUiFormRegistry.instance.getFieldLabel(e.key);
         final val = e.key.toLowerCase().contains('pass')
@@ -334,6 +358,9 @@ class _DynamicScreenState extends State<DynamicScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
+
+      // Persist the submission to the local Sync Server (Shows Submission page)
+      _storeSubmissionOnServer(actionId);
     } else {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -343,6 +370,48 @@ class _DynamicScreenState extends State<DynamicScreen> {
         ),
       );
     }
+  }
+
+  /// POST the validated form values to `/api/submissions` and report the
+  /// outcome. Runs after the validation snackbar so the UI stays responsive.
+  Future<void> _storeSubmissionOnServer(String actionId) async {
+    final header = _currentSchema.header;
+    final result = await GenUiSubmissionClient.submit(
+      screenId: _currentSchema.screenId,
+      screenTitle: header.title.isNotEmpty ? header.title : _currentSchema.screenName,
+      actionId: actionId,
+      onlyIds: _screenFieldIds,
+      serverUrl: _syncClient?.activeUrl ?? _serverUrl,
+    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              result.synced ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                result.synced
+                    ? 'Stored as submission #${result.id} • View on Show Submissions page'
+                    : 'Sync server unreachable • Submission not stored',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: result.synced ? const Color(0xFF0284C7) : const Color(0xFFF59E0B),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
   }
 
   @override

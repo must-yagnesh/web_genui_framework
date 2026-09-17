@@ -64,6 +64,22 @@ let activeSchema = {
       variant: "primary",
       action_id: "action_explore",
       custom_dart_code: "ScaffoldMessenger.of(context).showSnackBar(\n  SnackBar(\n    content: Text('Exploring all vaults!'),\n    backgroundColor: Color(0xFF4F46E5),\n  ),\n);"
+    },
+    {
+      id: "btn_contact_us",
+      type: "button",
+      text: "📞 Contact Us",
+      variant: "outline",
+      action_id: "open_contact",
+      custom_dart_code: "Navigator.pushNamed(context, '/contact');"
+    },
+    {
+      id: "btn_feedback_review",
+      type: "button",
+      text: "⭐ Feedback & Review",
+      variant: "outline",
+      action_id: "open_feedback",
+      custom_dart_code: "Navigator.pushNamed(context, '/feedback');"
     }
   ]
 };
@@ -113,6 +129,22 @@ const PRESETS = {
         text: "Claim Accumulated Rewards",
         variant: "primary",
         action_id: "claim_action"
+      },
+      {
+        id: "btn_contact_us",
+        type: "button",
+        text: "📞 Contact Us",
+        variant: "outline",
+        action_id: "open_contact",
+        custom_dart_code: "Navigator.pushNamed(context, '/contact');"
+      },
+      {
+        id: "btn_feedback_review",
+        type: "button",
+        text: "⭐ Feedback & Review",
+        variant: "outline",
+        action_id: "open_feedback",
+        custom_dart_code: "Navigator.pushNamed(context, '/feedback');"
       }
     ]
   },
@@ -1648,11 +1680,11 @@ function renderSimChildHtml(comp) {
     `;
   }
   if (type === "chip") {
-    return `<div class="sim-chip ${comp.is_selected ? 'selected' : ''}" style="${comp.is_selected ? `background:${primaryColor};` : ''} font-size:11px; padding:4px 10px;">${comp.icon ? `<span>${comp.icon === 'check' ? '✓' : (comp.icon === 'star' ? '★' : '♥')}</span>` : ''}<span>${escapeHtml(comp.label || 'Chip Tag')}</span></div>`;
+    return `<div class="sim-chip ${comp.is_selected ? 'selected' : ''}" data-sim-field="chip" data-field-id="${escapeHtml(comp.id || '')}" data-label="${escapeHtml(comp.label || 'Chip Tag')}" data-primary="${escapeHtml(primaryColor)}" style="${comp.is_selected ? `background:${primaryColor};` : ''} font-size:11px; padding:4px 10px; cursor:pointer;">${comp.icon ? `<span>${comp.icon === 'check' ? '✓' : (comp.icon === 'star' ? '★' : '♥')}</span>` : ''}<span>${escapeHtml(comp.label || 'Chip Tag')}</span></div>`;
   }
   if (type === "switch") {
     return `
-      <div class="sim-toggle-row" style="padding:4px 8px; width:100%;">
+      <div class="sim-toggle-row" data-sim-field="switch" data-field-id="${escapeHtml(comp.id || '')}" data-label="${escapeHtml(comp.label || 'Switch Option')}" data-checked="${comp.is_checked ? 'true' : 'false'}" data-primary="${escapeHtml(primaryColor)}" style="padding:4px 8px; width:100%; cursor:pointer;">
         <div>
           <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Switch Option")}</div>
           ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
@@ -1663,12 +1695,12 @@ function renderSimChildHtml(comp) {
   }
   if (type === "checkbox") {
     return `
-      <div class="sim-check-row" style="padding:4px 8px; width:100%;">
+      <div class="sim-check-row" data-sim-field="checkbox" data-field-id="${escapeHtml(comp.id || '')}" data-label="${escapeHtml(comp.label || 'Checkbox')}" data-checked="${comp.is_checked ? 'true' : 'false'}" data-primary="${escapeHtml(primaryColor)}" style="padding:4px 8px; width:100%; cursor:pointer;">
         <div>
           <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Checkbox")}</div>
           ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
         </div>
-        <div style="width:18px;height:18px;border-radius:4px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:bold;">
+        <div class="sim-check-box" style="width:18px;height:18px;border-radius:4px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:bold;">
           ${comp.is_checked ? '✓' : ''}
         </div>
       </div>
@@ -1697,6 +1729,21 @@ function renderSimChildHtml(comp) {
   }
   if (type === "spacer" || type === "sized_box") {
     return `<div style="height:${comp.height || 12}px;width:${comp.width || 12}px;flex-shrink:0;"></div>`;
+  }
+  if (type === "row" || type === "layout_row" || type === "column" || type === "layout_column") {
+    // Layout containers on pushed screens render their children recursively
+    const isRow = type === "row" || type === "layout_row";
+    const mainAlignMap = {
+      start: 'flex-start', center: 'center', end: 'flex-end',
+      spacebetween: 'space-between', space_between: 'space-between',
+      spacearound: 'space-around', space_around: 'space-around',
+      spaceevenly: 'space-evenly', space_evenly: 'space-evenly'
+    };
+    const crossAlignMap = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' };
+    const justify = mainAlignMap[String(comp.main_axis_alignment || '').toLowerCase()] || (isRow ? 'space-between' : 'flex-start');
+    const align = crossAlignMap[String(comp.cross_axis_alignment || '').toLowerCase()] || (isRow ? 'center' : 'stretch');
+    const childrenHtml = (comp.children || []).map(renderSimChildHtml).join("");
+    return `<div class="${isRow ? 'sim-row' : 'sim-column'}" style="display:flex; flex-direction:${isRow ? 'row' : 'column'}; flex-wrap:${isRow ? 'wrap' : 'nowrap'}; justify-content:${justify}; align-items:${align}; gap:6px; width:100%;">${childrenHtml}</div>`;
   }
   return `<span style="font-size:11px;color:#94A3B8;padding:2px 4px;background:#1E293B;border-radius:4px;">[${comp.type}]</span>`;
 }
@@ -1936,12 +1983,23 @@ function updateSimulator() {
     } else if (comp.type === "chip") {
       el.className = `sim-chip ${comp.is_selected ? 'selected' : ''}`;
       if (comp.is_selected) el.style.background = activeSchema.theme?.primary_color || "#4F46E5";
+      el.style.cursor = "pointer";
+      el.dataset.simField = "chip";
+      el.dataset.fieldId = comp.id || "";
+      el.dataset.label = comp.label || "Chip Tag";
+      el.dataset.primary = activeSchema.theme?.primary_color || "#4F46E5";
       el.innerHTML = `
         ${comp.icon ? `<span>${comp.icon === 'check' ? '✓' : '★'}</span>` : ""}
         <span>${comp.label || "Chip Tag"}</span>
       `;
     } else if (comp.type === "switch") {
       el.className = "sim-toggle-row";
+      el.style.cursor = "pointer";
+      el.dataset.simField = "switch";
+      el.dataset.fieldId = comp.id || "";
+      el.dataset.label = comp.label || "Switch Toggle";
+      el.dataset.checked = comp.is_checked ? "true" : "false";
+      el.dataset.primary = activeSchema.theme?.primary_color || "#4F46E5";
       el.innerHTML = `
         <div>
           <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Switch Toggle"}</div>
@@ -1952,12 +2010,18 @@ function updateSimulator() {
     } else if (comp.type === "checkbox") {
       el.className = "sim-check-row";
       const primaryColor = activeSchema.theme?.primary_color || "#4F46E5";
+      el.style.cursor = "pointer";
+      el.dataset.simField = "checkbox";
+      el.dataset.fieldId = comp.id || "";
+      el.dataset.label = comp.label || "Checkbox Option";
+      el.dataset.checked = comp.is_checked ? "true" : "false";
+      el.dataset.primary = primaryColor;
       el.innerHTML = `
         <div>
           <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Checkbox Option"}</div>
           ${comp.subtitle ? `<div style="font-size:11px;color:#94A3B8;">${comp.subtitle}</div>` : ""}
         </div>
-        <div style="width:20px;height:20px;border-radius:5px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold;">
+        <div class="sim-check-box" style="width:20px;height:20px;border-radius:5px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold;">
           ${comp.is_checked ? '✓' : ''}
         </div>
       `;
@@ -2612,7 +2676,7 @@ function showToast(msg, isError = false) {
   setTimeout(() => appToast.classList.remove("show"), 3200);
 }
 
-window.handleSimulatorAction = function(actionId) {
+window.handleSimulatorAction = function(actionId, comp) {
   const actionLower = String(actionId || "").toLowerCase();
   const isFormSubmit = actionLower.includes("login") ||
       actionLower.includes("submit") ||
@@ -2624,51 +2688,182 @@ window.handleSimulatorAction = function(actionId) {
       actionLower.includes("auth");
 
   if (isFormSubmit) {
-    const inputs = document.querySelectorAll("#simComponentsList input, #simComponentsList textarea");
-    if (inputs.length === 0) {
+    const fields = collectSimulatorFormFields();
+    if (fields.length === 0) {
       showToast(`Triggered Action: "${actionId}"`);
       return;
     }
 
-    const values = {};
-    let emptyLabel = null;
-
-    inputs.forEach(input => {
-      if (input.type === "checkbox") {
-        const label = input.getAttribute("data-label") || "Agreement";
-        values[label] = input.checked ? "Yes" : "No";
-      } else {
-        const label = input.getAttribute("data-label") || input.placeholder || "Field";
-        const val = input.value.trim();
-        values[label] = val;
-        if (!val && !emptyLabel) {
-          emptyLabel = label;
-        }
-      }
-    });
-
-    if (emptyLabel) {
-      showToast(`⚠️ Validation Error: "${emptyLabel}" cannot be empty!`, true);
+    const emptyField = fields.find(f => f.type === "text" && !String(f.value || "").trim());
+    if (emptyField) {
+      showToast(`⚠️ Validation Error: "${emptyField.label}" cannot be empty!`, true);
       return;
     }
 
     // Check terms for register action if present
     if (actionLower.includes("register") || actionLower.includes("signup")) {
-      const termsBox = document.querySelector("#simComponentsList input[type='checkbox']");
-      if (termsBox && !termsBox.checked) {
+      const termsBox = fields.find(f => f.type === "checkbox" && f.label.toLowerCase().includes("terms"));
+      if (termsBox && termsBox.value !== true) {
         showToast("⚠️ Validation Error: Please accept the Terms & Conditions!", true);
         return;
       }
     }
 
-    const summary = Object.entries(values)
-      .map(([k, v]) => `${k}: ${k.toLowerCase().includes('pass') ? '••••••••' : v}`)
+    // Persist to the local Submissions API so it appears on /submissions
+    postSimulatorSubmission(actionId, fields);
+
+    // Buttons with a success_dialog (Contact Us / Feedback & Review) show a
+    // confirmation dialog with a "Back to Home Screen" action.
+    if (comp && comp.success_dialog && typeof comp.success_dialog === "object") {
+      showSimulatorSuccessDialog(comp.success_dialog);
+      return;
+    }
+
+    const summary = fields
+      .map(f => `${f.label}: ${f.label.toLowerCase().includes('pass') ? '••••••••' : (f.value === true ? 'Yes' : (f.value === false ? 'No' : f.value))}`)
       .join(", ");
     showToast(`✅ Validation Passed! ${summary}`);
   } else {
     showToast(`Triggered Action: "${actionId}"`);
   }
 };
+
+/**
+ * Gather every interactive field currently rendered in the phone simulator:
+ * text inputs / textareas, switches, checkboxes and selected chips.
+ * Returns [{ id, label, value, type }].
+ */
+/** The DOM node whose inputs belong to the screen currently shown in the simulator:
+ *  the top-most pushed screen overlay if one is open, otherwise the home content. */
+function getSimulatorActiveScreenRoot() {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  const overlays = screen ? screen.querySelectorAll(".sim-screen-overlay") : [];
+  if (overlays.length > 0) return overlays[overlays.length - 1];
+  return document.getElementById("simComponentsList");
+}
+
+function collectSimulatorFormFields() {
+  const root = getSimulatorActiveScreenRoot();
+  if (!root) return [];
+  const fields = [];
+
+  root.querySelectorAll("input, textarea").forEach(input => {
+    if (input.type === "checkbox") {
+      fields.push({
+        id: (input.id || "").replace(/^sim_input_/, "") || "checkbox",
+        label: input.getAttribute("data-label") || "Agreement",
+        value: input.checked,
+        type: "checkbox"
+      });
+    } else {
+      const isPassword = input.type === "password";
+      fields.push({
+        id: (input.id || "").replace(/^sim_input_/, "") || "field",
+        label: input.getAttribute("data-label") || input.placeholder || "Field",
+        value: isPassword ? (input.value ? "••••••••" : "") : input.value.trim(),
+        type: "text"
+      });
+    }
+  });
+
+  root.querySelectorAll("[data-sim-field='switch'], [data-sim-field='checkbox']").forEach(row => {
+    fields.push({
+      id: row.dataset.fieldId || row.dataset.simField,
+      label: row.dataset.label || row.dataset.simField,
+      value: row.dataset.checked === "true",
+      type: row.dataset.simField
+    });
+  });
+
+  const selectedChips = [...root.querySelectorAll("[data-sim-field='chip'].selected")];
+  if (selectedChips.length > 0) {
+    fields.push({
+      id: selectedChips.map(c => c.dataset.fieldId).filter(Boolean).join(",") || "chip_selection",
+      label: "Selected Option",
+      value: selectedChips.map(c => c.dataset.label).join(", "),
+      type: "chip"
+    });
+  }
+
+  return fields;
+}
+
+function postSimulatorSubmission(actionId, fields) {
+  const root = getSimulatorActiveScreenRoot();
+  const overlayScreenId = root && root.dataset ? root.dataset.screenId : null;
+  const overlayTitle = root && root.dataset ? root.dataset.screenTitle : null;
+  const payload = {
+    source: "web_simulator",
+    screen_id: overlayScreenId || activeScreenId,
+    screen_title: overlayTitle || activeSchema.header?.title || activeScreenId,
+    action_id: actionId,
+    fields: fields.map(f => ({ id: f.id, label: f.label, value: f.value }))
+  };
+
+  fetch(`/api/submissions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.success) {
+        updateSubmissionCountBadge(data.total);
+        setTimeout(() => showToast(`📥 Stored as submission #${data.id} — open "Show Submissions" to view`), 900);
+      }
+    })
+    .catch(() => {
+      setTimeout(() => showToast("⚠️ Could not reach sync server to store submission", true), 900);
+    });
+}
+
+function updateSubmissionCountBadge(total) {
+  const badge = document.getElementById("submissionCountBadge");
+  if (badge && typeof total === "number") badge.innerText = total;
+}
+
+function refreshSubmissionCountBadge() {
+  fetch(`/api/submissions`, { cache: "no-store" })
+    .then(res => res.json())
+    .then(data => updateSubmissionCountBadge(data.total))
+    .catch(() => {});
+}
+
+// Make simulator chips, switches and checkboxes interactive so submitted values are real
+document.addEventListener("click", (e) => {
+  const root = document.getElementById("phoneSimulatorScreen");
+  if (!root || !root.contains(e.target)) return;
+
+  const chip = e.target.closest("[data-sim-field='chip']");
+  if (chip) {
+    const siblings = chip.parentElement ? chip.parentElement.querySelectorAll("[data-sim-field='chip']") : [chip];
+    siblings.forEach(c => { c.classList.remove("selected"); c.style.background = ""; });
+    chip.classList.add("selected");
+    chip.style.background = chip.dataset.primary || "#4F46E5";
+    return;
+  }
+
+  const row = e.target.closest("[data-sim-field='switch'], [data-sim-field='checkbox']");
+  if (row) {
+    const nowChecked = row.dataset.checked !== "true";
+    row.dataset.checked = nowChecked ? "true" : "false";
+    const primary = row.dataset.primary || "#4F46E5";
+    const pill = row.querySelector(".sim-switch-pill");
+    if (pill) {
+      pill.classList.toggle("active", nowChecked);
+      pill.style.background = nowChecked ? primary : "";
+    }
+    const box = row.querySelector(".sim-check-box");
+    if (box) {
+      box.style.background = nowChecked ? primary : "transparent";
+      box.style.borderColor = nowChecked ? primary : "#475569";
+      box.innerText = nowChecked ? "✓" : "";
+    }
+  }
+});
+
+refreshSubmissionCountBadge();
+setInterval(refreshSubmissionCountBadge, 5000);
 
 // ==========================================================================
 // ⚡ Simulator Dart Execution Engine
@@ -2717,7 +2912,7 @@ window.handleSimulatorDartClick = function(compId, event) {
   if (dartCode && dartCode.trim().length > 0) {
     executeSimulatorDartSnippet(dartCode.trim(), comp);
   } else if (comp.action_id) {
-    window.handleSimulatorAction(comp.action_id);
+    window.handleSimulatorAction(comp.action_id, comp);
   } else {
     showToast(`⚡ Clicked ${comp.type.toUpperCase()}`);
   }
@@ -2928,7 +3123,7 @@ function executeSimulatorDartSnippet(code, comp) {
 
   // 6. Form Submit / Validate
   if (code.includes("validate") || code.includes("FormRegistry") || code.toLowerCase().includes("submit")) {
-    window.handleSimulatorAction("submit_form");
+    window.handleSimulatorAction(comp?.action_id || "submit_form", comp);
     return;
   }
 
@@ -3009,6 +3204,8 @@ function showSimulatorDynamicScreen(sid, scr, args) {
 
   const overlay = document.createElement("div");
   overlay.className = "sim-screen-overlay";
+  overlay.dataset.screenId = sid;
+  overlay.dataset.screenTitle = scr.header?.title || scr.screen_name || sid;
 
   let componentsHtml = "";
   if (scr.components && scr.components.length > 0) {
@@ -3264,6 +3461,40 @@ function showSimulatorDialog(title, content) {
   `;
   backdrop.onclick = (e) => {
     if (e.target === backdrop) backdrop.remove();
+  };
+  screen.appendChild(backdrop);
+}
+
+/** Confirmation dialog after a stored submission; its button returns the simulator to Home. */
+function showSimulatorSuccessDialog(dialog) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-modal-backdrop");
+  if (old) old.remove();
+
+  const title = dialog.title || "Submitted Successfully";
+  const message = dialog.message || "Your details have been submitted successfully.";
+  const buttonText = dialog.button_text || "Back to Home Screen";
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "sim-modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="sim-dialog-content">
+      <div class="sim-dialog-title">
+        <span style="color:#10B981;">✅</span> <span>${escapeHtml(title)}</span>
+      </div>
+      <div class="sim-dialog-body">${escapeHtml(message)}</div>
+      <div class="sim-dialog-actions">
+        <button class="sim-dialog-btn sim-dialog-home-btn" style="width:100%; padding:8px;">🏠 ${escapeHtml(buttonText)}</button>
+      </div>
+    </div>
+  `;
+  backdrop.querySelector(".sim-dialog-home-btn").onclick = () => {
+    backdrop.remove();
+    // Pop every pushed screen so the simulator is back on Home
+    screen.querySelectorAll(".sim-screen-overlay, .sim-bottomsheet-wrapper").forEach(el => el.remove());
+    if (simBackBtn) simBackBtn.style.display = "none";
+    showToast("🏠 Returned to Home screen");
   };
   screen.appendChild(backdrop);
 }

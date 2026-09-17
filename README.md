@@ -111,13 +111,10 @@ flowchart LR
 1. **E-Commerce Flash Sales & Seasonal Campaigns**:
    * *Problem*: Marketing needs a Black Friday banner and checkout discount counter live at midnight, but store approval takes 48 hours.
    * *Solution*: Design the promotion in the Web Console and broadcast it to millions of active mobile users in sub-50ms with zero app rebuild.
-2. **Dynamic Onboarding & KYC Flows**:
-   * *Problem*: Regulatory compliance requires an immediate change to a user registration form (e.g. adding a tax identifier field and validation).
-   * *Solution*: Create and deploy the `/onboarding-kyc` screen dynamically with custom Dart validation logic (`if (taxId.isEmpty) { ... return; }`).
-3. **Emergency Incident Remediation**:
+2. **Emergency Incident Remediation**:
    * *Problem*: A payment gateway is down, and users are encountering transaction failures.
    * *Solution*: Instantly push an informational notice and reroute the checkout button to an alternate payment screen without shipping a binary hotfix.
-4. **Instant Multi-Screen A/B Testing**:
+3. **Instant Multi-Screen A/B Testing**:
    * *Problem*: Product teams want to test 3 different checkout flows (`/checkout-v1`, `/checkout-v2`, `/checkout-v3`) simultaneously.
    * *Solution*: Admins spin up new screens directly from the Web Console and route users dynamically based on user segment.
 
@@ -308,6 +305,49 @@ python3 sync_server/server.py 8080
 ```
 * **Web Control Console**: Open `http://localhost:8080/` in your browser.
 * **SSE Stream**: Available at `http://localhost:8080/api/stream`.
+* **Shows Submission Page**: Open `http://localhost:8080/submissions` to see every submitted form.
+
+### 1b. Form Submissions API & "Shows Submission" Page
+
+Every validated form submit (e.g. the **⭐ Feedback & Review**, **🔐 Login** or **📝 Sign-Up** presets) is posted to the local Sync Server and kept in an in-memory array. The Flutter app, the Web Console's Live App Simulator, and the executor's `custom_dart_code` submit path all use the same endpoint.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/submissions` | Store one submission. Body: `{ "source", "screen_id", "screen_title", "action_id", "fields": [{ "id", "label", "value" }] }` (`fields` may also be a plain `{label: value}` object). |
+| `GET`  | `/api/submissions` | Returns `{ total, submissions: [...] }`, newest first. |
+| `POST` | `/api/submissions/clear` | Empties the array. |
+| `GET`  | `/submissions` | The **Shows Submission** page: live-polling list of all submitted data with search, screen/source filters and per-field tables. |
+
+```bash
+curl -X POST http://localhost:8080/api/submissions \
+  -H "Content-Type: application/json" \
+  -d '{"source":"flutter_app","screen_id":"home","screen_title":"Customer Review & Feedback","action_id":"submit_feedback","fields":[{"id":"input_author","label":"Your Name or Handle","value":"Alex Morgan"}]}'
+```
+
+In the mobile app, chips (e.g. the rating row) are now selectable and their state is included in the submission alongside text fields, switches and checkboxes. Password fields are masked before leaving the device. The Web Console header shows a **📋 Show Submissions** button with a live count.
+
+> Submissions live in server memory only; restarting `server.py` clears them.
+
+### 1c. Home → Contact Us / Feedback & Review flow
+
+The default Home screen ships with two outline buttons, **📞 Contact Us** and **⭐ Feedback & Review**, that navigate to the `/contact` and `/feedback` screens registered on the server. Each screen's submit button carries a `success_dialog` property:
+
+```json
+{
+  "id": "btn_submit_contact",
+  "type": "button",
+  "text": "Submit Contact Request",
+  "action_id": "submit_contact",
+  "success_dialog": {
+    "title": "Message Sent!",
+    "message": "Thank you for contacting us. Our team will get back to you within 24 hours.",
+    "button_text": "Back to Home Screen",
+    "navigate_to": "/"
+  }
+}
+```
+
+When validation passes, the values are stored via `/api/submissions` and a confirmation dialog with the given title and message is shown. Its button pops every pushed screen and returns to Home (or pushes `navigate_to` if it is another route). Validation and submission are scoped to the fields on the current screen, and a pushed screen's field values are discarded when it closes. The Live App Simulator mirrors the same flow. Add `success_dialog` to any submit button in the Web Console's Raw Schema JSON tab to get the same behaviour on custom screens.
 
 ### 2. Run the Flutter Mobile Client
 
