@@ -50,8 +50,8 @@ flowchart TD
         Error_Boundary --> Dart_Exec
     end
 
-    WebLayer -->|HTTP POST JSON AST /api/schema/apply| REST_API
-    SSE_Engine -->|Persistent SSE Stream (< 50ms)| Sync_Client
+    WebLayer -->|"HTTP POST JSON AST /api/schema/apply"| REST_API
+    SSE_Engine -->|"Persistent SSE Stream (sub-50ms)"| Sync_Client
 
     style WebLayer fill:#0f172a,stroke:#6366f1,stroke-width:2px,color:#f8fafc
     style SyncLayer fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc
@@ -115,11 +115,11 @@ flowchart TD
 sequenceDiagram
     autonumber
     actor Admin as Admin (Web Console)
-    participant Server as Sync Server (:8080)
+    participant Server as Sync Server (Port 8080)
     participant Client as Flutter Client (GenUiSyncClient)
     participant Reg as GenUiScreenRegistry
     participant Router as onGenerateRoute (main.dart)
-    participant Screen as DynamicScreen(/checkout)
+    participant Screen as DynamicScreen
 
     Admin->>Server: POST /api/screens/create {"id": "checkout", "route": "/checkout"}
     Server->>Server: Inserts into screens map & increments version

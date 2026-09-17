@@ -48,7 +48,7 @@ graph TD
     OptionB --> B2["🚨 App Launch Crash Loops"]
     OptionB --> B3["⚖️ Apple Guideline 2.5.2 Rejection Risk"]
 
-    OptionC --> C1["⚡ Instant Synchronization (< 50ms)"]
+    OptionC --> C1["⚡ Instant Synchronization (sub-50ms)"]
     OptionC --> C2["🛡️ 0.0% Runtime Crash Guarantee"]
     OptionC --> C3["✅ 100% Mobile Store Compliant"]
 
@@ -88,7 +88,7 @@ In standard Flutter architectures, **a single invalid property triggers the Red 
 
 ```mermaid
 flowchart LR
-    AST["Dynamic JSON AST<br/>(LLM or Web Console)"] --> L1["<b>Layer 1: Smart Type Coercion</b><br/>Coerces types, clamps bounds (< 0.01ms)"]
+    AST["Dynamic JSON AST<br/>(LLM or Web Console)"] --> L1["<b>Layer 1: Smart Type Coercion</b><br/>Coerces types, clamps bounds (sub-0.01ms)"]
     L1 --> L2["<b>Layer 2: Component Error Boundary</b><br/>Isolates component faults with badges"]
     L2 --> L3["<b>Layer 3: Sandboxed Dart Executor</b><br/>Interprets actions safely without crashes"]
     L3 --> Render["Native Flutter UI<br/>(0% Red Screen)"]
@@ -110,7 +110,7 @@ flowchart LR
 
 1. **E-Commerce Flash Sales & Seasonal Campaigns**:
    * *Problem*: Marketing needs a Black Friday banner and checkout discount counter live at midnight, but store approval takes 48 hours.
-   * *Solution*: Design the promotion in the Web Console and broadcast it to millions of active mobile users in $< 50\text{ ms}$ with zero app rebuild.
+   * *Solution*: Design the promotion in the Web Console and broadcast it to millions of active mobile users in sub-50ms with zero app rebuild.
 2. **Dynamic Onboarding & KYC Flows**:
    * *Problem*: Regulatory compliance requires an immediate change to a user registration form (e.g. adding a tax identifier field and validation).
    * *Solution*: Create and deploy the `/onboarding-kyc` screen dynamically with custom Dart validation logic (`if (taxId.isEmpty) { ... return; }`).
@@ -155,8 +155,8 @@ flowchart TD
         SyncClient --> Registry --> Router --> Guard --> Executor
     end
 
-    WebLayer -->|POST Schema AST| REST
-    SSE -->|SSE Push < 50ms| SyncClient
+    WebLayer -->|"POST Schema AST"| REST
+    SSE -->|"SSE Live Push (sub-50ms)"| SyncClient
 
     style WebLayer fill:#0f172a,stroke:#6366f1,stroke-width:2px,color:#f8fafc
     style SyncLayer fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc
