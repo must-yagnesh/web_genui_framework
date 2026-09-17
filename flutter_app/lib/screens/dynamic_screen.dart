@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../genui_guard/genui_guard.dart';
 
 class DynamicScreen extends StatefulWidget {
@@ -27,8 +28,12 @@ class _DynamicScreenState extends State<DynamicScreen> {
   }
 
   void _initServerUrl() {
-    // Defaults to localhost:8080 (works with adb reverse tcp:8080 tcp:8080 and local machine)
-    _serverUrl = 'http://localhost:8080';
+    // Android Emulator uses 10.0.2.2 to reach host machine's localhost:8080
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      _serverUrl = 'http://10.0.2.2:8080';
+    } else {
+      _serverUrl = 'http://localhost:8080';
+    }
   }
 
   void _onSchemaUpdated(UiSchema newSchema) {
@@ -88,10 +93,35 @@ class _DynamicScreenState extends State<DynamicScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '• Android Emulator: http://10.0.2.2:8080\n• Real Android Device: http://<YOUR_LAN_IP>:8080\n• macOS / Desktop: http://localhost:8080',
+              'Select host preset or enter custom URL:',
               style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.0),
             ),
-            const SizedBox(height: 12.0),
+            const SizedBox(height: 8.0),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  backgroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF4F46E5)),
+                  label: const Text('10.0.2.2 (Emulator)', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://10.0.2.2:8080',
+                ),
+                ActionChip(
+                  backgroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF334155)),
+                  label: const Text('localhost (ADB)', style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://localhost:8080',
+                ),
+                ActionChip(
+                  backgroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF334155)),
+                  label: const Text('192.168.1.11 (LAN)', style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://192.168.1.11:8080',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10.0),
             TextField(
               controller: controller,
               style: const TextStyle(color: Colors.white),
@@ -130,6 +160,145 @@ class _DynamicScreenState extends State<DynamicScreen> {
   void dispose() {
     _syncClient.dispose();
     super.dispose();
+  }
+
+  void _handleExecute(ComponentNode node) {
+    final customCode = GenUiDartExecutor.extractCode(node);
+    if (customCode != null && customCode.isNotEmpty) {
+      GenUiDartExecutor.execute(
+        context: context,
+        code: customCode,
+        node: node,
+        isGuarded: _isGuardedMode,
+      );
+    } else {
+      final actionId = node.properties['action_id']?.toString() ?? 'action_default';
+      _handleAction(actionId);
+    }
+  }
+
+  void _handleAction(String actionId) {
+    final actionLower = actionId.toLowerCase();
+    final isFormSubmit = actionLower.contains('login') ||
+        actionLower.contains('submit') ||
+        actionLower.contains('signin') ||
+        actionLower.contains('register') ||
+        actionLower.contains('signup') ||
+        actionLower.contains('feedback') ||
+        actionLower.contains('review') ||
+        actionLower.contains('auth');
+
+    if (isFormSubmit) {
+      final errors = GenUiFormRegistry.instance.validateNonEmpty();
+      if (errors.isNotEmpty) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Validation Error: ${errors.join(", ")}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+        return;
+      }
+
+      // Validate required terms agreement if registration
+      if (actionLower.contains('register') || actionLower.contains('signup')) {
+        final allValues = GenUiFormRegistry.instance.getValues();
+        final termsAccepted = allValues.entries.any((e) =>
+            (e.key.toLowerCase().contains('terms') ||
+             GenUiFormRegistry.instance.getFieldLabel(e.key).toLowerCase().contains('terms')) &&
+            e.value == true);
+        final hasTermsField = allValues.keys.any((k) =>
+            k.toLowerCase().contains('terms') ||
+            GenUiFormRegistry.instance.getFieldLabel(k).toLowerCase().contains('terms'));
+        if (hasTermsField && !termsAccepted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Please accept the Terms & Conditions to register.',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+          return;
+        }
+      }
+
+      final values = GenUiFormRegistry.instance.getValues();
+      final summary = values.entries.map((e) {
+        final label = GenUiFormRegistry.instance.getFieldLabel(e.key);
+        final val = e.key.toLowerCase().contains('pass')
+            ? '••••••••'
+            : (e.value is bool ? (e.value ? 'Yes' : 'No') : e.value);
+        return '$label: "$val"';
+      }).join(', ');
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Form Validation Passed!',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                summary.isEmpty ? 'Action: $actionId' : summary,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0)),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Triggered Action: "$actionId"'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   @override
@@ -219,14 +388,18 @@ class _DynamicScreenState extends State<DynamicScreen> {
                     Container(
                       width: 8.0,
                       height: 8.0,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
+                      decoration: BoxDecoration(
+                        color: _syncClient.isConnected
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFF59E0B),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 8.0),
                     Text(
-                      'Live Sync v${_currentSchema.version}',
+                      _syncClient.isConnected
+                          ? 'Live Sync v${_currentSchema.version} • ${_syncClient.activeUrl.replaceFirst("http://", "")}'
+                          : 'Connecting to ${_syncClient.activeUrl.replaceFirst("http://", "")}...',
                       style: const TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 11.0,
@@ -327,129 +500,8 @@ class _DynamicScreenState extends State<DynamicScreen> {
                         node: node,
                         theme: theme,
                         isGuarded: _isGuardedMode,
-                        onAction: (actionId) {
-                          final actionLower = actionId.toLowerCase();
-                          final isFormSubmit = actionLower.contains('login') ||
-                              actionLower.contains('submit') ||
-                              actionLower.contains('signin') ||
-                              actionLower.contains('register') ||
-                              actionLower.contains('signup') ||
-                              actionLower.contains('feedback') ||
-                              actionLower.contains('review') ||
-                              actionLower.contains('auth');
-
-                          if (isFormSubmit) {
-                            final errors = GenUiFormRegistry.instance.validateNonEmpty();
-                            if (errors.isNotEmpty) {
-                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Row(
-                                    children: [
-                                      const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          'Validation Error: ${errors.join(", ")}',
-                                          style: const TextStyle(fontWeight: FontWeight.w600),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  backgroundColor: const Color(0xFFEF4444),
-                                  duration: const Duration(seconds: 3),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                              );
-                              return;
-                            }
-
-                            // Validate required terms agreement if registration
-                            if (actionLower.contains('register') || actionLower.contains('signup')) {
-                              final allValues = GenUiFormRegistry.instance.getValues();
-                              final termsAccepted = allValues.entries.any((e) =>
-                                  (e.key.toLowerCase().contains('terms') ||
-                                   GenUiFormRegistry.instance.getFieldLabel(e.key).toLowerCase().contains('terms')) &&
-                                  e.value == true);
-                              final hasTermsField = allValues.keys.any((k) =>
-                                  k.toLowerCase().contains('terms') ||
-                                  GenUiFormRegistry.instance.getFieldLabel(k).toLowerCase().contains('terms'));
-                              if (hasTermsField && !termsAccepted) {
-                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Row(
-                                      children: [
-                                        Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-                                        SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'Please accept the Terms & Conditions to register.',
-                                            style: TextStyle(fontWeight: FontWeight.w600),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: const Color(0xFFEF4444),
-                                    duration: const Duration(seconds: 3),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                );
-                                return;
-                              }
-                            }
-
-                            final values = GenUiFormRegistry.instance.getValues();
-                            final summary = values.entries.map((e) {
-                              final label = GenUiFormRegistry.instance.getFieldLabel(e.key);
-                              final val = e.key.toLowerCase().contains('pass')
-                                  ? '••••••••'
-                                  : (e.value is bool ? (e.value ? 'Yes' : 'No') : e.value);
-                              return '$label: "$val"';
-                            }).join(', ');
-
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Row(
-                                      children: [
-                                        Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Form Validation Passed!',
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      summary.isEmpty ? 'Action: $actionId' : summary,
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0)),
-                                    ),
-                                  ],
-                                ),
-                                backgroundColor: const Color(0xFF10B981),
-                                duration: const Duration(seconds: 4),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Triggered Action: "$actionId"'),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          }
-                        },
+                        onExecute: _handleExecute,
+                        onAction: _handleAction,
                         onError: (compId, err) {
                           if (!_isolatedErrors.contains(compId)) {
                             _isolatedErrors.add(compId);

@@ -336,6 +336,256 @@ void main() {
       expect(values['input_email'], 'user@domain.com');
       expect(values['input_password'], 'secret123');
     });
+
+    test('GenUiDartExecutor extracts code from various property representations', () {
+      const nodeDirect = ComponentNode(
+        id: 'c1',
+        type: 'button',
+        properties: {'custom_dart_code': "ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hi')));"},
+      );
+      expect(GenUiDartExecutor.extractCode(nodeDirect), "ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hi')));");
+      expect(GenUiDartExecutor.hasAction(nodeDirect), true);
+
+      const nodeOnclickStr = ComponentNode(
+        id: 'c2',
+        type: 'text',
+        properties: {'onclick': "showDialog(context: context, builder: (_) => AlertDialog(title: Text('Alert')));"},
+      );
+      expect(GenUiDartExecutor.extractCode(nodeOnclickStr), "showDialog(context: context, builder: (_) => AlertDialog(title: Text('Alert')));");
+
+      const nodeOnclickMap = ComponentNode(
+        id: 'c3',
+        type: 'icon',
+        properties: {'onclick': {'code': 'print("Icon clicked");'}},
+      );
+      expect(GenUiDartExecutor.extractCode(nodeOnclickMap), 'print("Icon clicked");');
+
+      const nodeActionId = ComponentNode(
+        id: 'c4',
+        type: 'image',
+        properties: {'action_id': 'dart:Navigator.pop(context);'},
+      );
+      expect(GenUiDartExecutor.extractCode(nodeActionId), 'Navigator.pop(context);');
+    });
+
+    testWidgets('GenUiDartExecutor executes SnackBar and Dialog safely without crashing', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Column(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: "ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hello from Dynamic Dart!')));",
+                    ),
+                    child: const Text('Trigger SnackBar'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: "showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Dialog Title'), content: Text('Dialog Body')));",
+                    ),
+                    child: const Text('Trigger Dialog'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: "INVALID DART SYNTAX %&*@# WHICH MIGHT CRASH",
+                    ),
+                    child: const Text('Trigger Malformed'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Tap SnackBar button
+      await tester.tap(find.text('Trigger SnackBar'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Hello from Dynamic Dart!'), findsOneWidget);
+
+      // Dismiss SnackBar and tap Dialog button
+      ScaffoldMessenger.of(tester.element(find.byType(Scaffold))).hideCurrentSnackBar();
+      await tester.pump();
+
+      await tester.tap(find.text('Trigger Dialog'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dialog Title'), findsOneWidget);
+      expect(find.text('Dialog Body'), findsOneWidget);
+
+      // Dismiss dialog
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      // Tap malformed code - guarantee 0% crash
+      await tester.tap(find.text('Trigger Malformed'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      // Should show the guard toast without any red screen
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('SafeGenUiText, SafeGenUiImage, SafeGenUiIcon, SafeGenUiButton invoke onExecute when clicked', (WidgetTester tester) async {
+      final executedCodes = <String>[];
+
+      void handleExecute(ComponentNode node) {
+        final code = GenUiDartExecutor.extractCode(node);
+        executedCodes.add('${node.type}:$code');
+      }
+
+      const textNode = ComponentNode(
+        id: 'txt_click',
+        type: 'text',
+        properties: {'text': 'Clickable Text', 'custom_dart_code': "print('Text clicked');"},
+      );
+      const iconNode = ComponentNode(
+        id: 'icon_click',
+        type: 'icon',
+        properties: {'icon': 'star', 'custom_dart_code': "print('Icon clicked');"},
+      );
+      const buttonNode = ComponentNode(
+        id: 'btn_click',
+        type: 'button',
+        properties: {'text': 'Clickable Button', 'custom_dart_code': "print('Button clicked');"},
+      );
+      const imageNode = ComponentNode(
+        id: 'img_click',
+        type: 'image',
+        properties: {'image_url': 'https://example.com/logo.png', 'custom_dart_code': "print('Image clicked');"},
+      );
+
+      final theme = ThemeConfig.fallback();
+      final textWidget = SafeWidgetRegistry.buildNode(node: textNode, theme: theme, onExecute: handleExecute);
+      final iconWidget = SafeWidgetRegistry.buildNode(node: iconNode, theme: theme, onExecute: handleExecute);
+      final btnWidget = SafeWidgetRegistry.buildNode(node: buttonNode, theme: theme, onExecute: handleExecute);
+      final imgWidget = SafeWidgetRegistry.buildNode(node: imageNode, theme: theme, onExecute: handleExecute);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [textWidget, iconWidget, btnWidget, imgWidget],
+            ),
+          ),
+        ),
+      );
+
+      // Click text
+      await tester.tap(find.text('Clickable Text'));
+      await tester.pump();
+      expect(executedCodes.contains("text:print('Text clicked');"), isTrue);
+
+      // Click icon
+      await tester.tap(find.byIcon(Icons.star));
+      await tester.pump();
+      expect(executedCodes.contains("icon:print('Icon clicked');"), isTrue);
+
+      // Click button
+      await tester.tap(find.text('Clickable Button'));
+      await tester.pump();
+      expect(executedCodes.contains("button:print('Button clicked');"), isTrue);
+
+      // Click image
+      await tester.tap(find.byType(SafeGenUiImage));
+      await tester.pump();
+      expect(executedCodes.contains("image:print('Image clicked');"), isTrue);
+    });
+
+    testWidgets('GenUiDartExecutor navigates to /profile, /settings, custom routes with arguments, and CustomDemoBottomSheet', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          routes: {
+            '/profile': (context) => const UserProfileDemoScreen(),
+            '/settings': (context) => const SettingsDemoScreen(),
+          },
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Column(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: "Navigator.pushNamed(context, '/profile', arguments: {'userId': 'alex_vip'});",
+                    ),
+                    child: const Text('Go Profile'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: "Get.toNamed('/settings', arguments: 'security_tab');",
+                    ),
+                    child: const Text('Go Settings'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: "showModalBottomSheet(context: context, builder: (_) => const CustomDemoBottomSheet());",
+                    ),
+                    child: const Text('Open Custom Sheet'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => GenUiDartExecutor.execute(
+                      context: context,
+                      code: "Navigator.pushNamed(context, '/orders', arguments: {'orderId': 9001});",
+                    ),
+                    child: const Text('Go Custom Route'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // 1. Test Navigation to /profile with arguments
+      await tester.tap(find.text('Go Profile'));
+      await tester.pumpAndSettle();
+      expect(find.byType(UserProfileDemoScreen), findsOneWidget);
+      expect(find.text('Alex Morgan'), findsOneWidget);
+      expect(find.textContaining('alex_vip'), findsOneWidget);
+
+      // Pop back
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
+      await tester.pumpAndSettle();
+
+      // 2. Test Navigation to /settings with GetX style syntax
+      await tester.tap(find.text('Go Settings'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SettingsDemoScreen), findsOneWidget);
+      expect(find.text('App Settings'), findsOneWidget);
+      expect(find.textContaining('security_tab'), findsOneWidget);
+
+      // Pop back
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
+      await tester.pumpAndSettle();
+
+      // 3. Test CustomDemoBottomSheet
+      await tester.tap(find.text('Open Custom Sheet'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CustomDemoBottomSheet), findsOneWidget);
+      expect(find.text('Custom Project Bottom Sheet'), findsOneWidget);
+      expect(find.text('Share Live Schema'), findsOneWidget);
+
+      // Dismiss sheet
+      await tester.tap(find.text('Dismiss Sheet'));
+      await tester.pumpAndSettle();
+
+      // 4. Test Navigation to arbitrary custom real-project route (/orders)
+      await tester.tap(find.text('Go Custom Route'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GenericProjectScreen), findsOneWidget);
+      expect(find.text('Opened Route: "/orders"'), findsOneWidget);
+      expect(find.textContaining('9001'), findsOneWidget);
+
+      // Pop back
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
+      await tester.pumpAndSettle();
+    });
   });
 }
 

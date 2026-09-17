@@ -6,19 +6,30 @@ class SafeGenUiButton extends StatelessWidget {
   final ComponentNode node;
   final ThemeConfig theme;
   final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
 
   const SafeGenUiButton({
     super.key,
     required this.node,
     required this.theme,
     this.onAction,
+    this.onExecute,
   });
 
   @override
   Widget build(BuildContext context) {
     final text = node.properties['text']?.toString() ?? 'Action';
     final actionId = node.properties['action_id']?.toString() ?? 'btn_action';
-    final isSecondary = node.properties['variant']?.toString().toLowerCase() == 'secondary';
+    final isSecondary = node.properties['variant']?.toString().toLowerCase() == 'secondary' ||
+        node.properties['variant']?.toString().toLowerCase() == 'outline';
+
+    void handlePress() {
+      if (onExecute != null) {
+        onExecute!(node);
+      } else {
+        onAction?.call(actionId);
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -27,7 +38,7 @@ class SafeGenUiButton extends StatelessWidget {
         height: 48.0,
         child: isSecondary
             ? OutlinedButton(
-                onPressed: () => onAction?.call(actionId),
+                onPressed: handlePress,
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: theme.primaryColor, width: 1.5),
                   shape: RoundedRectangleBorder(
@@ -44,7 +55,7 @@ class SafeGenUiButton extends StatelessWidget {
                 ),
               )
             : ElevatedButton(
-                onPressed: () => onAction?.call(actionId),
+                onPressed: handlePress,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.primaryColor,
                   elevation: 2.0,

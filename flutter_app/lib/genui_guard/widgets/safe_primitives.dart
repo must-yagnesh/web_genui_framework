@@ -36,12 +36,20 @@ TextAlign parseTextAlign(dynamic align) {
   }
 }
 
-/// Safe Dynamic Text Widget with clamped typography & overflow boundary
+/// Safe Dynamic Text Widget with clamped typography, overflow boundary & interactive click handler
 class SafeGenUiText extends StatelessWidget {
   final ComponentNode node;
   final ThemeConfig theme;
+  final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
 
-  const SafeGenUiText({super.key, required this.node, required this.theme});
+  const SafeGenUiText({
+    super.key,
+    required this.node,
+    required this.theme,
+    this.onAction,
+    this.onExecute,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +67,12 @@ class SafeGenUiText extends StatelessWidget {
         ? parseHexColor(colorHex, theme.textPrimary)
         : theme.textPrimary;
 
-    return Padding(
+    final hasCustomCode = (node.properties['custom_dart_code']?.toString().trim().isNotEmpty == true) ||
+        (node.properties['onclick'] != null);
+    final hasActionId = node.properties['action_id']?.toString().trim().isNotEmpty == true;
+    final isInteractive = hasCustomCode || hasActionId;
+
+    Widget textWidget = Padding(
       padding: EdgeInsets.symmetric(vertical: padding, horizontal: 4.0),
       child: Text(
         text,
@@ -74,15 +87,43 @@ class SafeGenUiText extends StatelessWidget {
         ),
       ),
     );
+
+    if (isInteractive) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6.0),
+          onTap: () {
+            if (onExecute != null) {
+              onExecute!(node);
+            } else {
+              final actionId = node.properties['action_id']?.toString() ?? 'text_click';
+              onAction?.call(actionId);
+            }
+          },
+          child: textWidget,
+        ),
+      );
+    }
+
+    return textWidget;
   }
 }
 
-/// Safe Dynamic Image Widget with network fallback & boundary clipping
+/// Safe Dynamic Image Widget with network fallback, boundary clipping & interactive click handler
 class SafeGenUiImage extends StatelessWidget {
   final ComponentNode node;
   final ThemeConfig theme;
+  final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
 
-  const SafeGenUiImage({super.key, required this.node, required this.theme});
+  const SafeGenUiImage({
+    super.key,
+    required this.node,
+    required this.theme,
+    this.onAction,
+    this.onExecute,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -96,52 +137,77 @@ class SafeGenUiImage extends StatelessWidget {
     final rawPadding = node.properties['padding'] ?? 6.0;
     final padding = (rawPadding is num ? rawPadding.toDouble() : 6.0).clamp(0.0, 48.0);
 
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: padding),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: SizedBox(
-          width: double.infinity,
-          height: height,
-          child: Image.network(
-            url,
-            fit: BoxFit.cover,
-            loadingBuilder: (ctx, child, progress) {
-              if (progress == null) return child;
-              return Container(
-                color: theme.surfaceColor,
-                child: Center(
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(theme.primaryColor),
-                    ),
+    final hasCustomCode = (node.properties['custom_dart_code']?.toString().trim().isNotEmpty == true) ||
+        (node.properties['onclick'] != null);
+    final hasActionId = node.properties['action_id']?.toString().trim().isNotEmpty == true;
+    final isInteractive = hasCustomCode || hasActionId;
+
+    Widget imageWidget = ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: SizedBox(
+        width: double.infinity,
+        height: height,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          loadingBuilder: (ctx, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: theme.surfaceColor,
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(theme.primaryColor),
                   ),
                 ),
-              );
-            },
-            errorBuilder: (ctx, err, stack) {
-              return Container(
-                color: const Color(0xFF1E293B),
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.broken_image_outlined, color: theme.primaryColor, size: 36),
-                    const SizedBox(height: 6),
-                    const Text(
-                      '🛡 Guard Fallback: Image failed to load',
-                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+              ),
+            );
+          },
+          errorBuilder: (ctx, err, stack) {
+            return Container(
+              color: const Color(0xFF1E293B),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image_outlined, color: theme.primaryColor, size: 36),
+                  const SizedBox(height: 6),
+                  const Text(
+                    '🛡 Guard Fallback: Image failed to load',
+                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
+    );
+
+    if (isInteractive) {
+      imageWidget = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(radius),
+          onTap: () {
+            if (onExecute != null) {
+              onExecute!(node);
+            } else {
+              final actionId = node.properties['action_id']?.toString() ?? 'image_click';
+              onAction?.call(actionId);
+            }
+          },
+          child: imageWidget,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: padding),
+      child: imageWidget,
     );
   }
 }
@@ -512,12 +578,20 @@ class _SafeGenUiRadioState extends State<SafeGenUiRadio> {
   }
 }
 
-/// Safe Dynamic Icon Component
+/// Safe Dynamic Icon Component with interactive click handler
 class SafeGenUiIcon extends StatelessWidget {
   final ComponentNode node;
   final ThemeConfig theme;
+  final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
 
-  const SafeGenUiIcon({super.key, required this.node, required this.theme});
+  const SafeGenUiIcon({
+    super.key,
+    required this.node,
+    required this.theme,
+    this.onAction,
+    this.onExecute,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -532,16 +606,46 @@ class SafeGenUiIcon extends StatelessWidget {
         : theme.primaryColor;
     final align = parseTextAlign(node.properties['align']);
 
+    final hasCustomCode = (node.properties['custom_dart_code']?.toString().trim().isNotEmpty == true) ||
+        (node.properties['onclick'] != null);
+    final hasActionId = node.properties['action_id']?.toString().trim().isNotEmpty == true;
+    final isInteractive = hasCustomCode || hasActionId;
+
     Alignment widgetAlignment = Alignment.centerLeft;
     if (align == TextAlign.center) widgetAlignment = Alignment.center;
     if (align == TextAlign.right) widgetAlignment = Alignment.centerRight;
 
+    Widget iconWidget = Icon(getMaterialIcon(name), size: size, color: color);
+
+    if (isInteractive) {
+      iconWidget = Material(
+        color: Colors.transparent,
+        child: InkResponse(
+          radius: (size / 2) + 12,
+          onTap: () {
+            if (onExecute != null) {
+              onExecute!(node);
+            } else {
+              final actionId = node.properties['action_id']?.toString() ?? 'icon_click';
+              onAction?.call(actionId);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: iconWidget,
+          ),
+        ),
+      );
+    } else {
+      iconWidget = Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: iconWidget,
+      );
+    }
+
     return Align(
       alignment: widgetAlignment,
-      child: Padding(
-        padding: const EdgeInsets.all(4.0),
-        child: Icon(getMaterialIcon(name), size: size, color: color),
-      ),
+      child: iconWidget,
     );
   }
 }
@@ -616,6 +720,7 @@ class SafeGenUiLayoutContainer extends StatelessWidget {
   final ThemeConfig theme;
   final bool isGuarded;
   final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
   final Function(String componentId, String error)? onError;
 
   const SafeGenUiLayoutContainer({
@@ -624,6 +729,7 @@ class SafeGenUiLayoutContainer extends StatelessWidget {
     required this.theme,
     this.isGuarded = true,
     this.onAction,
+    this.onExecute,
     this.onError,
   });
 
@@ -645,6 +751,7 @@ class SafeGenUiLayoutContainer extends StatelessWidget {
         theme: theme,
         isGuarded: isGuarded,
         onAction: onAction,
+        onExecute: onExecute,
         onError: onError,
       );
 

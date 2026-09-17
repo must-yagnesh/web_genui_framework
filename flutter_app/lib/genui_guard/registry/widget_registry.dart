@@ -42,11 +42,12 @@ class SafeWidgetRegistry {
     required ThemeConfig theme,
     bool isGuarded = true,
     Function(String actionId)? onAction,
+    Function(ComponentNode node)? onExecute,
     Function(String componentId, String error)? onError,
   }) {
     if (!isGuarded) {
       // NAIVE MODE (Simulates unprotected dynamic rendering for contrast)
-      return _buildNaiveNode(node, theme, onAction);
+      return _buildNaiveNode(node, theme, onAction, onExecute);
     }
 
     // GUARDED MODE (Production 0% crash resilience)
@@ -71,11 +72,11 @@ class SafeWidgetRegistry {
           case 'card':
             return SafeGenUiCard(node: node, theme: theme, onAction: onAction);
           case 'button':
-            return SafeGenUiButton(node: node, theme: theme, onAction: onAction);
+            return SafeGenUiButton(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
           case 'text':
-            return SafeGenUiText(node: node, theme: theme);
+            return SafeGenUiText(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
           case 'image':
-            return SafeGenUiImage(node: node, theme: theme);
+            return SafeGenUiImage(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
           case 'textfield':
           case 'input':
             return SafeGenUiTextField(node: node, theme: theme);
@@ -90,7 +91,7 @@ class SafeWidgetRegistry {
           case 'radio':
             return SafeGenUiRadio(node: node, theme: theme);
           case 'icon':
-            return SafeGenUiIcon(node: node, theme: theme);
+            return SafeGenUiIcon(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
           case 'divider':
             return SafeGenUiDivider(node: node, theme: theme);
           case 'spacer':
@@ -105,6 +106,7 @@ class SafeWidgetRegistry {
               theme: theme,
               isGuarded: true,
               onAction: onAction,
+              onExecute: onExecute,
               onError: onError,
             );
           default:
@@ -122,8 +124,9 @@ class SafeWidgetRegistry {
   static Widget _buildNaiveNode(
     ComponentNode node,
     ThemeConfig theme,
-    Function(String actionId)? onAction,
-  ) {
+    Function(String actionId)? onAction, [
+    Function(ComponentNode node)? onExecute,
+  ]) {
     if (node.type == 'banner') {
       final rawColor = node.properties['raw_color_value']?.toString() ?? node.properties['color']?.toString();
       final hasBadColor = node.properties['has_color_anomaly'] == true ||
@@ -202,11 +205,11 @@ class SafeWidgetRegistry {
           impact: 'Critical vulnerability: Client-side XSS / arbitrary intent execution.',
         );
       }
-      return SafeGenUiButton(node: node, theme: theme, onAction: onAction);
+      return SafeGenUiButton(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
     } else if (node.type == 'text') {
-      return SafeGenUiText(node: node, theme: theme);
+      return SafeGenUiText(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
     } else if (node.type == 'image') {
-      return SafeGenUiImage(node: node, theme: theme);
+      return SafeGenUiImage(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
     } else if (node.type == 'textfield' || node.type == 'input') {
       return SafeGenUiTextField(node: node, theme: theme);
     } else if (node.type == 'listtile') {
@@ -220,7 +223,7 @@ class SafeWidgetRegistry {
     } else if (node.type == 'radio') {
       return SafeGenUiRadio(node: node, theme: theme);
     } else if (node.type == 'icon') {
-      return SafeGenUiIcon(node: node, theme: theme);
+      return SafeGenUiIcon(node: node, theme: theme, onAction: onAction, onExecute: onExecute);
     } else if (node.type == 'divider') {
       return SafeGenUiDivider(node: node, theme: theme);
     } else if (node.type == 'spacer' || node.type == 'sized_box') {
@@ -240,6 +243,7 @@ class SafeWidgetRegistry {
         theme: theme,
         isGuarded: false,
         onAction: onAction,
+        onExecute: onExecute,
       );
     } else {
       return _buildNaiveCrashWidget(

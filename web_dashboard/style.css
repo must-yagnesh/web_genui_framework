@@ -1432,3 +1432,458 @@ input:checked + .slider:before {
 .log-line.text-warn { color: #FBBF24; }
 .log-line.text-danger { color: #F87171; }
 .log-line.text-info { color: #60A5FA; }
+
+/* ==========================================================================
+   ⚡ OnClick & Custom Dart Code Writing Area
+   ========================================================================== */
+.dart-code-section {
+  background: #090F1D;
+  border: 1px solid rgba(79, 70, 229, 0.25);
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dart-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dart-code-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #A5B4FC;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dart-code-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(79, 70, 229, 0.2);
+  color: #818CF8;
+  border: 1px solid rgba(79, 70, 229, 0.4);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.dart-code-editor-wrapper {
+  background: #050811;
+  border: 1px solid #1E293B;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.dart-code-editor-wrapper:focus-within {
+  border-color: #6366F1;
+  box-shadow: 0 0 0 1px #6366F1;
+}
+
+.dart-editor-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: #0E1526;
+  border-bottom: 1px solid #1E293B;
+  font-size: 10px;
+  color: #64748B;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.dart-code-textarea {
+  width: 100%;
+  height: 75px;
+  background: transparent;
+  color: #E2E8F0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 8px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.dart-snippets-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 2px;
+}
+
+.snippet-label {
+  font-size: 10px;
+  color: #64748B;
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.snippet-btn {
+  background: #131D31;
+  border: 1px solid #28354D;
+  color: #94A3B8;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s ease;
+}
+
+.snippet-btn:hover {
+  background: #4F46E5;
+  border-color: #6366F1;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   📱 Simulator Clickable Elements & In-Simulator Modals
+   ========================================================================== */
+.sim-clickable {
+  cursor: pointer !important;
+  position: relative;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  user-select: none;
+}
+
+.sim-clickable:hover {
+  outline: 1.5px dashed rgba(99, 102, 241, 0.8) !important;
+  outline-offset: 2px !important;
+}
+
+.sim-clickable:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+/* In-Simulator Floating SnackBar */
+.sim-live-snackbar {
+  position: absolute;
+  bottom: 54px;
+  left: 10px;
+  right: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 99;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: simToastIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* In-Simulator Modal Backdrop & Dialog */
+.sim-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.78);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+  animation: simFadeIn 0.18s ease;
+}
+
+.sim-dialog-content {
+  background: #1E293B;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 16px;
+  width: 100%;
+  max-width: 250px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  animation: simScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sim-dialog-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sim-dialog-body {
+  font-size: 11px;
+  color: #CBD5E1;
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.sim-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sim-dialog-btn {
+  background: #4F46E5;
+  border: none;
+  color: #FFFFFF;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sim-dialog-btn:hover {
+  background: #4338CA;
+}
+
+/* In-Simulator Bottom Sheet */
+.sim-bottomsheet-wrapper {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.7);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  animation: simFadeIn 0.18s ease;
+}
+
+.sim-bottomsheet-content {
+  width: 100%;
+  background: #0F172A;
+  border-top: 1px solid #334155;
+  border-radius: 16px 16px 0 0;
+  padding: 14px 16px 18px 16px;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.6);
+  animation: simSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sim-sheet-handle {
+  width: 32px;
+  height: 3px;
+  background: #475569;
+  border-radius: 2px;
+  margin: 0 auto 10px auto;
+}
+
+.sim-sheet-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 6px;
+}
+
+.sim-sheet-body {
+  font-size: 11px;
+  color: #CBD5E1;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+@keyframes simToastIn {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes simFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes simScaleUp {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes simSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* In-Simulator Fullscreen Navigation Overlays */
+.sim-screen-overlay {
+  position: absolute;
+  inset: 0;
+  background: #0F172A;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  animation: simSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.sim-screen-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #1E293B;
+  border-bottom: 1px solid #334155;
+  color: #FFFFFF;
+}
+
+.sim-appbar-btn {
+  background: none;
+  border: none;
+  color: #818CF8;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim-appbar-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.sim-appbar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.sim-screen-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sim-avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sim-avatar-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366F1, #4338CA);
+  border: 2px solid #4F46E5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+
+.sim-arg-box {
+  background: #1E293B;
+  border: 1px solid #6366F1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 10px;
+  color: #CBD5E1;
+  font-family: 'JetBrains Mono', monospace;
+  word-break: break-all;
+}
+
+.sim-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.sim-stat-card {
+  background: #1E293B;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.sim-stat-card .val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #818CF8;
+}
+
+.sim-stat-card .lbl {
+  font-size: 9px;
+  color: #94A3B8;
+  margin-top: 2px;
+}
+
+.sim-action-item {
+  background: #1E293B;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sim-action-item:hover {
+  border-color: #6366F1;
+  background: #273549;
+}
+
+.sim-action-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.sim-switch-item {
+  background: #1E293B;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sim-toggle-pill {
+  width: 32px;
+  height: 18px;
+  background: #4F46E5;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+}
+
+.sim-toggle-pill::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  background: #FFFFFF;
+  border-radius: 50%;
+}
+

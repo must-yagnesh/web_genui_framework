@@ -37,31 +37,47 @@ class GenUiSyncClient {
     _connectStream();
   }
 
-  /// Try candidate URLs to automatically find the working sync host
+  /// Try candidate URLs concurrently to automatically find the working sync host
   Future<void> _discoverAndFetchSchema() async {
-    final candidateHosts = [
+    final Set<String> candidateHosts = {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+        'http://10.0.2.2:8080',
+        'http://localhost:8080',
+        'http://192.168.1.11:8080',
+        'http://10.0.3.2:8080',
+      ] else ...[
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
+        'http://192.168.1.11:8080',
+      ],
       _activeServerUrl,
-      'http://localhost:8080',
-      'http://192.168.1.12:8080',
-      'http://10.0.2.2:8080',
-    ];
+      serverBaseUrl,
+    };
+
+    final completer = Completer<bool>();
 
     for (final host in candidateHosts) {
       if (_isDisposed) return;
-      try {
-        final uri = Uri.parse('$host/api/schema/current');
-        final response = await http.get(uri).timeout(const Duration(seconds: 2));
-        if (response.statusCode == 200) {
+      http
+          .get(Uri.parse('$host/api/schema/current'))
+          .timeout(const Duration(milliseconds: 1800))
+          .then((response) {
+        if (!_isDisposed && !completer.isCompleted && response.statusCode == 200) {
           _activeServerUrl = host;
           debugPrint('[GenUiSync] Discovered live sync host at $_activeServerUrl');
           final result = GenUiSchemaValidator.validateAndSanitize(response.body);
           _schemaStreamController.add(result.sanitizedSchema);
-          return;
+          completer.complete(true);
         }
-      } catch (_) {
-        // Try next candidate
-      }
+      }).catchError((_) {
+        // Host unreachable, try others
+      });
     }
+
+    await Future.any([
+      completer.future,
+      Future.delayed(const Duration(milliseconds: 2000), () => false),
+    ]);
   }
 
   /// Stop the listener and clean up resources
@@ -105,13 +121,14 @@ class GenUiSyncClient {
         }
       } catch (e) {
         _isConnected = false;
-        debugPrint('[GenUiSync] SSE stream dropped ($e). Reconnecting in 3 seconds...');
+        debugPrint('[GenUiSync] SSE stream dropped ($e). Re-discovering sync host...');
+        await _discoverAndFetchSchema();
       } finally {
         _streamingClient?.close();
       }
 
       if (!_isDisposed) {
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 2));
       }
     }
   }

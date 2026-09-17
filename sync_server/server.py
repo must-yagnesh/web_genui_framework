@@ -86,7 +86,8 @@ active_schema = {
             "type": "button",
             "text": "Explore All Vaults",
             "variant": "primary",
-            "action_id": "action_explore"
+            "action_id": "action_explore",
+            "custom_dart_code": "ScaffoldMessenger.of(context).showSnackBar(\n  SnackBar(\n    content: Text('Exploring all vaults!'),\n    backgroundColor: Color(0xFF4F46E5),\n  ),\n);"
         }
     ]
 }

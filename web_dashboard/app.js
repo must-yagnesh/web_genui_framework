@@ -60,7 +60,8 @@ let activeSchema = {
       type: "button",
       text: "Explore All Vaults",
       variant: "primary",
-      action_id: "action_explore"
+      action_id: "action_explore",
+      custom_dart_code: "ScaffoldMessenger.of(context).showSnackBar(\n  SnackBar(\n    content: Text('Exploring all vaults!'),\n    backgroundColor: Color(0xFF4F46E5),\n  ),\n);"
     }
   ]
 };
@@ -627,6 +628,161 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function getDartSnippetTemplate(kind, name) {
+  const safeName = (name || "Component").replace(/['"\\]/g, "");
+  switch (kind) {
+    case "nav_profile":
+      return `Navigator.pushNamed(\n  context,\n  '/profile',\n  arguments: {'userId': 'alex_vip', 'source': '${safeName}'},\n);`;
+    case "nav_settings":
+      return `Navigator.pushNamed(\n  context,\n  '/settings',\n  arguments: {'section': 'security', 'user': 'alex_morgan'},\n);`;
+    case "custom_sheet":
+      return `showModalBottomSheet(\n  context: context,\n  isScrollControlled: true,\n  backgroundColor: Colors.transparent,\n  builder: (context) => const CustomDemoBottomSheet(),\n);`;
+    case "getx_nav":
+      return `Get.toNamed('/profile', arguments: {'userId': 'vip_42', 'from': '${safeName}'});`;
+    case "snackbar":
+      return `ScaffoldMessenger.of(context).showSnackBar(\n  SnackBar(\n    content: Text('Tapped on ${safeName}!'),\n    backgroundColor: Color(0xFF4F46E5),\n    duration: Duration(seconds: 3),\n  ),\n);`;
+    case "dialog":
+      return `showDialog(\n  context: context,\n  builder: (ctx) => AlertDialog(\n    title: Text('${safeName} Notice'),\n    content: Text('Triggered custom Flutter code from Web Console!'),\n    actions: [\n      TextButton(\n        onPressed: () => Navigator.pop(ctx),\n        child: Text('OK'),\n      ),\n    ],\n  ),\n);`;
+    case "sheet":
+    case "bottom_sheet":
+      return `showModalBottomSheet(\n  context: context,\n  builder: (ctx) => Container(\n    padding: EdgeInsets.all(20),\n    child: Text('Modal Bottom Sheet for ${safeName}'),\n  ),\n);`;
+    case "print":
+      return `print('User clicked on ${safeName} in mobile app.');`;
+    case "submit":
+    case "form_submit":
+      return `final errors = GenUiFormRegistry.instance.validateNonEmpty();\nif (errors.isEmpty) {\n  ScaffoldMessenger.of(context).showSnackBar(\n    SnackBar(\n      content: Text('Form Submitted Successfully!'),\n      backgroundColor: Color(0xFF10B981),\n    ),\n  );\n}`;
+    default:
+      return `ScaffoldMessenger.of(context).showSnackBar(\n  SnackBar(content: Text('Clicked ${safeName}!'), backgroundColor: Color(0xFF4F46E5)),\n);`;
+  }
+}
+
+function renderOnClickCodeEditor(comp, idx, isChild = false, parentIdx = null) {
+  const compName = comp.text || comp.title || comp.label || comp.icon || comp.id || comp.type;
+  const targetFn = isChild
+    ? `updateChildField(${parentIdx}, ${idx}`
+    : `updateCompField(${idx}`;
+  const actionType = comp.action_type || (comp.custom_dart_code ? "custom_code" : (comp.action_id ? "action_id" : "none"));
+
+  return `
+    <div class="dart-code-section" style="${isChild ? 'grid-column: 1 / -1;' : ''}">
+      <div class="dart-code-header">
+        <div class="dart-code-title">
+          <span>⚡</span> OnClick Action &amp; Flutter Code
+        </div>
+        <div style="min-width: 155px;">
+          <select style="width: 100%; font-size: 11px; padding: 3px 6px;" onchange="${isChild ? `handleChildActionTypeChange(${parentIdx}, ${idx}, this.value)` : `handleCompActionTypeChange(${idx}, this.value)`}">
+            <option value="none" ${actionType === 'none' ? 'selected' : ''}>Action: None</option>
+            <option value="custom_code" ${actionType === 'custom_code' ? 'selected' : ''}>Custom Flutter Code</option>
+            <option value="nav_profile" ${actionType === 'nav_profile' ? 'selected' : ''}>Preset: /profile Navigation</option>
+            <option value="nav_settings" ${actionType === 'nav_settings' ? 'selected' : ''}>Preset: /settings Navigation</option>
+            <option value="custom_sheet" ${actionType === 'custom_sheet' ? 'selected' : ''}>Preset: Custom BottomSheet</option>
+            <option value="getx_nav" ${actionType === 'getx_nav' ? 'selected' : ''}>Preset: GetX Navigation</option>
+            <option value="snackbar" ${actionType === 'snackbar' ? 'selected' : ''}>Preset: SnackBar</option>
+            <option value="dialog" ${actionType === 'dialog' ? 'selected' : ''}>Preset: Alert Dialog</option>
+            <option value="bottom_sheet" ${actionType === 'bottom_sheet' ? 'selected' : ''}>Preset: Bottom Sheet</option>
+            <option value="form_submit" ${actionType === 'form_submit' ? 'selected' : ''}>Preset: Form Submit</option>
+            <option value="action_id" ${actionType === 'action_id' ? 'selected' : ''}>Preset: Action ID Only</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="dart-code-editor-wrapper">
+        <div class="dart-editor-topbar">
+          <span>DART / FLUTTER EXECUTION BUFFER</span>
+          <span class="dart-code-badge">0% CRASH GUARDED</span>
+        </div>
+        <textarea
+          class="dart-code-textarea"
+          id="${isChild ? `child_dart_${parentIdx}_${idx}` : `comp_dart_${idx}`}"
+          placeholder="// Enter custom Flutter code to execute on mobile click...&#10;Navigator.pushNamed(context, '/profile', arguments: {'userId': 'alex'});"
+          oninput="${targetFn}, 'custom_dart_code', this.value)"
+        >${escapeHtml(comp.custom_dart_code || "")}</textarea>
+      </div>
+
+      <div class="dart-snippets-row">
+        <span class="snippet-label">Insert Snippet:</span>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'nav_profile')` : `insertCompDartSnippet(${idx}, 'nav_profile')`}">+ Nav /profile</button>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'nav_settings')` : `insertCompDartSnippet(${idx}, 'nav_settings')`}">+ Nav /settings</button>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'custom_sheet')` : `insertCompDartSnippet(${idx}, 'custom_sheet')`}">+ Custom Sheet</button>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'getx_nav')` : `insertCompDartSnippet(${idx}, 'getx_nav')`}">+ GetX Nav</button>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'snackbar')` : `insertCompDartSnippet(${idx}, 'snackbar')`}">+ SnackBar</button>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'dialog')` : `insertCompDartSnippet(${idx}, 'dialog')`}">+ Dialog</button>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'submit')` : `insertCompDartSnippet(${idx}, 'submit')`}">+ FormSubmit</button>
+        <button type="button" class="snippet-btn" onclick="${isChild ? `insertChildDartSnippet(${parentIdx}, ${idx}, 'print')` : `insertCompDartSnippet(${idx}, 'print')`}">+ Print</button>
+      </div>
+    </div>
+  `;
+}
+
+window.handleCompActionTypeChange = function(idx, newType) {
+  const comp = activeSchema.components[idx];
+  if (!comp) return;
+  comp.action_type = newType;
+  if (newType === 'none') {
+    comp.custom_dart_code = "";
+    delete comp.action_id;
+  } else if (newType === 'custom_code') {
+    if (!comp.custom_dart_code) {
+      comp.custom_dart_code = getDartSnippetTemplate('snackbar', comp.text || comp.title || comp.id);
+    }
+  } else if (newType === 'action_id') {
+    comp.action_id = comp.action_id || `${comp.id}_action`;
+    comp.custom_dart_code = "";
+  } else {
+    comp.custom_dart_code = getDartSnippetTemplate(newType, comp.text || comp.title || comp.id);
+    comp.action_id = `${comp.id}_${newType}`;
+  }
+  renderComponentEditors();
+  updateSimulator();
+  updateJsonEditor();
+};
+
+window.handleChildActionTypeChange = function(pIdx, cIdx, newType) {
+  const child = activeSchema.components[pIdx]?.children?.[cIdx];
+  if (!child) return;
+  child.action_type = newType;
+  if (newType === 'none') {
+    child.custom_dart_code = "";
+    delete child.action_id;
+  } else if (newType === 'custom_code') {
+    if (!child.custom_dart_code) {
+      child.custom_dart_code = getDartSnippetTemplate('snackbar', child.text || child.title || child.id);
+    }
+  } else if (newType === 'action_id') {
+    child.action_id = child.action_id || `${child.id}_action`;
+    child.custom_dart_code = "";
+  } else {
+    child.custom_dart_code = getDartSnippetTemplate(newType, child.text || child.title || child.id);
+    child.action_id = `${child.id}_${newType}`;
+  }
+  renderComponentEditors();
+  updateSimulator();
+  updateJsonEditor();
+};
+
+window.insertCompDartSnippet = function(idx, snippetKey) {
+  const comp = activeSchema.components[idx];
+  if (!comp) return;
+  comp.action_type = 'custom_code';
+  comp.custom_dart_code = getDartSnippetTemplate(snippetKey, comp.text || comp.title || comp.id);
+  renderComponentEditors();
+  updateSimulator();
+  updateJsonEditor();
+  showToast(`Inserted Dart ${snippetKey.toUpperCase()} template!`);
+};
+
+window.insertChildDartSnippet = function(pIdx, cIdx, snippetKey) {
+  const child = activeSchema.components[pIdx]?.children?.[cIdx];
+  if (!child) return;
+  child.action_type = 'custom_code';
+  child.custom_dart_code = getDartSnippetTemplate(snippetKey, child.text || child.title || child.id);
+  renderComponentEditors();
+  updateSimulator();
+  updateJsonEditor();
+  showToast(`Inserted Dart ${snippetKey.toUpperCase()} template!`);
+};
+
+
 function renderChildEditor(parentIdx, cIdx, child) {
   const type = (child.type || "text").toLowerCase();
   let propsHtml = "";
@@ -656,6 +812,7 @@ function renderChildEditor(parentIdx, cIdx, child) {
           <option value="true" ${child.is_bold ? 'selected' : ''}>Bold</option>
         </select>
       </div>
+      ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
     `;
   } else if (type === "button") {
     propsHtml = `
@@ -672,9 +829,10 @@ function renderChildEditor(parentIdx, cIdx, child) {
         </select>
       </div>
       <div class="nested-child-field">
-        <label>Action ID</label>
+        <label>Action ID (Fallback)</label>
         <input type="text" value="${escapeHtml(child.action_id || "")}" placeholder="action_name" oninput="updateChildField(${parentIdx}, ${cIdx}, 'action_id', this.value)">
       </div>
+      ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
     `;
   } else if (type === "image") {
     propsHtml = `
@@ -690,6 +848,7 @@ function renderChildEditor(parentIdx, cIdx, child) {
         <label>Border Radius</label>
         <input type="number" min="0" max="32" value="${child.border_radius || 8}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'border_radius', Number(this.value))">
       </div>
+      ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
     `;
   } else if (type === "textfield" || type === "input") {
     propsHtml = `
@@ -784,6 +943,7 @@ function renderChildEditor(parentIdx, cIdx, child) {
         <label>Color (Hex)</label>
         <input type="text" value="${escapeHtml(child.color || "")}" placeholder="#4F46E5" oninput="updateChildField(${parentIdx}, ${cIdx}, 'color', this.value)">
       </div>
+      ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
     `;
   } else if (type === "divider") {
     propsHtml = `
@@ -912,10 +1072,11 @@ function renderComponentEditors() {
             </select>
           </div>
           <div class="field flex-1">
-            <label>Action ID</label>
+            <label>Action ID (Fallback)</label>
             <input type="text" value="${comp.action_id || ""}" oninput="updateCompField(${idx}, 'action_id', this.value)">
           </div>
         </div>
+        ${renderOnClickCodeEditor(comp, idx, false)}
       `;
     } else if (comp.type === "text") {
       fieldsHtml = `
@@ -944,6 +1105,7 @@ function renderComponentEditors() {
             </select>
           </div>
         </div>
+        ${renderOnClickCodeEditor(comp, idx, false)}
       `;
     } else if (comp.type === "image") {
       fieldsHtml = `
@@ -961,6 +1123,7 @@ function renderComponentEditors() {
             <input type="number" min="0" max="40" value="${comp.border_radius || 12}" oninput="updateCompField(${idx}, 'border_radius', Number(this.value))">
           </div>
         </div>
+        ${renderOnClickCodeEditor(comp, idx, false)}
       `;
     } else if (comp.type === "textfield" || comp.type === "input") {
       fieldsHtml = `
@@ -1063,6 +1226,7 @@ function renderComponentEditors() {
             <input type="number" min="12" max="64" value="${comp.size || 28}" oninput="updateCompField(${idx}, 'size', Number(this.value))">
           </div>
         </div>
+        ${renderOnClickCodeEditor(comp, idx, false)}
       `;
     } else if (comp.type === "divider") {
       fieldsHtml = `
@@ -1199,18 +1363,20 @@ function renderSimChildHtml(comp) {
   const type = (comp.type || "").toLowerCase();
 
   if (type === "text") {
-    return `<div class="sim-text" style="text-align:${comp.align || 'left'}; font-size:${comp.font_size || 14}px; font-weight:${comp.is_bold ? '700' : '400'}; color:${comp.color || '#fff'}; padding:${comp.padding !== undefined ? comp.padding : 2}px 0; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(comp.text || "")}</div>`;
+    const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
+    return `<div class="sim-text ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="text-align:${comp.align || 'left'}; font-size:${comp.font_size || 14}px; font-weight:${comp.is_bold ? '700' : '400'}; color:${comp.color || '#fff'}; padding:${comp.padding !== undefined ? comp.padding : 2}px 0; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(comp.text || "")}</div>`;
   }
   if (type === "button") {
     const isOutline = comp.variant === 'outline' || comp.variant === 'ghost';
     const bg = isOutline ? 'transparent' : primaryColor;
     const border = isOutline ? `1px solid ${primaryColor}` : 'none';
     const textColor = isOutline ? primaryColor : '#fff';
-    return `<button class="sim-btn-primary" onclick="handleSimulatorAction('${comp.action_id || 'btn_action'}')" style="background:${bg}; border:${border}; color:${textColor}; padding:6px 14px; font-size:12px; height:auto; width:auto; border-radius:6px; cursor:pointer;">${escapeHtml(comp.text || 'Action')}</button>`;
+    return `<button class="sim-btn-primary sim-clickable" onclick="handleSimulatorDartClick('${comp.id}', event)" style="background:${bg}; border:${border}; color:${textColor}; padding:6px 14px; font-size:12px; height:auto; width:auto; border-radius:6px; cursor:pointer;">${escapeHtml(comp.text || 'Action')}</button>`;
   }
   if (type === "image") {
     const imgUrl = comp.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80";
-    return `<div class="sim-image" style="padding:${comp.padding !== undefined ? comp.padding : 2}px 0;"><img src="${escapeHtml(imgUrl)}" style="height:${comp.height || 80}px; border-radius:${comp.border_radius || 6}px; max-width:100%; object-fit:cover;" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';" /></div>`;
+    const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
+    return `<div class="sim-image ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="padding:${comp.padding !== undefined ? comp.padding : 2}px 0;"><img src="${escapeHtml(imgUrl)}" style="height:${comp.height || 80}px; border-radius:${comp.border_radius || 6}px; max-width:100%; object-fit:cover;" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';" /></div>`;
   }
   if (type === "textfield" || type === "input") {
     const isMultiLine = Number(comp.max_lines) > 1;
@@ -1280,7 +1446,8 @@ function renderSimChildHtml(comp) {
   }
   if (type === "icon") {
     const iconSym = comp.icon === 'star' ? '★' : (comp.icon === 'heart' ? '♥' : (comp.icon === 'check' ? '✓' : (comp.icon === 'lock' ? '🔒' : (comp.icon === 'bell' ? '🔔' : (comp.icon === 'settings' ? '⚙' : '✦')))));
-    return `<span style="font-size:${comp.size || 22}px;color:${comp.color || primaryColor};display:inline-flex;align-items:center;justify-content:center;padding:${comp.padding !== undefined ? comp.padding : 2}px;">${iconSym}</span>`;
+    const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
+    return `<span class="${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="font-size:${comp.size || 22}px;color:${comp.color || primaryColor};display:inline-flex;align-items:center;justify-content:center;padding:${comp.padding !== undefined ? comp.padding : 2}px;">${iconSym}</span>`;
   }
   if (type === "divider") {
     return `<div style="width:100%;border-top:${comp.thickness || 1}px solid ${comp.color || '#334155'};margin:${comp.padding || 4}px 0;"></div>`;
@@ -1472,7 +1639,7 @@ function updateSimulator() {
     } else if (comp.type === "button") {
       const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
       el.innerHTML = `
-        <button class="sim-btn-primary" onclick="handleSimulatorAction('${comp.action_id || 'btn_action'}')" style="background: ${primaryColor}">
+        <button class="sim-btn-primary sim-clickable" onclick="handleSimulatorDartClick('${comp.id}', event)" style="background: ${primaryColor}">
           ${comp.text || "Click Here"}
         </button>
       `;
@@ -1484,11 +1651,23 @@ function updateSimulator() {
       el.style.color = comp.color || "#FFFFFF";
       el.style.padding = `${comp.padding || 4}px 0`;
       el.innerText = comp.text || comp.title || "Dynamic Text";
+
+      if (comp.custom_dart_code || comp.onclick || comp.action_id) {
+        el.classList.add("sim-clickable");
+        el.setAttribute("title", "Click to execute custom Dart code");
+        el.onclick = (e) => handleSimulatorDartClick(comp.id, e);
+      }
     } else if (comp.type === "image") {
       el.className = "sim-image";
       el.style.padding = `${comp.padding || 6}px 0`;
       const imgUrl = comp.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80";
       el.innerHTML = `<img src="${imgUrl}" style="height:${comp.height || 150}px; border-radius:${comp.border_radius || 12}px;" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';" />`;
+
+      if (comp.custom_dart_code || comp.onclick || comp.action_id) {
+        el.classList.add("sim-clickable");
+        el.setAttribute("title", "Click to execute custom Dart code");
+        el.onclick = (e) => handleSimulatorDartClick(comp.id, e);
+      }
     } else if (comp.type === "textfield" || comp.type === "input") {
       el.className = "sim-textfield";
       const isMultiLine = Number(comp.max_lines) > 1;
@@ -1556,6 +1735,12 @@ function updateSimulator() {
       el.style.textAlign = comp.align || "center";
       el.style.padding = `${comp.padding || 4}px 0`;
       el.innerHTML = `<span style="font-size:${comp.size || 28}px;color:${comp.color || activeSchema.theme?.primary_color || '#4F46E5'};">${iconSym}</span>`;
+
+      if (comp.custom_dart_code || comp.onclick || comp.action_id) {
+        el.classList.add("sim-clickable");
+        el.setAttribute("title", "Click to execute custom Dart code");
+        el.onclick = (e) => handleSimulatorDartClick(comp.id, e);
+      }
     } else if (comp.type === "divider") {
       el.className = "sim-divider";
       el.style.borderTop = `${comp.thickness || 1}px solid ${comp.color || '#334155'}`;
@@ -2210,6 +2395,462 @@ window.handleSimulatorAction = function(actionId) {
     showToast(`Triggered Action: "${actionId}"`);
   }
 };
+
+// ==========================================================================
+// ⚡ Simulator Dart Execution Engine
+// ==========================================================================
+window.handleSimulatorDartClick = function(compId, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+
+  let comp = null;
+  for (const c of activeSchema.components) {
+    if (c.id === compId) { comp = c; break; }
+    if (c.children && Array.isArray(c.children)) {
+      for (const ch of c.children) {
+        if (ch.id === compId) { comp = ch; break; }
+      }
+      if (comp) break;
+    }
+  }
+
+  if (!comp) {
+    window.handleSimulatorAction(compId);
+    return;
+  }
+
+  const dartCode = comp.custom_dart_code || (typeof comp.onclick === 'string' ? comp.onclick : comp.onclick?.code);
+
+  if (dartCode && dartCode.trim().length > 0) {
+    executeSimulatorDartSnippet(dartCode.trim(), comp);
+  } else if (comp.action_id) {
+    window.handleSimulatorAction(comp.action_id);
+  } else {
+    showToast(`⚡ Clicked ${comp.type.toUpperCase()}`);
+  }
+};
+
+function executeSimulatorDartSnippet(code, comp) {
+  const compName = comp.text || comp.title || comp.label || comp.icon || comp.id || comp.type;
+
+  // 0. Navigator Pop / Get.back
+  if (code.includes("Navigator.pop") || code.includes("Get.back")) {
+    const screen = document.getElementById("phoneSimulatorScreen");
+    const overlay = screen?.querySelector(".sim-screen-overlay, .sim-bottomsheet-wrapper, .sim-modal-backdrop");
+    if (overlay) {
+      overlay.remove();
+      showToast("⚡ Navigated Back (Navigator.pop)");
+      return;
+    }
+  }
+
+  // 1. Custom Demo Bottom Sheet
+  if (code.includes("CustomDemoBottomSheet") || code.includes("showCustomDemoBottomSheet") || code.includes("CustomActionBottomSheet")) {
+    showSimulatorCustomBottomSheet();
+    showToast("⚡ Executed Dart: showModalBottomSheet(CustomDemoBottomSheet)");
+    return;
+  }
+
+  // 2. Navigation: Navigator.push, Navigator.pushNamed, Get.to, Get.toNamed, UserProfileDemoScreen, SettingsDemoScreen
+  if (code.includes("Navigator.push") || code.includes("Navigator.of(context).push") || code.includes("Get.to") || code.includes("UserProfileDemoScreen") || code.includes("SettingsDemoScreen")) {
+    let routeName = "/profile";
+    const slashMatch = code.match(/['"](\/[a-zA-Z0-9_\-\/]*)['"]/);
+    if (slashMatch && slashMatch[1]) {
+      routeName = slashMatch[1];
+    } else if (code.includes("SettingsDemoScreen") || code.includes("SettingsScreen")) {
+      routeName = "/settings";
+    } else if (code.includes("UserProfileDemoScreen") || code.includes("ProfileDemoScreen")) {
+      routeName = "/profile";
+    }
+
+    let args = null;
+    const argMatch = code.match(/arguments:\s*(\{.+?\}|\[.+?\]|['"][^'"]*['"]|\d+)/);
+    if (argMatch && argMatch[1]) {
+      args = argMatch[1].trim();
+    }
+
+    if (routeName === "/profile") {
+      showSimulatorProfileScreen(args);
+      showToast(`⚡ Navigated to /profile ${args ? `with arguments` : ''}`);
+    } else if (routeName === "/settings") {
+      showSimulatorSettingsScreen(args);
+      showToast(`⚡ Navigated to /settings ${args ? `with arguments` : ''}`);
+    } else {
+      showSimulatorGenericScreen(routeName, args);
+      showToast(`⚡ Navigated to ${routeName} ${args ? `with arguments` : ''}`);
+    }
+    return;
+  }
+
+  // 3. SnackBar: ScaffoldMessenger.of(context).showSnackBar(SnackBar(...))
+  if (code.includes("showSnackBar") || code.includes("SnackBar(")) {
+    let msg = `Action triggered on ${compName}`;
+    const textMatch = code.match(/Text\(\s*['"](.+?)['"]\s*\)/);
+    if (textMatch && textMatch[1]) {
+      msg = textMatch[1];
+    } else {
+      const contentMatch = code.match(/content:\s*['"](.+?)['"]/);
+      if (contentMatch && contentMatch[1]) msg = contentMatch[1];
+    }
+
+    let bg = activeSchema.theme?.primary_color || "#4F46E5";
+    if (code.includes("Colors.green") || code.includes("0xFF10B981")) bg = "#10B981";
+    else if (code.includes("Colors.red") || code.includes("0xFFEF4444")) bg = "#EF4444";
+    else if (code.includes("Colors.amber") || code.includes("0xFFF59E0B")) bg = "#F59E0B";
+    else if (code.includes("Colors.blue") || code.includes("0xFF0284C7")) bg = "#0284C7";
+
+    showSimulatorSnackBar(msg, bg);
+    showToast(`⚡ Executed Dart: SnackBar("${msg}")`);
+    return;
+  }
+
+  // 4. AlertDialog: showDialog(context: context, builder: ... AlertDialog(...))
+  if (code.includes("showDialog") || code.includes("AlertDialog(")) {
+    let title = `${compName} Alert`;
+    let content = "Executed custom Dart code from generative UI web console.";
+
+    const titleMatch = code.match(/title:\s*Text\(\s*['"](.+?)['"]\s*\)/);
+    if (titleMatch && titleMatch[1]) title = titleMatch[1];
+
+    const contentMatch = code.match(/content:\s*Text\(\s*['"](.+?)['"]\s*\)/);
+    if (contentMatch && contentMatch[1]) content = contentMatch[1];
+
+    showSimulatorDialog(title, content);
+    showToast(`⚡ Executed Dart: showDialog("${title}")`);
+    return;
+  }
+
+  // 5. General BottomSheet: showModalBottomSheet(...)
+  if (code.includes("showModalBottomSheet")) {
+    let content = `Modal Bottom Sheet triggered by ${compName}`;
+    const textMatch = code.match(/Text\(\s*['"](.+?)['"]\s*\)/);
+    if (textMatch && textMatch[1]) content = textMatch[1];
+
+    showSimulatorBottomSheet(compName, content);
+    showToast(`⚡ Executed Dart: showModalBottomSheet(...)`);
+    return;
+  }
+
+  // 6. Form Submit / Validate
+  if (code.includes("validate") || code.includes("FormRegistry") || code.toLowerCase().includes("submit")) {
+    window.handleSimulatorAction("submit_form");
+    return;
+  }
+
+  // 7. Print
+  if (code.includes("print(") || code.includes("debugPrint(")) {
+    const pMatch = code.match(/print\(\s*['"](.+?)['"]\s*\)/);
+    const msg = pMatch ? pMatch[1] : code;
+    showToast(`⚡ Dart Print: "${msg}"`);
+    return;
+  }
+
+  // General Action Statement Fallback
+  const preview = code.length > 50 ? `${code.substring(0, 50)}...` : code;
+  showToast(`⚡ Executed Dart: ${preview}`);
+}
+
+function showSimulatorCustomBottomSheet() {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-bottomsheet-wrapper");
+  if (old) old.remove();
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "sim-bottomsheet-wrapper";
+  wrapper.innerHTML = `
+    <div class="sim-bottomsheet-content" style="background:#1E293B; border: 1px solid #334155; border-radius: 20px 20px 0 0;">
+      <div class="sim-sheet-handle"></div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <div style="width:32px; height:32px; border-radius:8px; background:rgba(99,102,241,0.2); display:flex; align-items:center; justify-content:center; font-size:16px;">📁</div>
+        <div style="flex:1;">
+          <div style="font-size:13px; font-weight:700; color:#FFFFFF;">Custom Project Bottom Sheet</div>
+          <div style="font-size:10px; color:#94A3B8;">Pre-existing Flutter custom bottom sheet</div>
+        </div>
+        <button class="sim-appbar-btn" onclick="this.closest('.sim-bottomsheet-wrapper').remove()" style="font-size:16px;">✕</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+        <div class="sim-action-item" onclick="showSimulatorSnackBar('Schema link copied to clipboard!', '#0284C7'); this.closest('.sim-bottomsheet-wrapper').remove();">
+          <div class="sim-action-icon" style="background:rgba(56,189,248,0.15); color:#38BDF8;">🔗</div>
+          <div style="flex:1;">
+            <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Share Live Schema</div>
+            <div style="font-size:10px; color:#94A3B8;">Broadcast to connected devices</div>
+          </div>
+          <span style="color:#64748B; font-size:11px;">›</span>
+        </div>
+        <div class="sim-action-item" onclick="showSimulatorSnackBar('Exporting schema JSON...', '#10B981'); this.closest('.sim-bottomsheet-wrapper').remove();">
+          <div class="sim-action-icon" style="background:rgba(16,185,129,0.15); color:#10B981;">⬇️</div>
+          <div style="flex:1;">
+            <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Export Dynamic UI JSON</div>
+            <div style="font-size:10px; color:#94A3B8;">Download current schema</div>
+          </div>
+          <span style="color:#64748B; font-size:11px;">›</span>
+        </div>
+        <div class="sim-action-item" onclick="showSimulatorSnackBar('Added current screen to Favorites!', '#F59E0B'); this.closest('.sim-bottomsheet-wrapper').remove();">
+          <div class="sim-action-icon" style="background:rgba(245,158,11,0.15); color:#F59E0B;">⭐</div>
+          <div style="flex:1;">
+            <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Save to Preset Favorites</div>
+            <div style="font-size:10px; color:#94A3B8;">Bookmark layout</div>
+          </div>
+          <span style="color:#64748B; font-size:11px;">›</span>
+        </div>
+      </div>
+      <button class="sim-dialog-btn" style="width:100%; padding:10px; background:#334155; border-radius:10px;" onclick="this.closest('.sim-bottomsheet-wrapper').remove()">Dismiss Sheet</button>
+    </div>
+  `;
+  wrapper.onclick = (e) => {
+    if (e.target === wrapper) wrapper.remove();
+  };
+  screen.appendChild(wrapper);
+}
+
+function showSimulatorProfileScreen(args) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-screen-overlay");
+  if (old) old.remove();
+
+  const overlay = document.createElement("div");
+  overlay.className = "sim-screen-overlay";
+  overlay.innerHTML = `
+    <div class="sim-screen-appbar">
+      <button class="sim-appbar-btn" onclick="this.closest('.sim-screen-overlay').remove()">‹ Back</button>
+      <div class="sim-appbar-title">User Profile</div>
+      <button class="sim-appbar-btn" onclick="showSimulatorSettingsScreen(null)">⚙️</button>
+    </div>
+    <div class="sim-screen-body">
+      <div class="sim-avatar-wrapper">
+        <div class="sim-avatar-circle">👤</div>
+        <div style="font-size:15px; font-weight:700; color:#FFFFFF;">Alex Morgan</div>
+        <div style="font-size:11px; color:#94A3B8;">alex.morgan@enterprise.io</div>
+        <div style="display:inline-block; padding:2px 8px; background:rgba(99,102,241,0.2); border:1px solid #6366F1; border-radius:12px; font-size:9px; font-weight:700; color:#818CF8; letter-spacing:0.5px;">PRO TIER SUBSCRIBER</div>
+      </div>
+
+      ${args ? `
+        <div class="sim-arg-box">
+          <div style="color:#818CF8; font-weight:700; margin-bottom:2px;">📥 Received Arguments:</div>
+          <div>${escapeHtml(args)}</div>
+        </div>
+      ` : ''}
+
+      <div class="sim-stats-grid">
+        <div class="sim-stat-card">
+          <div class="val">24</div>
+          <div class="lbl">Projects</div>
+        </div>
+        <div class="sim-stat-card">
+          <div class="val" style="color:#10B981;">148</div>
+          <div class="lbl">Deploys</div>
+        </div>
+        <div class="sim-stat-card">
+          <div class="val" style="color:#F59E0B;">4.9 ★</div>
+          <div class="lbl">Rating</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+        <div class="sim-action-item" onclick="showSimulatorCustomBottomSheet()">
+          <div class="sim-action-icon" style="color:#818CF8;">📑</div>
+          <div style="flex:1;">
+            <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Custom Bottom Sheet</div>
+            <div style="font-size:10px; color:#94A3B8;">Open project actions modal</div>
+          </div>
+          <span style="color:#64748B; font-size:11px;">›</span>
+        </div>
+        <div class="sim-action-item" onclick="showSimulatorSettingsScreen(null)">
+          <div class="sim-action-icon" style="color:#38BDF8;">⚙️</div>
+          <div style="flex:1;">
+            <div style="font-size:12px; font-weight:600; color:#FFFFFF;">App Settings</div>
+            <div style="font-size:10px; color:#94A3B8;">Navigate to /settings</div>
+          </div>
+          <span style="color:#64748B; font-size:11px;">›</span>
+        </div>
+        <div class="sim-action-item" onclick="showSimulatorSnackBar('Profile link copied!', '#10B981')">
+          <div class="sim-action-icon" style="color:#34D399;">🔗</div>
+          <div style="flex:1;">
+            <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Share Profile</div>
+            <div style="font-size:10px; color:#94A3B8;">Copy public URL</div>
+          </div>
+          <span style="color:#64748B; font-size:11px;">›</span>
+        </div>
+      </div>
+
+      <button class="sim-dialog-btn" style="width:100%; margin-top:8px; padding:10px; background:#1E293B; border:1px solid #475569; border-radius:10px;" onclick="this.closest('.sim-screen-overlay').remove()">‹ Back to Generative Screen</button>
+    </div>
+  `;
+  screen.appendChild(overlay);
+}
+
+function showSimulatorSettingsScreen(args) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-screen-overlay");
+  if (old) old.remove();
+
+  const overlay = document.createElement("div");
+  overlay.className = "sim-screen-overlay";
+  overlay.innerHTML = `
+    <div class="sim-screen-appbar">
+      <button class="sim-appbar-btn" onclick="this.closest('.sim-screen-overlay').remove()">‹ Back</button>
+      <div class="sim-appbar-title">App Settings</div>
+      <div style="width:36px;"></div>
+    </div>
+    <div class="sim-screen-body">
+      ${args ? `
+        <div class="sim-arg-box">
+          <div style="color:#38BDF8; font-weight:700; margin-bottom:2px;">📥 Navigation Argument:</div>
+          <div>${escapeHtml(args)}</div>
+        </div>
+      ` : ''}
+
+      <div style="font-size:10px; font-weight:700; color:#64748B; letter-spacing:1px; margin-top:4px;">PREFERENCES</div>
+      <div class="sim-switch-item">
+        <div>
+          <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Push Notifications</div>
+          <div style="font-size:10px; color:#94A3B8;">Alerts on schema updates</div>
+        </div>
+        <div class="sim-toggle-pill" onclick="this.style.background = this.style.background === 'rgb(51, 65, 85)' ? '#4F46E5' : '#334155'"></div>
+      </div>
+      <div class="sim-switch-item">
+        <div>
+          <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Biometric Lock</div>
+          <div style="font-size:10px; color:#94A3B8;">Require FaceID / TouchID</div>
+        </div>
+        <div class="sim-toggle-pill" onclick="this.style.background = this.style.background === 'rgb(51, 65, 85)' ? '#4F46E5' : '#334155'"></div>
+      </div>
+      <div class="sim-switch-item">
+        <div>
+          <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Dark Mode Sync</div>
+          <div style="font-size:10px; color:#94A3B8;">Synchronize web palette</div>
+        </div>
+        <div class="sim-toggle-pill" onclick="this.style.background = this.style.background === 'rgb(51, 65, 85)' ? '#4F46E5' : '#334155'"></div>
+      </div>
+
+      <div style="font-size:10px; font-weight:700; color:#64748B; letter-spacing:1px; margin-top:8px;">ACTIONS &amp; DATA</div>
+      <div class="sim-action-item" onclick="showSimulatorCustomBottomSheet()">
+        <div class="sim-action-icon" style="color:#818CF8;">📑</div>
+        <div style="flex:1;">
+          <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Test Custom Bottom Sheet</div>
+          <div style="font-size:10px; color:#94A3B8;">Open bottom sheet</div>
+        </div>
+        <span style="color:#64748B; font-size:11px;">›</span>
+      </div>
+      <div class="sim-action-item" onclick="showSimulatorProfileScreen(null)">
+        <div class="sim-action-icon" style="color:#34D399;">👤</div>
+        <div style="flex:1;">
+          <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Open User Profile Screen</div>
+          <div style="font-size:10px; color:#94A3B8;">Navigate to /profile</div>
+        </div>
+        <span style="color:#64748B; font-size:11px;">›</span>
+      </div>
+      <div class="sim-action-item" onclick="showSimulatorSnackBar('Cache successfully cleared!', '#10B981')">
+        <div class="sim-action-icon" style="color:#EF4444;">🧹</div>
+        <div style="flex:1;">
+          <div style="font-size:12px; font-weight:600; color:#FFFFFF;">Clear Cache &amp; Storage</div>
+          <div style="font-size:10px; color:#94A3B8;">Free 24.8 MB local memory</div>
+        </div>
+        <span style="color:#64748B; font-size:11px;">›</span>
+      </div>
+
+      <button class="sim-dialog-btn" style="width:100%; margin-top:10px; padding:10px; background:#4F46E5; border-radius:10px;" onclick="this.closest('.sim-screen-overlay').remove()">‹ Back to Generative Screen</button>
+    </div>
+  `;
+  screen.appendChild(overlay);
+}
+
+function showSimulatorGenericScreen(routeName, args) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-screen-overlay");
+  if (old) old.remove();
+
+  const overlay = document.createElement("div");
+  overlay.className = "sim-screen-overlay";
+  overlay.innerHTML = `
+    <div class="sim-screen-appbar">
+      <button class="sim-appbar-btn" onclick="this.closest('.sim-screen-overlay').remove()">‹ Back</button>
+      <div class="sim-appbar-title">${escapeHtml(routeName)}</div>
+      <div style="width:36px;"></div>
+    </div>
+    <div class="sim-screen-body" style="align-items:center; justify-content:center; text-align:center;">
+      <div style="width:68px; height:68px; border-radius:50%; background:rgba(99,102,241,0.15); border:2px solid #4F46E5; display:flex; align-items:center; justify-content:center; font-size:32px; margin-bottom:12px;">🧭</div>
+      <div style="font-size:15px; font-weight:700; color:#FFFFFF; margin-bottom:4px;">Opened Route: "${escapeHtml(routeName)}"</div>
+      <div style="font-size:12px; color:#10B981; font-weight:600; margin-bottom:16px;">Real Project Navigation Successful</div>
+
+      ${args ? `
+        <div class="sim-arg-box" style="width:100%; text-align:left; margin-bottom:16px;">
+          <div style="color:#818CF8; font-weight:700; margin-bottom:2px;">📥 Passed Arguments:</div>
+          <div>${escapeHtml(args)}</div>
+        </div>
+      ` : ''}
+
+      <button class="sim-dialog-btn" style="width:100%; padding:10px; background:#4F46E5; border-radius:10px;" onclick="this.closest('.sim-screen-overlay').remove()">‹ Back to Generative Screen</button>
+    </div>
+  `;
+  screen.appendChild(overlay);
+}
+
+function showSimulatorSnackBar(msg, bg) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-live-snackbar");
+  if (old) old.remove();
+
+  const sb = document.createElement("div");
+  sb.className = "sim-live-snackbar";
+  sb.style.background = bg || "#4F46E5";
+  sb.innerHTML = `<span>⚡</span><span style="flex:1;">${escapeHtml(msg)}</span>`;
+  screen.appendChild(sb);
+  setTimeout(() => { sb.remove(); }, 3500);
+}
+
+function showSimulatorDialog(title, content) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-modal-backdrop");
+  if (old) old.remove();
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "sim-modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="sim-dialog-content">
+      <div class="sim-dialog-title">
+        <span>⚡</span> <span>${escapeHtml(title)}</span>
+      </div>
+      <div class="sim-dialog-body">${escapeHtml(content)}</div>
+      <div class="sim-dialog-actions">
+        <button class="sim-dialog-btn" onclick="this.closest('.sim-modal-backdrop').remove()">Dismiss</button>
+      </div>
+    </div>
+  `;
+  backdrop.onclick = (e) => {
+    if (e.target === backdrop) backdrop.remove();
+  };
+  screen.appendChild(backdrop);
+}
+
+function showSimulatorBottomSheet(title, content) {
+  const screen = document.getElementById("phoneSimulatorScreen");
+  if (!screen) return;
+  const old = screen.querySelector(".sim-bottomsheet-wrapper");
+  if (old) old.remove();
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "sim-bottomsheet-wrapper";
+  wrapper.innerHTML = `
+    <div class="sim-bottomsheet-content">
+      <div class="sim-sheet-handle"></div>
+      <div class="sim-sheet-title">⚡ ${escapeHtml(title)}</div>
+      <div class="sim-sheet-body">${escapeHtml(content)}</div>
+      <button class="sim-dialog-btn" style="width:100%; padding:8px;" onclick="this.closest('.sim-bottomsheet-wrapper').remove()">Dismiss</button>
+    </div>
+  `;
+  wrapper.onclick = (e) => {
+    if (e.target === wrapper) wrapper.remove();
+  };
+  screen.appendChild(wrapper);
+}
 
 // Reset Default
 btnResetDefault.addEventListener("click", () => {
