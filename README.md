@@ -67,6 +67,21 @@ The objective of this project is to deliver **instant, real-time UI synchronizat
 | **OTA / CodePush** | 10–30 minutes | ⚠️ High (crashes brick the whole app) | ⚠️ High risk (bans on dynamic code) | Complex bundling pipeline |
 | **`flutter_genui_guard`** | **< 50 milliseconds** | **🛡️ 0.0% Crashes (Guaranteed)** | **✅ 100% Compliant (Pure JSON AST)** | **Zero app rebuilds required** |
 
+### Shorebird Code Push vs. MY PIP (`flutter_genui_guard`)
+
+| Dimension | Shorebird Code Push | MY PIP (`flutter_genui_guard`) | Winner Depends On... |
+| :--- | :--- | :--- | :--- |
+| **Modification Scope** | **App-Wide:** Any Dart code, state management, or packages. | **Scoped:** Whitelisted UI schemas & interpreted action snippets only. | **Shorebird** (if fixing bugs); **GenUI** (if restricting runtime risk). |
+| **Delivery Speed** | **Background:** Downloads on launch, takes effect on *next* restart. | **Instant:** Live stream (SSE) updates the screen *while open*. | **GenUI** for live operations/flash sales; **Shorebird** for background patches. |
+| **Authoring Audience** | **Engineers:** Requires CI pipelines, CLI, and Dart expertise. | **Non-Engineers / LLMs:** JSON schemas via web console or automated tools. | **GenUI** for marketers/AI; **Shorebird** for dev teams. |
+| **Execution Risk** | Low-Medium (bad patch revert mechanisms built-in). | Near Zero (sandboxed schema executor & component error boundaries). | **GenUI** for zero-crash layout safety; **Shorebird** for emergency hotfixes. |
+
+**Pick (`flutter_genui_guard`) if:**
+
+1. You are building dynamic, server-driven UI (e.g., home feeds, promo banners, checkout funnels, dynamic forms).
+2. You want an LLM or Marketing Console to generate, test, and push live UI screens without touching code or running CI/CD.
+3. You need zero-latency real-time updates on open screens (e.g., live cricket scores, flash sale countdowns, real-time configuration updates).
+
 ---
 
 ## 2. What is LLM Web Generative UI, How It Works & 0% Crash Guarantee
