@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Web-Controlled Gen UI Dashboard — Instant Mobile Delivery</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260918b">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -137,6 +137,7 @@
       <div class="panel-header">
         <div class="tabs">
           <button class="tab-btn active" data-tab="tab-ai">🤖 AI Prompt Studio</button>
+          <button class="tab-btn" data-tab="tab-templates">🎨 Design Templates</button>
           <button class="tab-btn" data-tab="tab-json">📄 Raw Schema JSON</button>
           <button class="tab-btn" data-tab="tab-stress">⚡ Stress & Adversarial</button>
         </div>
@@ -158,6 +159,7 @@
               <button class="preset-pill" data-preset="ecommerce">🛍 Flash Sale</button>
               <button class="preset-pill" data-preset="fintech">💳 VIP Banking</button>
               <button class="preset-pill" data-preset="support">🎧 Help & FAQ</button>
+              <button class="preset-pill preset-pill-link" data-open-tab="tab-templates" title="Open the MUST design template gallery">🎨 MUST Design Templates →</button>
             </div>
           </div>
 
@@ -242,6 +244,21 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Tab 1b: Design Templates Gallery -->
+        <div class="tab-content" id="tab-templates">
+          <div class="templates-header">
+            <p class="section-desc">Pixel-matched <strong>MUST</strong> design templates built from the guarded widget catalog. Load a main widget into the screen you are editing, or create its linked detail screen with one click. Every template ships with its own theme (light / dark) that the phone simulator and the mobile app both honor.</p>
+            <div class="templates-toolbar">
+              <button class="btn btn-primary btn-sm" id="btnInstallAllDetailScreens" title="Creates /must-mate, /must-break and /global-footprint and broadcasts them to connected devices">🚀 Create &amp; apply all 3 detail screens</button>
+              <span class="templates-hint">Tip: create the detail screens first, then load a widget and press <strong>Apply to App</strong> so its “Learn more” button has somewhere to go.</span>
+            </div>
+          </div>
+          <div class="template-section-title">MAIN WIDGETS · load or append to the current screen</div>
+          <div class="template-grid" id="templateGridWidgets"></div>
+          <div class="template-section-title">DETAIL SCREENS · create a routed screen and apply instantly</div>
+          <div class="template-grid" id="templateGridDetails"></div>
         </div>
 
         <!-- Tab 2: Raw Schema JSON -->
@@ -439,6 +456,11 @@
             <option value="card">💳 Feature Action Cards & Banners</option>
             <option value="checkout">🛒 Checkout / Payment Summary</option>
             <option value="blank">📄 Blank Dynamic Canvas</option>
+            <optgroup label="🎨 MUST Design Templates (applied instantly)">
+              <option value="tpl:must_mate_detail">🗂️ MUST Mate — Product Detail (light)</option>
+              <option value="tpl:must_break_detail">🎙️ MustBreak — Product Detail (dark)</option>
+              <option value="tpl:global_footprint_detail">🌐 Global Footprint — Team Detail (light)</option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -452,6 +474,7 @@
   <!-- Notification Toast -->
   <div class="toast" id="appToast">Changes Applied Instantly!</div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20260918b"></script>
+  <script src="templates.js?v=20260918b"></script>
 </body>
 </html>

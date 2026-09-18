@@ -340,6 +340,10 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=DASHBOARD_DIR, **kwargs)
 
     def end_headers(self):
+        # Dashboard assets are edited live; never let the browser serve a stale app.js / style.css.
+        if not self.path.startswith("/api/"):
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
         # Enable CORS for local testing and cross-origin Web & Emulator connections
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")

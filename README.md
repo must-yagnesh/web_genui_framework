@@ -349,6 +349,29 @@ The default Home screen ships with two outline buttons, **📞 Contact Us** and 
 
 When validation passes, the values are stored via `/api/submissions` and a confirmation dialog with the given title and message is shown. Its button pops every pushed screen and returns to Home (or pushes `navigate_to` if it is another route). Validation and submission are scoped to the fields on the current screen, and a pushed screen's field values are discarded when it closes. The Live App Simulator mirrors the same flow. Add `success_dialog` to any submit button in the Web Console's Raw Schema JSON tab to get the same behaviour on custom screens.
 
+### 1d. Design Templates Gallery (MUST product widgets & detail screens)
+
+The **🎨 Design Templates** tab in the Web Console ships ready-made MUST layouts defined in `web_dashboard/templates.js`. Every template is plain schema JSON built only from the guarded widget catalog, so the same payload renders in the Live App Simulator and on real devices with no app rebuild.
+
+| Template | Kind | Route | Theme |
+| :--- | :--- | :--- | :--- |
+| MUST Mate — Product Widget | Main widget | current screen | Light green |
+| MustBreak — AI Communication Widget | Main widget | current screen | Dark |
+| Global Footprint — Stats Widget | Main widget | current screen | Light neutral |
+| MUST Mate — Product Detail | Detail screen | `/must-mate` | Light green |
+| MustBreak — Product Detail | Detail screen | `/must-break` | Dark |
+| Global Footprint — Team Detail | Detail screen | `/global-footprint` | Light neutral |
+
+Admin workflow:
+
+1. Click **🚀 Create & apply all 3 detail screens** (or **Create & Apply Screen** on a single card). The screens are broadcast immediately and appear as tabs in the Screens bar.
+2. Open the screen you want the widget on, click **🎨 Load in Designer** (replace) or **➕ Append** (keep existing components and theme), tweak copy if needed, then press **Apply to App**.
+3. Each widget's **Learn more** button carries `Navigator.pushNamed(context, '/must-mate')` (etc.), so tapping it on the device or in the simulator opens the matching detail screen.
+
+Templates carry a full `theme` block (`background_color`, `surface_color`, `text_primary`, `text_secondary`, `primary_color`, `accent_color`). The simulator now honors these tokens per screen, including pushed screens, so a light detail page opened from a dark home renders correctly. When a widget is **appended** to a screen with a different theme, its body-text colors are re-tinted to that screen's `text_primary` / `text_secondary` tokens so copy never ends up dark-on-dark. The **New Screen** modal also lists the detail templates as starter options so an admin can install one under a custom name and route.
+
+Unapplied designer edits are tracked per screen: a screen tab shows an amber **●** until you press **Apply to App**, and its local copy is kept when other screens are created or switched (previously the switch endpoint's re-broadcast could discard them). Dashboard assets are served with `Cache-Control: no-store`, so restart the sync server after pulling and hard-refresh the console once (Ctrl+F5).
+
 ### 2. Run the Flutter Mobile Client
 
 **Android Emulator:**

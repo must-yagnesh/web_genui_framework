@@ -377,17 +377,19 @@ input[type="color"] {
 .tabs {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
 }
 
 .tab-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .tab-btn.active {
@@ -441,6 +443,218 @@ input[type="color"] {
 .preset-pill:hover {
   border-color: var(--primary);
   background: rgba(79, 70, 229, 0.2);
+}
+
+.preset-pill-link {
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #6EE7B7;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.preset-pill-link:hover {
+  border-color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.2);
+}
+
+/* Unapplied-changes marker on a screen tab */
+.screen-tab-dirty {
+  color: var(--accent-amber);
+  font-size: 9px;
+  margin-left: 6px;
+  animation: dirtyPulse 1.6s ease-in-out infinite;
+}
+@keyframes dirtyPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Brief highlight on the phone when a template is loaded so the change is obvious */
+@keyframes simFlash {
+  0% { box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0.9); }
+  100% { box-shadow: inset 0 0 0 3px rgba(16, 185, 129, 0); }
+}
+.phone-screen.sim-flash {
+  animation: simFlash 1.1s ease-out;
+}
+
+/* Design Templates Gallery */
+.templates-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.templates-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  flex: 1;
+  min-width: 200px;
+}
+
+.template-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  margin: 6px 0 8px;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.tpl-card {
+  background: #1E293B;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.tpl-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.tpl-preview {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 132px;
+}
+
+.tpl-preview-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tpl-preview-emoji {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.tpl-preview-tag {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.tpl-preview-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  margin-top: 2px;
+}
+
+.tpl-preview-sub {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.tpl-preview-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 2px 0;
+}
+
+.tpl-preview-lines span {
+  height: 4px;
+  border-radius: 2px;
+  opacity: 0.35;
+  width: 90%;
+}
+
+.tpl-preview-lines span:last-child {
+  width: 65%;
+}
+
+.tpl-preview-cards {
+  display: flex;
+  gap: 5px;
+}
+
+.tpl-preview-cards span {
+  flex: 1;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid;
+  opacity: 0.8;
+}
+
+.tpl-preview-btn {
+  align-self: flex-start;
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-top: 2px;
+}
+
+.tpl-body {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.tpl-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tpl-meta {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-dim);
+}
+
+.tpl-meta code {
+  font-size: 9.5px;
+  color: #A5B4FC;
+}
+
+.tpl-desc {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.tpl-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.tpl-actions .btn {
+  font-size: 11px;
+  padding: 5px 9px;
 }
 
 .prompt-box textarea {
@@ -607,20 +821,30 @@ input[type="color"] {
 }
 
 .phone-screen {
+  /* Theme tokens — overridden per screen by applySimThemeVars() from the schema's `theme` block */
+  --sim-bg: #0B1120;
+  --sim-surface: #131B2E;
+  --sim-text: #F8FAFC;
+  --sim-muted: #94A3B8;
+  --sim-primary: #4F46E5;
+  --sim-accent: #10B981;
+  --sim-border: rgba(255, 255, 255, 0.07);
   flex: 1;
-  background: var(--phone-bg);
+  background: var(--sim-bg);
+  color: var(--sim-text);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  transition: background 0.25s ease;
 }
 
 .sim-app-bar {
   padding: 14px 16px;
-  background: #111827;
+  background: var(--sim-surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #1F2937;
+  border-bottom: 1px solid var(--sim-border);
 }
 
 .sim-app-title-group {
@@ -631,12 +855,12 @@ input[type="color"] {
 .sim-title {
   font-size: 14px;
   font-weight: 700;
-  color: white;
+  color: var(--sim-text);
 }
 
 .sim-sub {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--sim-muted);
 }
 
 .sim-content {
@@ -650,17 +874,17 @@ input[type="color"] {
 
 .sim-nav-bar {
   height: 48px;
-  background: #111827;
-  border-top: 1px solid #1F2937;
+  background: var(--sim-surface);
+  border-top: 1px solid var(--sim-border);
   display: flex;
   align-items: center;
   justify-content: space-around;
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--sim-muted);
 }
 
 .nav-item.active {
-  color: #38BDF8;
+  color: var(--sim-primary);
   font-weight: 600;
 }
 
@@ -788,20 +1012,22 @@ input[type="color"] {
 
 .sim-metrics-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
   gap: 8px;
 }
 
 .sim-metric-card {
-  background: #131B2E;
-  border: 1px solid #1E293B;
+  background: var(--sim-surface);
+  border: 1px solid var(--sim-border);
   padding: 10px;
   border-radius: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sim-metric-lbl {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--sim-muted);
 }
 
 .sim-metric-val {
@@ -816,17 +1042,25 @@ input[type="color"] {
 }
 
 .sim-feature-card {
-  background: #131B2E;
-  border: 1px solid #1E293B;
+  background: var(--sim-surface);
+  border: 1px solid var(--sim-border);
   border-radius: 10px;
   padding: 12px;
 }
 
+.phone-screen.sim-light .sim-feature-card,
+.phone-screen.sim-light .sim-metric-card,
+.sim-screen-overlay.sim-light .sim-feature-card,
+.sim-screen-overlay.sim-light .sim-metric-card {
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
 .sim-card-badge {
   font-size: 9px;
-  font-weight: 600;
-  color: #38BDF8;
-  background: rgba(56, 189, 248, 0.1);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--sim-primary);
+  background: color-mix(in srgb, var(--sim-primary) 12%, transparent);
   padding: 2px 6px;
   border-radius: 4px;
   display: inline-block;
@@ -841,7 +1075,7 @@ input[type="color"] {
 
 .sim-card-desc {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--sim-muted);
   line-height: 1.3;
   margin-bottom: 8px;
 }
@@ -955,16 +1189,16 @@ input[type="color"] {
 .sim-textfield label {
   display: block;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--sim-muted);
   margin-bottom: 4px;
 }
 .sim-textfield input {
   width: 100%;
   padding: 9px 12px;
-  background: #1E293B;
-  border: 1px solid #334155;
+  background: var(--sim-surface);
+  border: 1px solid var(--sim-border);
   border-radius: 8px;
-  color: white;
+  color: var(--sim-text);
   font-size: 12px;
   box-sizing: border-box;
 }
@@ -973,8 +1207,8 @@ input[type="color"] {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: #1E293B;
-  border: 1px solid #334155;
+  background: var(--sim-surface);
+  border: 1px solid var(--sim-border);
   border-radius: 10px;
   margin: 4px 0;
 }
@@ -995,40 +1229,41 @@ input[type="color"] {
 .sim-listtile-title {
   font-size: 13px;
   font-weight: 600;
-  color: white;
+  color: var(--sim-text);
 }
 .sim-listtile-sub {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--sim-muted);
 }
 .sim-listtile-trailing {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--sim-muted);
 }
 .sim-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  background: #1E293B;
-  border: 1px solid #334155;
+  background: var(--sim-surface);
+  border: 1px solid var(--sim-border);
   border-radius: 16px;
   font-size: 12px;
   font-weight: 500;
-  color: white;
+  color: var(--sim-text);
   margin: 3px;
 }
 .sim-chip.selected {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--sim-primary);
+  border-color: var(--sim-primary);
+  color: #FFFFFF;
 }
 .sim-toggle-row, .sim-check-row, .sim-radio-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: #1E293B;
-  border: 1px solid #334155;
+  background: var(--sim-surface);
+  border: 1px solid var(--sim-border);
   border-radius: 10px;
   margin: 4px 0;
 }
@@ -1071,6 +1306,13 @@ input[type="color"] {
 }
 .sim-row > * {
   min-width: 0;
+}
+/* Columns nested inside a row share the width (2 × 2 feature grids in the MUST templates) */
+.sim-row > .sim-column {
+  width: auto !important;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
 }
 .sim-column {
   display: flex;
@@ -1719,7 +1961,8 @@ input:checked + .slider:before {
 .sim-screen-overlay {
   position: absolute;
   inset: 0;
-  background: #0F172A;
+  background: var(--sim-bg, #0F172A);
+  color: var(--sim-text, #F8FAFC);
   z-index: 90;
   display: flex;
   flex-direction: column;
@@ -1732,9 +1975,9 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #1E293B;
-  border-bottom: 1px solid #334155;
-  color: #FFFFFF;
+  background: var(--sim-surface, #1E293B);
+  border-bottom: 1px solid var(--sim-border, #334155);
+  color: var(--sim-text, #FFFFFF);
 }
 
 .sim-appbar-btn {
@@ -1758,7 +2001,7 @@ input:checked + .slider:before {
 .sim-appbar-title {
   font-size: 13px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--sim-text, #FFFFFF);
 }
 
 .sim-screen-body {

@@ -91,6 +91,37 @@ let screens = {
 let activeScreenId = "home";
 let simNavStack = ["home"];
 
+// Default dark theme tokens (mirrors ThemeConfig defaults in flutter_genui_guard).
+// Presets without an explicit `theme` reset to these so a light template does not leak into the next preset.
+const DEFAULT_THEME = {
+  primary_color: "#4F46E5",
+  background_color: "#0F172A",
+  surface_color: "#1E293B",
+  text_primary: "#F8FAFC",
+  text_secondary: "#94A3B8",
+  accent_color: "#10B981"
+};
+
+// When the simulator renders a pushed screen, its own theme is used instead of the active screen's.
+let simRenderThemeOverride = null;
+
+// Screens with designer edits that have not been applied yet. Their local copy survives server
+// broadcasts (the switch endpoint re-broadcasts the target screen with a bumped version, which
+// used to silently discard unapplied edits). Cleared by "Apply to App".
+const dirtyScreens = new Set();
+let isSyncRender = false; // true while re-rendering from server data, so it is not counted as an edit
+
+function markActiveScreenDirty() {
+  if (isSyncRender || !activeScreenId || dirtyScreens.has(activeScreenId)) return;
+  dirtyScreens.add(activeScreenId);
+  if (typeof renderScreenTabs === "function") renderScreenTabs();
+}
+
+function renderFromServer(fn) {
+  isSyncRender = true;
+  try { fn(); } finally { isSyncRender = false; }
+}
+
 // Preset Templates
 const PRESETS = {
   crypto: {
@@ -523,7 +554,7 @@ async function loadScreensFromServer() {
       }
     }
     renderScreenTabs();
-    renderAll();
+    renderFromServer(renderAll);
   } catch (err) {
     console.warn("Could not load screens list from server:", err);
     renderScreenTabs();
@@ -550,7 +581,8 @@ function renderScreenTabs() {
     const icon = sid === "home" ? "🏠" : "📄";
     const name = scr.screen_name || scr.header?.title || sid;
     const route = scr.route || (sid === "home" ? "/" : `/${sid}`);
-    btn.innerHTML = `<span>${icon} ${escapeHtml(name)}</span> <span class="screen-tab-route">${escapeHtml(route)}</span>`;
+    const dirtyDot = dirtyScreens.has(sid) ? `<span class="screen-tab-dirty" title="Unapplied changes — press Apply to App">●</span>` : "";
+    btn.innerHTML = `<span>${icon} ${escapeHtml(name)}</span> <span class="screen-tab-route">${escapeHtml(route)}</span>${dirtyDot}`;
     btn.onclick = () => switchScreen(sid);
     screenTabsContainer.appendChild(btn);
   });
@@ -586,7 +618,7 @@ async function switchScreen(screenId) {
   if (simBackBtn) simBackBtn.style.display = "none";
 
   renderScreenTabs();
-  renderAll();
+  renderFromServer(renderAll);
 
   // Notify backend switch
   try {
@@ -706,6 +738,11 @@ if (btnSubmitCreateScreen) {
     }
     if (!route) {
       alert("Please enter a route path (e.g. /profile, /checkout)!");
+      return;
+    }
+    // "tpl:<key>" starters come from the Design Templates gallery (templates.js) and are applied instantly.
+    if (template.startsWith("tpl:") && typeof installDesignTemplateFromModal === "function") {
+      installDesignTemplateFromModal(template.slice(4), name, route);
       return;
     }
     createNewScreen(name, route, template);
@@ -862,11 +899,19 @@ document.querySelectorAll(".preset-pill").forEach(pill => {
     if (p) {
       activeSchema.header.title = p.title;
       activeSchema.header.subtitle = p.subtitle;
-      activeSchema.theme.primary_color = p.color;
+      activeSchema.theme = Object.assign({}, DEFAULT_THEME, { primary_color: p.color }, p.theme || {});
       activeSchema.components = JSON.parse(JSON.stringify(p.components));
       renderAll();
       showToast(`Loaded "${p.title}" Preset`);
     }
+  });
+});
+
+// Pills that just jump to another tab (e.g. "MUST Design Templates →")
+document.querySelectorAll("[data-open-tab]").forEach(pill => {
+  pill.addEventListener("click", () => {
+    const target = document.querySelector(`.tab-btn[data-tab="${pill.dataset.openTab}"]`);
+    if (target) target.click();
   });
 });
 
@@ -1625,6 +1670,61 @@ function isValidHexColor(val) {
   return (clean.length === 6 || clean.length === 8 || clean.length === 3) && /^[0-9A-Fa-f]+$/.test(clean);
 }
 
+// ---- Simulator theming (mirrors ThemeConfig on the Flutter side) ----
+function resolveSimTheme(theme) {
+  const t = theme || {};
+  const pick = (key) => (isValidHexColor(t[key]) ? t[key] : DEFAULT_THEME[key]);
+  const bg = pick("background_color");
+  const [r, g, b] = hexToRgb(bg);
+  const isLight = getLuminance(r, g, b) > 0.4;
+  return {
+    bg,
+    surface: pick("surface_color"),
+    text: pick("text_primary"),
+    muted: pick("text_secondary"),
+    primary: pick("primary_color"),
+    accent: pick("accent_color"),
+    border: isLight ? "rgba(15, 23, 42, 0.10)" : "rgba(255, 255, 255, 0.07)",
+    isLight
+  };
+}
+
+function applySimThemeVars(el, theme) {
+  if (!el) return;
+  const t = resolveSimTheme(theme);
+  el.style.setProperty("--sim-bg", t.bg);
+  el.style.setProperty("--sim-surface", t.surface);
+  el.style.setProperty("--sim-text", t.text);
+  el.style.setProperty("--sim-muted", t.muted);
+  el.style.setProperty("--sim-primary", t.primary);
+  el.style.setProperty("--sim-accent", t.accent);
+  el.style.setProperty("--sim-border", t.border);
+  el.classList.toggle("sim-light", t.isLight);
+}
+
+function simIconSymbol(name) {
+  switch (String(name || "").toLowerCase().trim()) {
+    case "star": return "★";
+    case "heart": case "favorite": return "♥";
+    case "check": return "✓";
+    case "lock": return "🔒";
+    case "bell": case "notifications": return "🔔";
+    case "settings": return "⚙";
+    case "arrow_forward": return "→";
+    case "phone": return "📞";
+    case "email": return "✉";
+    case "person": case "user": return "👤";
+    case "home": return "🏠";
+    case "search": return "🔍";
+    case "share": return "↗";
+    case "info": return "ℹ";
+    case "help": return "?";
+    case "shopping_cart": return "🛒";
+    case "delete": return "🗑";
+    default: return "✦";
+  }
+}
+
 const ALL_SUPPORTED_TYPES = [
   "banner", "metric_row", "metrics", "card", "button",
   "text", "image", "textfield", "input", "listtile", "chip",
@@ -1634,12 +1734,26 @@ const ALL_SUPPORTED_TYPES = [
 
 function renderSimChildHtml(comp) {
   if (!comp) return "";
-  const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
+  const themeSrc = simRenderThemeOverride || activeSchema.theme;
+  const primaryColor = isValidHexColor(themeSrc?.primary_color) ? themeSrc.primary_color : "#4F46E5";
   const type = (comp.type || "").toLowerCase();
+
+  // Composite sections (also needed when a pushed dynamic screen is rendered in the simulator)
+  if (type === "banner") {
+    const bannerColor = isValidHexColor(comp.color) ? comp.color : primaryColor;
+    return `<div class="sim-banner" style="background:${bannerColor}; width:100%;">${comp.badge ? `<div class="sim-banner-badge">${escapeHtml(comp.badge)}</div>` : ''}<div class="sim-banner-title">${escapeHtml(comp.title || '')}</div>${comp.message ? `<div class="sim-banner-desc">${escapeHtml(comp.message)}</div>` : ''}</div>`;
+  }
+  if (type === "metric_row" || type === "metrics") {
+    const metrics = Array.isArray(comp.metrics) ? comp.metrics : [];
+    return `<div class="sim-metrics-row" style="width:100%;">${metrics.map(m => `<div class="sim-metric-card"><div class="sim-metric-lbl">${escapeHtml(m.label || '')}</div><div class="sim-metric-val">${escapeHtml(m.value || '')}</div>${m.change ? `<div class="sim-metric-chg ${m.is_positive ? 'text-success' : 'text-danger'}">${escapeHtml(m.change)}</div>` : ''}</div>`).join('')}</div>`;
+  }
+  if (type === "card") {
+    return `<div class="sim-feature-card" style="width:100%;">${comp.badge ? `<div class="sim-card-badge">${escapeHtml(comp.badge)}</div>` : ''}<div class="sim-card-title">${escapeHtml(comp.title || '')}</div>${comp.description ? `<div class="sim-card-desc">${escapeHtml(comp.description)}</div>` : ''}<div class="sim-card-action sim-clickable" onclick="handleSimulatorDartClick('${comp.id}', event)" style="color:${primaryColor}"><span>${escapeHtml(comp.action_text || 'Explore')}</span> →</div></div>`;
+  }
 
   if (type === "text") {
     const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
-    return `<div class="sim-text ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="text-align:${comp.align || 'left'}; font-size:${comp.font_size || 14}px; font-weight:${comp.is_bold ? '700' : '400'}; color:${comp.color || '#fff'}; padding:${comp.padding !== undefined ? comp.padding : 2}px 0; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(comp.text || "")}</div>`;
+    return `<div class="sim-text ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="text-align:${comp.align || 'left'}; font-size:${comp.font_size || 14}px; font-weight:${comp.is_bold ? '700' : '400'}; color:${comp.color || 'var(--sim-text)'}; padding:${comp.padding !== undefined ? comp.padding : 2}px 0; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(comp.text || "")}</div>`;
   }
   if (type === "button") {
     const isOutline = comp.variant === 'outline' || comp.variant === 'ghost';
@@ -1659,9 +1773,9 @@ function renderSimChildHtml(comp) {
       <div class="sim-textfield" style="padding:${comp.padding !== undefined ? comp.padding : 2}px 0; width:100%;">
         ${comp.label ? `<label style="font-size:10px; color:#94A3B8; margin-bottom:2px; display:block;">${escapeHtml(comp.label)}</label>` : ""}
         ${isMultiLine ? `
-          <textarea id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" rows="${comp.max_lines || 3}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:#0B1120; border:1px solid #334155; color:#fff; resize:vertical; font-family:inherit;"></textarea>
+          <textarea id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" rows="${comp.max_lines || 3}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:var(--sim-surface); border:1px solid var(--sim-border); color:var(--sim-text); resize:vertical; font-family:inherit;"></textarea>
         ` : `
-          <input type="${comp.is_password ? 'password' : 'text'}" id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:#0B1120; border:1px solid #334155; color:#fff;" />
+          <input type="${comp.is_password ? 'password' : 'text'}" id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:var(--sim-surface); border:1px solid var(--sim-border); color:var(--sim-text);" />
         `}
       </div>
     `;
@@ -1686,7 +1800,7 @@ function renderSimChildHtml(comp) {
     return `
       <div class="sim-toggle-row" data-sim-field="switch" data-field-id="${escapeHtml(comp.id || '')}" data-label="${escapeHtml(comp.label || 'Switch Option')}" data-checked="${comp.is_checked ? 'true' : 'false'}" data-primary="${escapeHtml(primaryColor)}" style="padding:4px 8px; width:100%; cursor:pointer;">
         <div>
-          <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Switch Option")}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--sim-text);">${escapeHtml(comp.label || "Switch Option")}</div>
           ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
         </div>
         <div class="sim-switch-pill ${comp.is_checked ? 'active' : ''}" style="${comp.is_checked ? `background:${primaryColor}` : ''}"></div>
@@ -1697,7 +1811,7 @@ function renderSimChildHtml(comp) {
     return `
       <div class="sim-check-row" data-sim-field="checkbox" data-field-id="${escapeHtml(comp.id || '')}" data-label="${escapeHtml(comp.label || 'Checkbox')}" data-checked="${comp.is_checked ? 'true' : 'false'}" data-primary="${escapeHtml(primaryColor)}" style="padding:4px 8px; width:100%; cursor:pointer;">
         <div>
-          <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Checkbox")}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--sim-text);">${escapeHtml(comp.label || "Checkbox")}</div>
           ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
         </div>
         <div class="sim-check-box" style="width:18px;height:18px;border-radius:4px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:bold;">
@@ -1710,7 +1824,7 @@ function renderSimChildHtml(comp) {
     return `
       <div class="sim-radio-row" style="padding:4px 8px; width:100%;">
         <div>
-          <div style="font-size:12px;font-weight:600;color:#fff;">${escapeHtml(comp.label || "Radio")}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--sim-text);">${escapeHtml(comp.label || "Radio")}</div>
           ${comp.subtitle ? `<div style="font-size:10px;color:#94A3B8;">${escapeHtml(comp.subtitle)}</div>` : ""}
         </div>
         <div style="width:18px;height:18px;border-radius:50%;border:2px solid ${comp.is_selected ? primaryColor : '#475569'};display:flex;align-items:center;justify-content:center;">
@@ -1720,7 +1834,7 @@ function renderSimChildHtml(comp) {
     `;
   }
   if (type === "icon") {
-    const iconSym = comp.icon === 'star' ? '★' : (comp.icon === 'heart' ? '♥' : (comp.icon === 'check' ? '✓' : (comp.icon === 'lock' ? '🔒' : (comp.icon === 'bell' ? '🔔' : (comp.icon === 'settings' ? '⚙' : '✦')))));
+    const iconSym = simIconSymbol(comp.icon);
     const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
     return `<span class="${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="font-size:${comp.size || 22}px;color:${comp.color || primaryColor};display:inline-flex;align-items:center;justify-content:center;padding:${comp.padding !== undefined ? comp.padding : 2}px;">${iconSym}</span>`;
   }
@@ -1749,6 +1863,7 @@ function renderSimChildHtml(comp) {
 }
 
 function updateSimulator() {
+  applySimThemeVars(document.getElementById("phoneSimulatorScreen"), activeSchema.theme);
   simTitle.innerText = activeSchema.header?.title || "Untitled";
   simSubtitle.innerText = activeSchema.header?.subtitle || "";
   
@@ -1928,8 +2043,13 @@ function updateSimulator() {
       `;
     } else if (comp.type === "button") {
       const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
+      const variant = String(comp.variant || "").toLowerCase();
+      const isOutline = variant === "outline" || variant === "secondary" || variant === "ghost";
+      const btnStyle = isOutline
+        ? `background: transparent; border: 1.5px solid ${primaryColor}; color: ${primaryColor};`
+        : `background: ${primaryColor};`;
       el.innerHTML = `
-        <button class="sim-btn-primary sim-clickable" onclick="handleSimulatorDartClick('${comp.id}', event)" style="background: ${primaryColor}">
+        <button class="sim-btn-primary sim-clickable" onclick="handleSimulatorDartClick('${comp.id}', event)" style="${btnStyle}">
           ${comp.text || "Click Here"}
         </button>
       `;
@@ -1938,7 +2058,7 @@ function updateSimulator() {
       el.style.textAlign = comp.align || "left";
       el.style.fontSize = `${comp.font_size || 15}px`;
       el.style.fontWeight = comp.is_bold ? "700" : "400";
-      el.style.color = comp.color || "#FFFFFF";
+      el.style.color = comp.color || "var(--sim-text)";
       el.style.padding = `${comp.padding || 4}px 0`;
       el.innerText = comp.text || comp.title || "Dynamic Text";
 
@@ -2002,7 +2122,7 @@ function updateSimulator() {
       el.dataset.primary = activeSchema.theme?.primary_color || "#4F46E5";
       el.innerHTML = `
         <div>
-          <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Switch Toggle"}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--sim-text);">${comp.label || "Switch Toggle"}</div>
           ${comp.subtitle ? `<div style="font-size:11px;color:#94A3B8;">${comp.subtitle}</div>` : ""}
         </div>
         <div class="sim-switch-pill ${comp.is_checked ? 'active' : ''}" style="${comp.is_checked ? `background:${activeSchema.theme?.primary_color || '#4F46E5'}` : ''}"></div>
@@ -2018,7 +2138,7 @@ function updateSimulator() {
       el.dataset.primary = primaryColor;
       el.innerHTML = `
         <div>
-          <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Checkbox Option"}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--sim-text);">${comp.label || "Checkbox Option"}</div>
           ${comp.subtitle ? `<div style="font-size:11px;color:#94A3B8;">${comp.subtitle}</div>` : ""}
         </div>
         <div class="sim-check-box" style="width:20px;height:20px;border-radius:5px;border:2px solid ${comp.is_checked ? primaryColor : '#475569'};background:${comp.is_checked ? primaryColor : 'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:bold;">
@@ -2030,7 +2150,7 @@ function updateSimulator() {
       const primaryColor = activeSchema.theme?.primary_color || "#4F46E5";
       el.innerHTML = `
         <div>
-          <div style="font-size:13px;font-weight:600;color:#fff;">${comp.label || "Radio Option"}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--sim-text);">${comp.label || "Radio Option"}</div>
           ${comp.subtitle ? `<div style="font-size:11px;color:#94A3B8;">${comp.subtitle}</div>` : ""}
         </div>
         <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${comp.is_selected ? primaryColor : '#475569'};display:flex;align-items:center;justify-content:center;">
@@ -2038,7 +2158,7 @@ function updateSimulator() {
         </div>
       `;
     } else if (comp.type === "icon") {
-      const iconSym = comp.icon === 'star' ? '★' : (comp.icon === 'heart' ? '♥' : (comp.icon === 'check' ? '✓' : '⚙'));
+      const iconSym = simIconSymbol(comp.icon);
       el.style.textAlign = comp.align || "center";
       el.style.padding = `${comp.padding || 4}px 0`;
       el.innerHTML = `<span style="font-size:${comp.size || 28}px;color:${comp.color || activeSchema.theme?.primary_color || '#4F46E5'};">${iconSym}</span>`;
@@ -2101,6 +2221,8 @@ function updateSimulator() {
 
 function updateJsonEditor() {
   rawJsonEditor.value = JSON.stringify(activeSchema, null, 2);
+  // Every designer mutation ends here, so this is the single place to flag unapplied edits.
+  markActiveScreenDirty();
 }
 
 // Live AI Accessibility & Token Cost Auditor
@@ -2246,7 +2368,7 @@ document.getElementById("btnGenerateAiSchema").addEventListener("click", () => {
 
     activeSchema.header.title = `${prompt.slice(0, 24)}...`;
     activeSchema.header.subtitle = "Generated dynamically via GenUI AI Engine";
-    activeSchema.theme.primary_color = generatedPreset.color;
+    activeSchema.theme = Object.assign({}, DEFAULT_THEME, { primary_color: generatedPreset.color }, generatedPreset.theme || {});
     activeSchema.components = JSON.parse(JSON.stringify(generatedPreset.components));
     
     renderAll();
@@ -2264,7 +2386,7 @@ document.querySelectorAll(".persona-btn").forEach(btn => {
     if (p) {
       activeSchema.header.title = p.title;
       activeSchema.header.subtitle = p.subtitle;
-      activeSchema.theme.primary_color = p.color;
+      activeSchema.theme = Object.assign({}, DEFAULT_THEME, { primary_color: p.color }, p.theme || {});
       activeSchema.components = JSON.parse(JSON.stringify(p.components));
       renderAll();
       applyToApp();
@@ -2579,8 +2701,9 @@ function applyToApp() {
   activeSchema.route = screens[activeScreenId]?.route || (activeScreenId === "home" ? "/" : `/${activeScreenId}`);
   activeSchema.timestamp = Date.now();
 
-  // Save in local screens dictionary
+  // Save in local screens dictionary; the screen is no longer dirty once it is broadcast
   screens[activeScreenId] = JSON.parse(JSON.stringify(activeSchema));
+  dirtyScreens.delete(activeScreenId);
   renderScreenTabs();
 
   fetch(`/api/schema/apply?screen=${encodeURIComponent(activeScreenId)}`, {
@@ -2617,13 +2740,27 @@ function connectSseStream() {
     try {
       const data = JSON.parse(e.data);
       const sid = data.screen_id || (data.route === "/" ? "home" : null);
+      const isActive = data.version && (data.screen_id === activeScreenId || (!data.screen_id && activeScreenId === "home"));
+
+      if (sid && dirtyScreens.has(sid) && screens[sid]) {
+        // Unapplied designer edits win over the server copy (typically the switch-endpoint echo).
+        // Only adopt the version number so later comparisons stay consistent.
+        screens[sid].version = data.version;
+        if (isActive) {
+          activeSchema.version = data.version;
+          schemaVersionDisplay.innerText = `v${data.version}`;
+        }
+        renderScreenTabs();
+        return;
+      }
+
       if (sid) {
         screens[sid] = data;
       }
-      if (data.version && (data.screen_id === activeScreenId || (!data.screen_id && activeScreenId === "home"))) {
+      if (isActive) {
         activeSchema = data;
         schemaVersionDisplay.innerText = `v${data.version}`;
-        renderAll();
+        renderFromServer(renderAll);
       }
       renderScreenTabs();
     } catch (err) {
@@ -2635,10 +2772,21 @@ function connectSseStream() {
     try {
       const bundle = JSON.parse(e.data);
       if (bundle.screens) {
-        screens = bundle.screens;
-        if (screens[activeScreenId]) {
+        // Merge per screen instead of replacing wholesale: a local copy whose version is not older
+        // than the server's holds unapplied designer edits (loading a template, appending widgets)
+        // and must survive broadcasts that target other screens. A newer server version (someone
+        // pressed Apply, or a device pushed) always wins. Screens deleted on the server disappear.
+        const merged = {};
+        for (const [sid, serverCopy] of Object.entries(bundle.screens)) {
+          const localCopy = screens[sid];
+          const keepLocal = localCopy && (dirtyScreens.has(sid) || (localCopy.version || 0) >= (serverCopy.version || 0));
+          merged[sid] = keepLocal ? localCopy : serverCopy;
+        }
+        screens = merged;
+        dirtyScreens.forEach(sid => { if (!screens[sid]) dirtyScreens.delete(sid); });
+        if (screens[activeScreenId] && screens[activeScreenId] !== activeSchema) {
           activeSchema = screens[activeScreenId];
-          renderAll();
+          renderFromServer(renderAll);
         }
         renderScreenTabs();
       }
@@ -3207,9 +3355,17 @@ function showSimulatorDynamicScreen(sid, scr, args) {
   overlay.dataset.screenId = sid;
   overlay.dataset.screenTitle = scr.header?.title || scr.screen_name || sid;
 
+  // Pushed screens carry their own theme (e.g. a light MUST Mate detail opened from a dark home)
+  applySimThemeVars(overlay, scr.theme);
+
   let componentsHtml = "";
   if (scr.components && scr.components.length > 0) {
-    componentsHtml = scr.components.map(comp => renderSimChildHtml(comp)).join("");
+    simRenderThemeOverride = scr.theme || null;
+    try {
+      componentsHtml = scr.components.map(comp => renderSimChildHtml(comp)).join("");
+    } finally {
+      simRenderThemeOverride = null;
+    }
   } else {
     componentsHtml = `
       <div style="text-align:center; padding:36px 16px; color:#94A3B8; font-size:12px;">
@@ -3526,7 +3682,7 @@ btnResetDefault.addEventListener("click", () => {
   const p = PRESETS.crypto;
   activeSchema.header.title = p.title;
   activeSchema.header.subtitle = p.subtitle;
-  activeSchema.theme.primary_color = p.color;
+  activeSchema.theme = Object.assign({}, DEFAULT_THEME, { primary_color: p.color });
   activeSchema.components = JSON.parse(JSON.stringify(p.components));
   renderAll();
   showToast("Reset to Default");
@@ -3534,7 +3690,9 @@ btnResetDefault.addEventListener("click", () => {
 
 // Initialization
 document.addEventListener("DOMContentLoaded", async () => {
-  renderAll();
+  renderFromServer(renderAll);
   await loadScreensFromServer();
+  dirtyScreens.clear();
+  renderScreenTabs();
   connectSseStream();
 });
