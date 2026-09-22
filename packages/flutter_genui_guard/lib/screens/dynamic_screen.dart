@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import '../genui_guard/genui_guard.dart';
+import '../genui_guard.dart';
 
 class DynamicScreen extends StatefulWidget {
   final String? route;

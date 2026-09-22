@@ -4,8 +4,7 @@ import '../state/form_registry.dart';
 import '../sync/screen_registry.dart';
 import '../sync/api_client.dart';
 import '../widgets/success_dialog.dart';
-import '../../screens/demo_screens.dart';
-import '../../screens/dynamic_screen.dart';
+import '../screens/dynamic_screen.dart';
 
 /// Callback for execution telemetry & debugging
 typedef DartExecutionCallback = void Function(String summary, bool isError);
@@ -20,6 +19,9 @@ enum ExecutionSignal { continueNext, halt }
 /// Navigator route pushes, form submissions, and multi-statement scripts, with a 0% runtime crash guarantee.
 class GenUiDartExecutor {
   static DartExecutionCallback? onTelemetry;
+
+  /// Optional handler for app-specific custom bottom sheets
+  static void Function(BuildContext context, String code)? customBottomSheetHandler;
 
   /// Helper to extract code string from a component node
   static String? extractCode(ComponentNode node) {
@@ -641,9 +643,8 @@ class GenUiDartExecutor {
     if (trimmed.contains('Navigator.push') ||
         trimmed.contains('Navigator.of(context).push') ||
         trimmed.contains('Get.to') ||
-        trimmed.contains('UserProfileDemoScreen') ||
-        trimmed.contains('SettingsDemoScreen') ||
-        trimmed.contains('ProfileDemoScreen')) {
+        trimmed.contains('MaterialPageRoute') ||
+        trimmed.contains('Route')) {
       _executeNavigation(context, trimmed, node, scope);
       return ExecutionSignal.continueNext;
     }
@@ -830,11 +831,13 @@ class GenUiDartExecutor {
   static void _executeBottomSheet(BuildContext context, String code, ComponentNode? node) {
     if (!context.mounted) return;
 
-    // Check for pre-existing or custom project bottom sheet
-    if (code.contains('CustomDemoBottomSheet') ||
-        code.contains('showCustomDemoBottomSheet') ||
-        code.contains('CustomActionBottomSheet')) {
-      showCustomDemoBottomSheet(context);
+    // Check for custom registered bottom sheet handler
+    if (customBottomSheetHandler != null &&
+        (code.contains('CustomDemoBottomSheet') ||
+            code.contains('showCustomDemoBottomSheet') ||
+            code.contains('CustomActionBottomSheet') ||
+            code.contains('custom_sheet'))) {
+      customBottomSheetHandler!(context, code);
       return;
     }
 
@@ -1032,34 +1035,12 @@ class GenUiDartExecutor {
           settings: RouteSettings(name: routeName, arguments: arguments),
         ),
       );
-    } else if (routeName == '/profile') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (ctx) => UserProfileDemoScreen(arguments: arguments),
-          settings: RouteSettings(name: '/profile', arguments: arguments),
-        ),
-      );
-    } else if (routeName == '/settings') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (ctx) => SettingsDemoScreen(arguments: arguments),
-          settings: RouteSettings(name: '/settings', arguments: arguments),
-        ),
-      );
     } else {
-      // Custom real-project route (e.g. '/orders', '/checkout', '/wallet')
+      // Standard app route push via Navigator (resolved by app's onGenerateRoute or routes map)
       try {
         Navigator.pushNamed(context, routeName, arguments: arguments);
-      } catch (_) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (ctx) => GenericProjectScreen(routeName: routeName!, arguments: arguments),
-            settings: RouteSettings(name: routeName, arguments: arguments),
-          ),
-        );
+      } catch (e) {
+        debugPrint('[GenUiDartExecutor] Navigator.pushNamed error for $routeName: $e');
       }
     }
   }

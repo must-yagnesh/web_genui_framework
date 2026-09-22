@@ -54,6 +54,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_genui_guard:
+    dependency: "direct main"
+    description:
+      path: "../packages/flutter_genui_guard"
+      relative: true
+    source: path
+    version: "1.0.0"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -68,7 +75,7 @@ packages:
     source: sdk
     version: "0.0.0"
   http:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"

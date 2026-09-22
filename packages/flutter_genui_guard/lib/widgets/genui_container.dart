@@ -89,12 +89,7 @@ class _GenUiContainerState extends State<GenUiContainer> {
       _activeServerUrl = widget.serverUrl!;
       return;
     }
-    // Android Emulator requires 10.0.2.2 to access host machine's localhost:8080
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      _activeServerUrl = 'http://10.0.2.2:8080';
-    } else {
-      _activeServerUrl = 'http://localhost:8080';
-    }
+    _activeServerUrl = GenUiSyncClient.defaultServerUrl;
   }
 
   void _startSyncClient() {

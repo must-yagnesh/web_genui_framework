@@ -196,31 +196,37 @@ web_genui_framework/
 │   ├── SCHEMA_SPECIFICATION.md            # Declarative JSON AST format specification
 │   ├── SECURITY_AND_COMPLIANCE.md         # Store compliance (Apple 2.5.2), XSS & WCAG
 │   └── TESTING_AND_BENCHMARKS.md          # 22-test breakdown & 100-payload benchmark
-├── sync_server/                           # Real-time synchronization bridge
-│   ├── server.py                          # Multi-screen REST & SSE streaming server
-│   ├── screens.json                       # Default multi-screen registry seed
-│   └── web_console/                       # Web Control Console
+├── packages/
+│   └── flutter_genui_guard/              # 📦 Standalone, distributable Flutter package
+│       ├── pubspec.yaml                  # Package definition (flutter_genui_guard)
+│       ├── README.md                     # Quick integration guide for any real project
+│       └── lib/                          # Core engine: screens, widgets, executor, validator, sync
+│           ├── genui_guard.dart          # Public API export
+│           ├── screens/                  # DynamicScreen, Demo screens
+│           ├── widgets/                  # Safe primitives, GenUiContainer, cards, stacks
+│           ├── executor/                 # GenUiDartExecutor (safe action engine)
+│           ├── models/                   # UiSchema, ThemeConfig, ComponentNode AST
+│           ├── registry/                 # SafeWidgetRegistry
+│           ├── state/                    # GenUiFormRegistry (reactive input state)
+│           ├── sync/                     # GenUiSyncClient & GenUiScreenRegistry
+│           └── validator/                # GenUiSchemaValidator (smart type coercion)
+├── example/                              # 📱 Native Flutter demo & example application
+│   ├── lib/
+│   │   └── main.dart                     # Example app entry importing package:flutter_genui_guard
+│   ├── pubspec.yaml                      # Depends on path: ../packages/flutter_genui_guard
+│   └── test/                             # Automated test suite (22 tests passing)
+├── sync_server/                          # Multi-screen REST & SSE streaming server
+│   ├── server.py                         # Multi-screen REST & SSE streaming server
+│   ├── screens.json                      # Default multi-screen registry seed
+│   └── web_console/                      # Web Control Console
 │       ├── index.html                     # Visual designer & phone simulator UI
 │       ├── styles.css                     # Enterprise styling & theme
 │       ├── app.js                         # State management & SSE broadcaster
 │       └── phone_simulator.js             # Interactive canvas & Dart executor
-├── flutter_app/                           # Native Flutter mobile application
-│   ├── lib/
-│   │   ├── main.dart                      # App entry & dynamic onGenerateRoute
-│   │   ├── screens/                       # DynamicScreen, DemoScreenA, DemoScreenB
-│   │   └── genui_guard/                   # Core flutter_genui_guard package
-│   │       ├── boundary/                  # GenUiErrorBoundary (fault isolation)
-│   │       ├── executor/                  # GenUiDartExecutor (safe action engine)
-│   │       ├── models/                    # UiSchema, ThemeConfig, ComponentNode AST
-│   │       ├── registry/                  # SafeWidgetRegistry
-│   │       ├── state/                     # GenUiFormRegistry (reactive input state)
-│   │       ├── sync/                      # GenUiSyncClient & GenUiScreenRegistry
-│   │       └── validator/                 # GenUiSchemaValidator (smart type coercion)
-│   └── test/                              # Automated test suite (22 tests passing)
-└── benchmark/                             # Adversarial fuzzing suite (100 payloads)
-    ├── run_benchmark.py                   # Automated benchmark test runner
-    ├── benchmark_report.md                # Detailed pass/fail report per category
-    └── payloads/                          # Categorized adversarial JSON schemas
+└── benchmark/                            # Adversarial fuzzing suite (100 payloads)
+    ├── run_benchmark.py                  # Automated benchmark test runner
+    ├── benchmark_report.md               # Detailed pass/fail report per category
+    └── payloads/                         # Categorized adversarial JSON schemas
 ```
 
 ---
@@ -392,15 +398,22 @@ Unapplied designer edits are tracked per screen: a screen tab shows an amber **�
 
 **Android Emulator:**
 ```bash
-cd flutter_app
+cd example
 flutter run
 ```
 *The emulator automatically connects to `10.0.2.2:8080`.*
 
-**Physical Android Device via USB:**
+**Physical Android Device (Wi-Fi):**
+```bash
+cd example
+flutter run
+```
+*Connects automatically to your Mac's LAN IP at `http://192.168.1.4:8080`.*
+
+**Physical Android Device via USB Cable:**
 ```bash
 adb reverse tcp:8080 tcp:8080
-cd flutter_app
+cd example
 flutter run
 ```
 
@@ -410,7 +423,7 @@ flutter run
 
 ### Automated Test Suite (22/22 Tests Passing)
 ```bash
-cd flutter_app
+cd example
 flutter test
 ```
 All **22 unit and widget tests** pass with zero warnings, validating schema coercion, fault isolation, form registry bindings, and dynamic routing.

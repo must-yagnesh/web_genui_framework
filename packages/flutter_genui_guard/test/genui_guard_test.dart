@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:flutter_genui_guard_app/genui_guard/genui_guard.dart';
-import 'package:flutter_genui_guard_app/screens/dynamic_screen.dart';
+import 'package:flutter_genui_guard/genui_guard.dart';
 
 void main() {
   group('flutter_genui_guard Unit Tests', () {
