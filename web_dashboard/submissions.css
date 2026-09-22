@@ -317,3 +317,81 @@
   .sub-toolbar { flex-wrap: wrap; }
   .app-header { height: auto; padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
 }
+
+/* ==========================================================================
+   ☀️ Submissions Page Light Theme Refinements
+   ========================================================================== */
+[data-theme="light"] .sub-stat-card {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .sub-card {
+  background: #FFFFFF;
+  border-color: #E2E8F0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .sub-card-head {
+  border-bottom: 1px solid #F1F5F9;
+}
+
+[data-theme="light"] .sub-card-title {
+  color: #0F172A;
+}
+
+[data-theme="light"] .sub-card-meta {
+  color: #64748B;
+}
+
+[data-theme="light"] .sub-card-meta code {
+  background: #EEF2FF;
+  color: #4F46E5;
+}
+
+[data-theme="light"] .sub-search,
+[data-theme="light"] .sub-select {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  color: #0F172A;
+}
+
+[data-theme="light"] .sub-search:focus,
+[data-theme="light"] .sub-select:focus {
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+[data-theme="light"] .sub-fields td {
+  border-bottom: 1px solid #F8FAFC;
+}
+
+[data-theme="light"] .sub-field-label {
+  color: #64748B;
+}
+
+[data-theme="light"] .sub-field-value {
+  color: #0F172A;
+}
+
+[data-theme="light"] .sub-card-foot {
+  border-top: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #64748B;
+}
+
+[data-theme="light"] .sub-empty {
+  border-color: #CBD5E1;
+  background: #FFFFFF;
+}
+
+[data-theme="light"] .sub-empty a {
+  color: #4F46E5;
+}
+
+[data-theme="light"] .sub-empty code {
+  background: #F1F5F9;
+  color: #059669;
+}
+

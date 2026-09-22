@@ -9,6 +9,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('genui_admin_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 </head>
 <body>
   <!-- Header Bar -->
@@ -30,6 +36,10 @@
 
     <div class="header-right">
       <div class="version-tag">API: <strong><code>GET /api/submissions</code></strong></div>
+      <button class="btn btn-secondary theme-toggle-btn" id="btnThemeToggle" title="Toggle Light / Dark Mode (Alt+T)">
+        <span class="theme-toggle-icon" id="themeToggleIcon">☀️</span>
+        <span class="theme-toggle-text" id="themeToggleText">Light</span>
+      </button>
       <label class="auto-refresh-toggle" title="Poll the API every 2 seconds">
         <input type="checkbox" id="autoRefreshToggle" checked>
         <span>Auto-refresh</span>

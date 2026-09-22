@@ -5661,8 +5661,79 @@ btnResetDefault.addEventListener("click", () => {
   showToast("Reset to Default");
 });
 
+// ==========================================================================
+// 🌓 Admin Theme Switcher (Light / Dark Mode)
+// ==========================================================================
+const THEME_STORAGE_KEY = "genui_admin_theme";
+
+function getCurrentTheme() {
+  return document.documentElement.getAttribute("data-theme") || 
+         localStorage.getItem(THEME_STORAGE_KEY) || 
+         (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+}
+
+function updateThemeToggleUI(theme) {
+  const btn = document.getElementById("btnThemeToggle");
+  const icon = document.getElementById("themeToggleIcon");
+  const text = document.getElementById("themeToggleText");
+  if (!btn) return;
+  
+  const isLight = theme === "light";
+  if (icon) icon.innerText = isLight ? "🌙" : "☀️";
+  if (text) text.innerText = isLight ? "Dark" : "Light";
+  btn.setAttribute("title", isLight ? "Switch to Dark Mode (Alt+T)" : "Switch to Light Mode (Alt+T)");
+}
+
+function applyTheme(theme, save = true) {
+  const validTheme = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", validTheme);
+  if (save) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, validTheme);
+    } catch (e) {
+      console.warn("Could not persist theme preference", e);
+    }
+  }
+  updateThemeToggleUI(validTheme);
+}
+
+function toggleTheme() {
+  const current = getCurrentTheme();
+  const next = current === "light" ? "dark" : "light";
+  applyTheme(next, true);
+  showToast(next === "light" ? "☀️ Light mode activated" : "🌙 Dark mode activated");
+}
+
+function initTheme() {
+  const saved = getCurrentTheme();
+  applyTheme(saved, false);
+  
+  const btn = document.getElementById("btnThemeToggle");
+  if (btn) {
+    btn.addEventListener("click", toggleTheme);
+  }
+  
+  // Shortcut: Alt+T to toggle
+  window.addEventListener("keydown", (e) => {
+    if (e.altKey && e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      toggleTheme();
+    }
+  });
+
+  // Listen for system preference changes if user has not explicitly set preference
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", (e) => {
+      if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+        applyTheme(e.matches ? "light" : "dark", false);
+      }
+    });
+  }
+}
+
 // Initialization
 document.addEventListener("DOMContentLoaded", async () => {
+  initTheme();
   initPanelVisibility();
   renderFromServer(renderAll);
   await loadScreensFromServer();
@@ -5670,3 +5741,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderScreenTabs();
   connectSseStream();
 });
+
