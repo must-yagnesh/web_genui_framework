@@ -69,12 +69,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
   }
 
   void _initServerUrl() {
-    // Android Emulator uses 10.0.2.2 to reach host machine's localhost:8080
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      _serverUrl = 'http://10.0.2.2:8080';
-    } else {
-      _serverUrl = 'http://localhost:8080';
-    }
+    _serverUrl = GenUiSyncClient.defaultServerUrl;
   }
 
   void _onSchemaUpdated(UiSchema newSchema) {
@@ -144,6 +139,12 @@ class _DynamicScreenState extends State<DynamicScreen> {
               children: [
                 ActionChip(
                   backgroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF10B981)),
+                  label: const Text('192.168.1.4 (Real Device)', style: TextStyle(color: Color(0xFF34D399), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://192.168.1.4:8080',
+                ),
+                ActionChip(
+                  backgroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFF4F46E5)),
                   label: const Text('10.0.2.2 (Emulator)', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11)),
                   onPressed: () => controller.text = 'http://10.0.2.2:8080',
@@ -153,12 +154,6 @@ class _DynamicScreenState extends State<DynamicScreen> {
                   side: const BorderSide(color: Color(0xFF334155)),
                   label: const Text('localhost (ADB)', style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 11)),
                   onPressed: () => controller.text = 'http://localhost:8080',
-                ),
-                ActionChip(
-                  backgroundColor: const Color(0xFF0F172A),
-                  side: const BorderSide(color: Color(0xFF334155)),
-                  label: const Text('192.168.1.11 (LAN)', style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 11)),
-                  onPressed: () => controller.text = 'http://192.168.1.11:8080',
                 ),
               ],
             ),

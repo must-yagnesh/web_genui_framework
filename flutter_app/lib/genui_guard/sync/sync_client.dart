@@ -21,14 +21,17 @@ class GenUiSyncClient {
   Timer? _discoveryTimer;
   Timer? _reconnectTimer;
 
+  /// Default sync server URL for development (defaults to Mac local LAN IP for real devices)
+  static String defaultServerUrl = 'http://192.168.1.4:8080';
+
   /// Last server base URL that answered successfully. Shared so other
   /// clients (e.g. form submissions from non-syncing screens) can reuse it.
   static String? lastDiscoveredUrl;
 
   GenUiSyncClient({
-    String serverBaseUrl = 'http://localhost:8080',
-  }) : _activeServerUrl = serverBaseUrl,
-       serverBaseUrl = serverBaseUrl;
+    String? serverBaseUrl,
+  }) : _activeServerUrl = serverBaseUrl ?? defaultServerUrl,
+       serverBaseUrl = serverBaseUrl ?? defaultServerUrl;
 
   Stream<UiSchema> get schemaStream => _schemaStreamController.stream;
   bool get isConnected => _isConnected;
@@ -49,15 +52,15 @@ class GenUiSyncClient {
   Future<void> _discoverAndFetchSchema() async {
     if (_isDisposed) return;
     final Set<String> candidateHosts = {
+      defaultServerUrl,
+      'http://192.168.1.4:8080',
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
         'http://10.0.2.2:8080',
         'http://localhost:8080',
-        'http://192.168.1.11:8080',
         'http://10.0.3.2:8080',
       ] else ...[
         'http://localhost:8080',
         'http://127.0.0.1:8080',
-        'http://192.168.1.11:8080',
       ],
       _activeServerUrl,
       serverBaseUrl,

@@ -123,16 +123,17 @@ class GenUiApiClient {
 
     // 3. Local sync server discovered URL for development hot-sync
     add(GenUiSyncClient.lastDiscoveredUrl);
+    add(GenUiSyncClient.defaultServerUrl);
 
     // 4. Localhost dev fallbacks
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      add('http://192.168.1.4:8080');
       add('http://10.0.2.2:8080');
       add('http://localhost:8080');
-      add('http://192.168.1.11:8080');
     } else {
+      add('http://192.168.1.4:8080');
       add('http://localhost:8080');
       add('http://127.0.0.1:8080');
-      add('http://192.168.1.11:8080');
     }
     return urls;
   }
