@@ -21,11 +21,12 @@ For deep-dive technical specifications, implementation details, and benchmarks, 
 | Document | Focus & Audience | Key Contents |
 | :--- | :--- | :--- |
 | 📘 [**Architecture & Workflows**](docs/ARCHITECTURE.md) | Architects, Tech Leads | Distributed system flow, Web Console, Sync Server, Mobile client, and multi-screen sequence diagrams. |
+| 🔌 [**Cloud API & Dynamic Forms**](docs/DYNAMIC_API_GUIDE.md) | Mobile Devs, Admins, Backend Leads | Zero-code API binding, screen field mapping, Base URL, auth token injection, screen archetypes & REST compatibility. |
 | 🛠️ [**Developer Integration Guide**](docs/INTEGRATION_GUIDE.md) | Flutter Engineers | Step-by-step production integration, `onGenerateRoute`, custom widgets, Bloc/Riverpod/GetX. |
 | ⚡ [**Dart Execution Engine**](docs/DART_EXECUTOR.md) | Mobile & Full-Stack Devs | `GenUiDartExecutor` grammar, form validation, early `return;` halts, SnackBar/Dialog, route arguments. |
 | 📋 [**Schema Specification**](docs/SCHEMA_SPECIFICATION.md) | Backend & AI Engineers | Declarative JSON AST format, component catalog, properties dictionary, type coercion rules. |
 | 🛡️ [**Security & Compliance**](docs/SECURITY_AND_COMPLIANCE.md) | Security, Product, Legal | Apple Guideline 2.5.2 & Google Play compliance, XSS prevention, WCAG AA accessibility, token costs. |
-| 🧪 [**Testing & Benchmarks**](docs/TESTING_AND_BENCHMARKS.md) | QA, Release Engineers | 22 unit/widget tests breakdown, 100-payload adversarial benchmark report, empirical metrics. |
+| 🧪 [**Testing & Benchmarks**](docs/TESTING_AND_BENCHMARKS.md) | QA, Release Engineers | 31 unit/widget tests breakdown, 100-payload adversarial benchmark report, empirical metrics. |
 
 ---
 

@@ -110,6 +110,119 @@ class GenUiFormRegistry {
     return errors;
   }
 
+  /// Validate a single field by ID against a declarative validation config rule map
+  String? validateFieldRule(String id, Map<String, dynamic> rule) {
+    final label = getFieldLabel(id);
+    final val = getValue(id);
+    final customError = rule['error_message']?.toString();
+
+    // 1. Required validation
+    final isRequired = rule['required'] == true;
+    if (isRequired) {
+      // Checkbox or non-text boolean check
+      if (_customValues.containsKey(id)) {
+        final customVal = _customValues[id];
+        if (customVal != true) {
+          return customError ?? '$label is required';
+        }
+      } else if (val.isEmpty) {
+        return customError ?? '$label cannot be empty';
+      }
+    }
+
+    // If field is optional and empty, skip format validation
+    if (val.isEmpty) return null;
+
+    // 2. Type validation
+    final vType = (rule['type']?.toString() ?? '').toLowerCase();
+    if (vType == 'email' || rule['is_email'] == true) {
+      final emailRegex = RegExp(r'^[\w\.\-]+@[\w\-]+(\.[\w\-]+)+$');
+      if (!emailRegex.hasMatch(val)) {
+        return customError ?? 'Please enter a valid email address for $label';
+      }
+    } else if (vType == 'phone' || rule['is_phone'] == true) {
+      final digits = val.replaceAll(RegExp(r'\D'), '');
+      if (digits.length < 7) {
+        return customError ?? 'Please enter a valid phone number for $label';
+      }
+    } else if (vType == 'number' || rule['is_number'] == true) {
+      if (num.tryParse(val) == null) {
+        return customError ?? '$label must be a valid number';
+      }
+    }
+
+    // 3. Min length validation
+    final minLen = rule['min_length'] is num ? (rule['min_length'] as num).toInt() : null;
+    if (minLen != null && val.length < minLen) {
+      return customError ?? '$label must be at least $minLen characters';
+    }
+
+    // 4. Max length validation
+    final maxLen = rule['max_length'] is num ? (rule['max_length'] as num).toInt() : null;
+    if (maxLen != null && val.length > maxLen) {
+      return customError ?? '$label cannot exceed $maxLen characters';
+    }
+
+    // 5. Custom Regex pattern validation
+    final pattern = rule['pattern']?.toString() ?? rule['regex']?.toString();
+    if (pattern != null && pattern.isNotEmpty) {
+      try {
+        final reg = RegExp(pattern);
+        if (!reg.hasMatch(val)) {
+          return customError ?? '$label format is invalid';
+        }
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+  /// Validate a collection of components with declarative validation properties.
+  /// Traverses nested children (rows, columns).
+  List<String> validateComponents(Iterable<dynamic> components, {Iterable<String>? onlyIds}) {
+    final List<String> errors = [];
+    final Set<String>? filter = onlyIds?.toSet();
+
+    void checkNode(dynamic node) {
+      if (node == null) return;
+      final String? id = node.id?.toString();
+      final Map<String, dynamic>? props = node.properties is Map ? Map<String, dynamic>.from(node.properties) : null;
+      final List<dynamic>? children = node.children is List ? node.children : null;
+
+      if (id != null && (filter == null || filter.contains(id)) && props != null) {
+        // Direct validation property on the component
+        final rawValidation = props['validation'];
+        Map<String, dynamic>? validation;
+        if (rawValidation is Map) {
+          validation = Map<String, dynamic>.from(rawValidation);
+        } else if (props['required'] == true) {
+          validation = {
+            'required': true,
+            if (props['error_message'] != null) 'error_message': props['error_message'],
+          };
+        }
+
+        if (validation != null) {
+          final err = validateFieldRule(id, validation);
+          if (err != null) {
+            errors.add(err);
+          }
+        }
+      }
+
+      if (children != null && children.isNotEmpty) {
+        for (final child in children) {
+          checkNode(child);
+        }
+      }
+    }
+
+    for (final comp in components) {
+      checkNode(comp);
+    }
+    return errors;
+  }
+
   /// Remove (and dispose) the fields with the given IDs. Used when a pushed
   /// dynamic screen is closed so its values do not leak into other screens.
   void removeFields(Iterable<String> ids) {

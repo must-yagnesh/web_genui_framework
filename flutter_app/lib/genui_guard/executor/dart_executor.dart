@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/ui_schema.dart';
 import '../state/form_registry.dart';
 import '../sync/screen_registry.dart';
-import '../sync/submission_client.dart';
+import '../sync/api_client.dart';
 import '../widgets/success_dialog.dart';
 import '../../screens/demo_screens.dart';
 import '../../screens/dynamic_screen.dart';
@@ -915,9 +915,27 @@ class GenUiDartExecutor {
 
     // Scope validation to the fields of the screen this button lives on
     final routeName = ModalRoute.of(context)?.settings.name ?? '/';
-    final scopedIds = GenUiScreenRegistry.instance.getSchemaForRoute(routeName)?.allComponentIds;
+    final schema = GenUiScreenRegistry.instance.getSchemaForRoute(routeName);
+    final scopedIds = schema?.allComponentIds;
 
-    final errors = GenUiFormRegistry.instance.validateNonEmpty(onlyIds: scopedIds);
+    // 1. If this node or screen has a dynamic api_config, execute it
+    final apiConfig = node?.apiConfig ?? schema?.apiConfig;
+    if (apiConfig != null) {
+      GenUiApiClient.executeApi(
+        context: context,
+        config: apiConfig,
+        screenFieldIds: scopedIds,
+        components: schema?.components,
+        screenId: schema?.screenId,
+        screenTitle: schema?.header.title.isNotEmpty ?? false ? schema!.header.title : schema?.screenName,
+      );
+      return;
+    }
+
+    final errors = schema != null
+        ? GenUiFormRegistry.instance.validateComponents(schema.components, onlyIds: scopedIds)
+        : GenUiFormRegistry.instance.validateNonEmpty(onlyIds: scopedIds);
+
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -945,7 +963,6 @@ class GenUiDartExecutor {
     // "Back to Home Screen" action instead of the summary snackbar.
     final successDialog = GenUiSuccessDialog.fromProperties(node?.properties);
     if (successDialog != null) {
-      _storeSubmission(context, node);
       GenUiSuccessDialog.show(context, successDialog);
       return;
     }
@@ -982,62 +999,6 @@ class GenUiDartExecutor {
         ),
         backgroundColor: const Color(0xFF10B981),
         duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-
-    // Persist to the Sync Server so it shows up on the Shows Submission page
-    _storeSubmission(context, node);
-  }
-
-  /// Resolve the current screen from the route and POST the form values.
-  static Future<void> _storeSubmission(BuildContext context, ComponentNode? node) async {
-    final routeName = ModalRoute.of(context)?.settings.name ?? '/';
-    final schema = GenUiScreenRegistry.instance.getSchemaForRoute(routeName);
-    final actionId = node?.properties['action_id']?.toString() ??
-        (node != null ? 'dart:${node.id}' : 'submit_form');
-
-    final fallbackId = routeName.replaceAll('/', '');
-    final result = await GenUiSubmissionClient.submit(
-      screenId: schema?.screenId ?? (fallbackId.isEmpty ? 'home' : fallbackId),
-      screenTitle: (schema?.header.title.isNotEmpty ?? false)
-          ? schema!.header.title
-          : (schema?.screenName ?? routeName),
-      actionId: actionId,
-      onlyIds: schema?.allComponentIds,
-    );
-
-    onTelemetry?.call(
-      result.synced
-          ? 'Stored form submission #${result.id} on sync server'
-          : 'Submission not stored (server unreachable)',
-      !result.synced,
-    );
-
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              result.synced ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                result.synced
-                    ? 'Stored as submission #${result.id} • View on Show Submissions page'
-                    : 'Sync server unreachable • Submission not stored',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: result.synced ? const Color(0xFF0284C7) : const Color(0xFFF59E0B),
-        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

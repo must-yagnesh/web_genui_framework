@@ -23,6 +23,21 @@ class SafeGenUiButton extends StatelessWidget {
     final isSecondary = node.properties['variant']?.toString().toLowerCase() == 'secondary' ||
         node.properties['variant']?.toString().toLowerCase() == 'outline';
 
+    final rawBg = node.properties['background_color'] ?? node.properties['bg_color'] ?? (isSecondary ? null : node.properties['color']);
+    final bgColor = rawBg != null
+        ? parseHexColor(rawBg, isSecondary ? Colors.transparent : theme.primaryColor)
+        : (isSecondary ? Colors.transparent : theme.primaryColor);
+
+    final rawTextColor = node.properties['text_color'] ?? (isSecondary ? node.properties['color'] : null);
+    final textColor = rawTextColor != null
+        ? parseHexColor(rawTextColor, isSecondary ? theme.primaryColor : Colors.white)
+        : (isSecondary ? theme.primaryColor : Colors.white);
+
+    final rawBorderColor = node.properties['border_color'];
+    final borderColor = rawBorderColor != null
+        ? parseHexColor(rawBorderColor, theme.primaryColor)
+        : (isSecondary ? (rawTextColor != null ? textColor : theme.primaryColor) : theme.primaryColor);
+
     void handlePress() {
       if (onExecute != null) {
         onExecute!(node);
@@ -40,7 +55,8 @@ class SafeGenUiButton extends StatelessWidget {
             ? OutlinedButton(
                 onPressed: handlePress,
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: theme.primaryColor, width: 1.5),
+                  backgroundColor: bgColor,
+                  side: BorderSide(color: borderColor, width: 1.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.0),
                   ),
@@ -48,7 +64,7 @@ class SafeGenUiButton extends StatelessWidget {
                 child: Text(
                   text,
                   style: TextStyle(
-                    color: theme.primaryColor,
+                    color: textColor,
                     fontSize: 14.0,
                     fontWeight: FontWeight.w600,
                   ),
@@ -57,7 +73,7 @@ class SafeGenUiButton extends StatelessWidget {
             : ElevatedButton(
                 onPressed: handlePress,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primaryColor,
+                  backgroundColor: bgColor,
                   elevation: 2.0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.0),
@@ -65,8 +81,8 @@ class SafeGenUiButton extends StatelessWidget {
                 ),
                 child: Text(
                   text,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textColor,
                     fontSize: 14.0,
                     fontWeight: FontWeight.w600,
                   ),

@@ -208,7 +208,12 @@ const PRESETS = {
         label: "Email Address",
         hint: "alex@example.com",
         is_password: false,
-        padding: 6
+        padding: 6,
+        validation: {
+          required: true,
+          type: "email",
+          error_message: "Please enter a valid email address"
+        }
       },
       {
         id: "input_password",
@@ -216,14 +221,44 @@ const PRESETS = {
         label: "Password",
         hint: "Enter your password",
         is_password: true,
-        padding: 6
+        padding: 6,
+        validation: {
+          required: true,
+          type: "min_length",
+          min_length: 6,
+          error_message: "Password must be at least 6 characters"
+        }
       },
       {
         id: "btn_login",
         type: "button",
         text: "Sign In to Account",
         variant: "primary",
-        action_id: "submit_login"
+        action_type: "api_call",
+        api_config: {
+          url: "/api/submissions",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body_mapping: {
+            "email": "input_email",
+            "password": "input_password"
+          },
+          static_body: {
+            "action": "user_login",
+            "source": "mobile_app"
+          },
+          validate_fields: ["input_email", "input_password"],
+          on_success: {
+            type: "snackbar",
+            message: "Signed in successfully!",
+            navigate_to: "/"
+          },
+          on_error: {
+            message: "Sign-in failed. Please verify your credentials."
+          }
+        }
       }
     ]
   },
@@ -234,11 +269,92 @@ const PRESETS = {
     components: [
       { id: "reg_header", type: "text", text: "Create Your Account", font_size: 22, is_bold: true, align: "center", padding: 6 },
       { id: "reg_sub", type: "text", text: "Fill in the fields below to start your free trial", font_size: 13, is_bold: false, align: "center", padding: 2 },
-      { id: "input_name", type: "textfield", label: "Full Name", hint: "Jane Doe", is_password: false, padding: 6 },
-      { id: "input_email", type: "textfield", label: "Work Email", hint: "jane@company.com", is_password: false, padding: 6 },
-      { id: "input_password", type: "textfield", label: "Create Password", hint: "Must be 8+ characters", is_password: true, padding: 6 },
-      { id: "check_terms", type: "checkbox", label: "I accept the Terms & Privacy Policy", subtitle: "Required to create account", is_checked: false, padding: 4 },
-      { id: "btn_register", type: "button", text: "Create Free Account", variant: "primary", action_id: "submit_register" }
+      {
+        id: "input_name",
+        type: "textfield",
+        label: "Full Name",
+        hint: "Jane Doe",
+        is_password: false,
+        padding: 6,
+        validation: {
+          required: true,
+          error_message: "Full Name is required"
+        }
+      },
+      {
+        id: "input_email",
+        type: "textfield",
+        label: "Work Email",
+        hint: "jane@company.com",
+        is_password: false,
+        padding: 6,
+        validation: {
+          required: true,
+          type: "email",
+          error_message: "Valid email address is required"
+        }
+      },
+      {
+        id: "input_password",
+        type: "textfield",
+        label: "Create Password",
+        hint: "Must be 8+ characters",
+        is_password: true,
+        padding: 6,
+        validation: {
+          required: true,
+          type: "min_length",
+          min_length: 8,
+          error_message: "Password must be at least 8 characters"
+        }
+      },
+      {
+        id: "check_terms",
+        type: "checkbox",
+        label: "I accept the Terms & Privacy Policy",
+        subtitle: "Required to create account",
+        is_checked: false,
+        padding: 4,
+        validation: {
+          required: true,
+          error_message: "Please accept the Terms & Privacy Policy"
+        }
+      },
+      {
+        id: "btn_register",
+        type: "button",
+        text: "Create Free Account",
+        variant: "primary",
+        action_type: "api_call",
+        api_config: {
+          url: "/api/submissions",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body_mapping: {
+            "fullName": "input_name",
+            "email": "input_email",
+            "password": "input_password",
+            "acceptedTerms": "check_terms"
+          },
+          static_body: {
+            "action": "user_registration",
+            "source": "mobile_app"
+          },
+          validate_fields: ["input_name", "input_email", "input_password", "check_terms"],
+          on_success: {
+            type: "dialog",
+            title: "Account Created!",
+            message: "Welcome! Your new account has been created successfully.",
+            button_text: "Go to Dashboard",
+            navigate_to: "/"
+          },
+          on_error: {
+            message: "Account creation failed. Please try again."
+          }
+        }
+      }
     ]
   },
   feedback: {
@@ -258,10 +374,62 @@ const PRESETS = {
           { id: "chip_3", type: "chip", label: "⭐⭐⭐⭐⭐ Excellent", is_selected: true }
         ]
       },
-      { id: "input_author", type: "textfield", label: "Your Name or Handle", hint: "e.g. Alex Morgan", is_password: false, padding: 6 },
-      { id: "input_comments", type: "textfield", label: "Your Detailed Feedback", hint: "What did you enjoy most, or what can we improve?", max_lines: 3, is_password: false, padding: 6 },
+      {
+        id: "input_author",
+        type: "textfield",
+        label: "Your Name or Handle",
+        hint: "e.g. Alex Morgan",
+        is_password: false,
+        padding: 6,
+        validation: {
+          required: true,
+          error_message: "Please enter your name or handle"
+        }
+      },
+      {
+        id: "input_comments",
+        type: "textfield",
+        label: "Your Detailed Feedback",
+        hint: "What did you enjoy most, or what can we improve?",
+        max_lines: 3,
+        is_password: false,
+        padding: 6,
+        validation: {
+          required: true,
+          error_message: "Please write your review comments"
+        }
+      },
       { id: "switch_public", type: "switch", label: "Post as Public Review", subtitle: "Allow displaying on community wall", is_checked: true, padding: 4 },
-      { id: "btn_feedback", type: "button", text: "Submit Customer Feedback", variant: "primary", action_id: "submit_feedback" }
+      {
+        id: "btn_feedback",
+        type: "button",
+        text: "Submit Customer Feedback",
+        variant: "primary",
+        action_type: "api_call",
+        api_config: {
+          url: "/api/submissions",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body_mapping: {
+            "author": "input_author",
+            "comments": "input_comments",
+            "isPublic": "switch_public"
+          },
+          static_body: {
+            "form_type": "customer_feedback"
+          },
+          validate_fields: ["input_author", "input_comments"],
+          on_success: {
+            type: "dialog",
+            title: "Thanks for your feedback!",
+            message: "Your review has been submitted successfully. We appreciate your insights!",
+            button_text: "Back to Home Screen",
+            navigate_to: "/"
+          }
+        }
+      }
     ]
   },
   ecommerce: {
@@ -541,6 +709,159 @@ const newScreenNameInput = document.getElementById("newScreenNameInput");
 const newScreenRouteInput = document.getElementById("newScreenRouteInput");
 const newScreenTemplateSelect = document.getElementById("newScreenTemplateSelect");
 
+// Panel Visibility Manager DOM Elements
+const dashboardGrid = document.getElementById("dashboardGrid");
+const toggleDesignerBtn = document.getElementById("toggleDesignerBtn");
+const toggleAiBtn = document.getElementById("toggleAiBtn");
+const toggleSimulatorBtn = document.getElementById("toggleSimulatorBtn");
+const btnLayoutPresets = document.getElementById("btnLayoutPresets");
+const layoutPresetsMenu = document.getElementById("layoutPresetsMenu");
+
+let panelVisibility = {
+  designer: true,
+  ai: true,
+  simulator: true
+};
+
+function applyPanelVisibility() {
+  const grid = dashboardGrid || document.getElementById("dashboardGrid");
+  const pDesigner = document.getElementById("editorPanel");
+  const pAi = document.getElementById("aiPanel");
+  const pSim = document.getElementById("simulatorPanel");
+
+  if (grid) {
+    grid.classList.toggle("collapse-designer", !panelVisibility.designer);
+    grid.classList.toggle("collapse-ai", !panelVisibility.ai);
+    grid.classList.toggle("collapse-simulator", !panelVisibility.simulator);
+  }
+
+  if (pDesigner) pDesigner.classList.toggle("is-collapsed", !panelVisibility.designer);
+  if (pAi) pAi.classList.toggle("is-collapsed", !panelVisibility.ai);
+  if (pSim) pSim.classList.toggle("is-collapsed", !panelVisibility.simulator);
+
+  const tDesigner = toggleDesignerBtn || document.getElementById("toggleDesignerBtn");
+  const tAi = toggleAiBtn || document.getElementById("toggleAiBtn");
+  const tSim = toggleSimulatorBtn || document.getElementById("toggleSimulatorBtn");
+
+  if (tDesigner) tDesigner.classList.toggle("active", !!panelVisibility.designer);
+  if (tAi) tAi.classList.toggle("active", !!panelVisibility.ai);
+  if (tSim) tSim.classList.toggle("active", !!panelVisibility.simulator);
+
+  try {
+    localStorage.setItem("genui_panel_visibility", JSON.stringify(panelVisibility));
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+window.togglePanel = function(panelName) {
+  if (!panelVisibility.hasOwnProperty(panelName)) return;
+
+  const currentVal = panelVisibility[panelName];
+  if (currentVal === true) {
+    const visibleCount = Object.values(panelVisibility).filter(Boolean).length;
+    if (visibleCount <= 1) {
+      showToast("Cannot collapse all panels — at least one must remain open");
+      return;
+    }
+  }
+
+  panelVisibility[panelName] = !currentVal;
+  applyPanelVisibility();
+
+  const labels = {
+    designer: "Visual Designer",
+    ai: "Prompt & JSON",
+    simulator: "Live Simulator"
+  };
+  showToast(`${panelVisibility[panelName] ? "Expanded" : "Collapsed"}: ${labels[panelName] || panelName}`);
+};
+
+window.setLayoutPreset = function(presetName) {
+  switch (presetName) {
+    case "design_test":
+      panelVisibility = { designer: true, ai: false, simulator: true };
+      showToast("Layout: Design & Simulator (Wide Editor)");
+      break;
+    case "full_designer":
+      panelVisibility = { designer: true, ai: false, simulator: false };
+      showToast("Layout: Full Visual Designer (100% Width)");
+      break;
+    case "code_test":
+      panelVisibility = { designer: false, ai: true, simulator: true };
+      showToast("Layout: Prompt/JSON & Simulator");
+      break;
+    case "all":
+    default:
+      panelVisibility = { designer: true, ai: true, simulator: true };
+      showToast("Layout: All 3 Panels");
+      break;
+  }
+  applyPanelVisibility();
+};
+
+function initPanelVisibility() {
+  try {
+    const saved = localStorage.getItem("genui_panel_visibility");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (typeof parsed === "object" && parsed !== null) {
+        if (parsed.designer || parsed.ai || parsed.simulator) {
+          panelVisibility = Object.assign(panelVisibility, parsed);
+        }
+      }
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  applyPanelVisibility();
+
+  document.querySelectorAll(".panel-toggle-pill").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const panel = btn.dataset.panel;
+      if (panel) togglePanel(panel);
+    });
+  });
+
+  const btnPresets = btnLayoutPresets || document.getElementById("btnLayoutPresets");
+  const menuPresets = layoutPresetsMenu || document.getElementById("layoutPresetsMenu");
+  if (btnPresets && menuPresets) {
+    btnPresets.addEventListener("click", (e) => {
+      e.stopPropagation();
+      menuPresets.classList.toggle("show");
+    });
+
+    menuPresets.querySelectorAll("a").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.preventDefault();
+        const preset = item.dataset.presetLayout;
+        setLayoutPreset(preset);
+        menuPresets.classList.remove("show");
+      });
+    });
+
+    document.addEventListener("click", () => {
+      menuPresets.classList.remove("show");
+    });
+  }
+
+  // Keyboard shortcuts (Alt+1, Alt+2, Alt+3)
+  document.addEventListener("keydown", (e) => {
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      if (e.key === "1") {
+        e.preventDefault();
+        togglePanel("designer");
+      } else if (e.key === "2") {
+        e.preventDefault();
+        togglePanel("ai");
+      } else if (e.key === "3") {
+        e.preventDefault();
+        togglePanel("simulator");
+      }
+    }
+  });
+}
+
 // Multi-Screen Management Functions
 async function loadScreensFromServer() {
   try {
@@ -572,6 +893,53 @@ function renderScreenTabs() {
     return a.localeCompare(b);
   });
 
+  const activeScr = screens[activeScreenId] || activeSchema || {};
+  const activeIcon = activeScreenId === "home" ? "🏠" : "📄";
+  const activeName = activeScr.screen_name || activeScr.header?.title || activeScreenId;
+  const activeRoute = activeScr.route || (activeScreenId === "home" ? "/" : `/${activeScreenId}`);
+
+  // Update switcher dropdown button
+  const swIcon = document.getElementById("switcherActiveIcon");
+  const swName = document.getElementById("switcherActiveName");
+  const swRoute = document.getElementById("switcherActiveRoute");
+  const swCount = document.getElementById("switcherScreenCount");
+  if (swIcon) swIcon.innerText = activeIcon;
+  if (swName) swName.innerText = activeName;
+  if (swRoute) swRoute.innerText = activeRoute;
+  if (swCount) swCount.innerText = screenIds.length;
+
+  // Update switcher dropdown items
+  const swItems = document.getElementById("screenSwitcherItems");
+  if (swItems) {
+    swItems.innerHTML = "";
+    screenIds.forEach((sid) => {
+      const scr = screens[sid];
+      const isAct = sid === activeScreenId;
+      const a = document.createElement("a");
+      a.href = "#";
+      a.className = `screen-switcher-item ${isAct ? "active" : ""}`;
+      const icon = sid === "home" ? "🏠" : "📄";
+      const name = scr.screen_name || scr.header?.title || sid;
+      const route = scr.route || (sid === "home" ? "/" : `/${sid}`);
+      const dirtyDot = dirtyScreens.has(sid) ? ` <span class="screen-tab-dirty">●</span>` : "";
+      a.innerHTML = `
+        <div class="switcher-item-left">
+          <span class="switcher-item-icon">${icon}</span>
+          <span class="switcher-item-title">${escapeHtml(name)}</span>
+          ${dirtyDot}
+        </div>
+        <span class="switcher-item-route">${escapeHtml(route)}</span>
+      `;
+      a.onclick = (e) => {
+        e.preventDefault();
+        switchScreen(sid);
+        document.getElementById("screenSwitcherMenu")?.classList.remove("show");
+      };
+      swItems.appendChild(a);
+    });
+  }
+
+  // Render direct tabs
   screenIds.forEach((sid) => {
     const scr = screens[sid];
     const isAct = sid === activeScreenId;
@@ -597,6 +965,30 @@ function renderScreenTabs() {
   if (btnDeleteCurrentScreen) {
     btnDeleteCurrentScreen.style.display = activeScreenId === "home" ? "none" : "inline-flex";
   }
+}
+
+// Hook up Screen Switcher Dropdown
+const btnScreenSwitcher = document.getElementById("btnScreenSwitcher");
+const screenSwitcherMenu = document.getElementById("screenSwitcherMenu");
+const switcherBtnNewScreen = document.getElementById("switcherBtnNewScreen");
+
+if (btnScreenSwitcher && screenSwitcherMenu) {
+  btnScreenSwitcher.addEventListener("click", (e) => {
+    e.stopPropagation();
+    screenSwitcherMenu.classList.toggle("show");
+  });
+
+  document.addEventListener("click", () => {
+    screenSwitcherMenu.classList.remove("show");
+  });
+}
+
+if (switcherBtnNewScreen) {
+  switcherBtnNewScreen.addEventListener("click", (e) => {
+    e.preventDefault();
+    screenSwitcherMenu?.classList.remove("show");
+    openNewScreenModal();
+  });
 }
 
 async function switchScreen(screenId) {
@@ -763,6 +1155,562 @@ if (simBackBtn) {
   });
 }
 
+// =============================================================================
+// Cloud API Endpoint & Field Mapping Configuration Controller
+// =============================================================================
+
+let currentApiTarget = null; // 'screen' | 'comp_${idx}' | 'child_${pIdx}_${cIdx}'
+let modalHeaders = [];
+let modalMappings = [];
+let modalStaticParams = [];
+
+const apiConfigModal = document.getElementById("apiConfigModal");
+const apiModalTargetSubtitle = document.getElementById("apiModalTargetSubtitle");
+const btnCloseApiConfigModal = document.getElementById("btnCloseApiConfigModal");
+const btnCancelApiConfigModal = document.getElementById("btnCancelApiConfigModal");
+const btnRemoveApiConfig = document.getElementById("btnRemoveApiConfig");
+const btnSaveApiConfig = document.getElementById("btnSaveApiConfig");
+const btnOpenScreenApiModal = document.getElementById("btnOpenScreenApiModal");
+
+const apiMethodSelect = document.getElementById("apiMethodSelect");
+const apiUrlInput = document.getElementById("apiUrlInput");
+const apiHeadersTbody = document.getElementById("apiHeadersTbody");
+const btnAddHeaderRow = document.getElementById("btnAddHeaderRow");
+const apiMappingTbody = document.getElementById("apiMappingTbody");
+const btnAddMappingRow = document.getElementById("btnAddMappingRow");
+const btnAutoMapAllFields = document.getElementById("btnAutoMapAllFields");
+const apiStaticParamsTbody = document.getElementById("apiStaticParamsTbody");
+const btnAddStaticParamRow = document.getElementById("btnAddStaticParamRow");
+const btnRefreshPayloadPreview = document.getElementById("btnRefreshPayloadPreview");
+const apiPayloadPreviewJson = document.getElementById("apiPayloadPreviewJson");
+
+const apiSuccessTypeSelect = document.getElementById("apiSuccessTypeSelect");
+const apiSuccessNavField = document.getElementById("apiSuccessNavField");
+const apiSuccessNavInput = document.getElementById("apiSuccessNavInput");
+const apiDialogFieldsRow = document.getElementById("apiDialogFieldsRow");
+const apiSuccessTitleInput = document.getElementById("apiSuccessTitleInput");
+const apiSuccessMsgInput = document.getElementById("apiSuccessMsgInput");
+const apiErrorMsgInput = document.getElementById("apiErrorMsgInput");
+const apiResetFormCheckbox = document.getElementById("apiResetFormCheckbox");
+
+const btnRunApiTest = document.getElementById("btnRunApiTest");
+const apiTestResult = document.getElementById("apiTestResult");
+const apiTestStatusBadge = document.getElementById("apiTestStatusBadge");
+const apiTestDuration = document.getElementById("apiTestDuration");
+const apiTestResponseBody = document.getElementById("apiTestResponseBody");
+
+function getTargetApiConfig(target) {
+  if (target === "screen") {
+    return activeSchema.api_config || null;
+  }
+  if (typeof target === "string" && target.startsWith("comp_")) {
+    const idx = parseInt(target.replace("comp_", ""), 10);
+    return activeSchema.components[idx]?.api_config || null;
+  }
+  if (typeof target === "string" && target.startsWith("child_")) {
+    const parts = target.split("_");
+    const pIdx = parseInt(parts[1], 10);
+    const cIdx = parseInt(parts[2], 10);
+    return activeSchema.components[pIdx]?.children?.[cIdx]?.api_config || null;
+  }
+  return null;
+}
+
+function setTargetApiConfig(target, config) {
+  if (target === "screen") {
+    if (config) {
+      activeSchema.api_config = config;
+    } else {
+      delete activeSchema.api_config;
+    }
+  } else if (typeof target === "string" && target.startsWith("comp_")) {
+    const idx = parseInt(target.replace("comp_", ""), 10);
+    if (activeSchema.components[idx]) {
+      if (config) {
+        activeSchema.components[idx].api_config = config;
+      } else {
+        delete activeSchema.components[idx].api_config;
+      }
+    }
+  } else if (typeof target === "string" && target.startsWith("child_")) {
+    const parts = target.split("_");
+    const pIdx = parseInt(parts[1], 10);
+    const cIdx = parseInt(parts[2], 10);
+    const child = activeSchema.components[pIdx]?.children?.[cIdx];
+    if (child) {
+      if (config) {
+        child.api_config = config;
+      } else {
+        delete child.api_config;
+      }
+    }
+  }
+  markActiveScreenDirty();
+  renderComponentEditors();
+  updateSimulator();
+  updateJsonEditor();
+}
+
+function getScreenInputComponents() {
+  const inputs = [];
+  function walk(comp) {
+    if (!comp) return;
+    const type = (comp.type || "").toLowerCase();
+    if (["textfield", "input", "checkbox", "switch", "chip", "radio"].includes(type)) {
+      inputs.push({
+        id: comp.id || "",
+        label: comp.label || comp.hint || comp.title || comp.id || "Field",
+        type: type
+      });
+    }
+    if (Array.isArray(comp.children)) {
+      comp.children.forEach(walk);
+    }
+  }
+  (activeSchema.components || []).forEach(walk);
+  return inputs;
+}
+
+function toggleOutcomeFields(successAction) {
+  if (!apiDialogFieldsRow || !apiSuccessNavField) return;
+  if (successAction === "dialog") {
+    apiDialogFieldsRow.style.display = "flex";
+    apiSuccessNavField.style.display = "none";
+  } else if (successAction === "navigate") {
+    apiDialogFieldsRow.style.display = "none";
+    apiSuccessNavField.style.display = "flex";
+  } else {
+    // snackbar / toast
+    apiDialogFieldsRow.style.display = "none";
+    apiSuccessNavField.style.display = "none";
+  }
+}
+
+function openApiConfigModal(target = "screen") {
+  if (!apiConfigModal) return;
+  currentApiTarget = target;
+  const cfg = getTargetApiConfig(target) || {};
+
+  // Setup Title / Subtitle
+  if (target === "screen") {
+    const name = activeSchema.screen_name || activeSchema.header?.title || activeScreenId;
+    if (apiModalTargetSubtitle) {
+      apiModalTargetSubtitle.innerText = `Configuring for Screen: "${name}" (${activeSchema.route || "/"})`;
+    }
+  } else if (typeof target === "string" && target.startsWith("comp_")) {
+    const idx = parseInt(target.replace("comp_", ""), 10);
+    const comp = activeSchema.components[idx];
+    if (apiModalTargetSubtitle) {
+      apiModalTargetSubtitle.innerText = `Configuring for Component: ${comp?.type?.toUpperCase() || 'BUTTON'} "${comp?.text || comp?.id || ''}"`;
+    }
+  } else if (typeof target === "string" && target.startsWith("child_")) {
+    const parts = target.split("_");
+    const pIdx = parseInt(parts[1], 10);
+    const cIdx = parseInt(parts[2], 10);
+    const child = activeSchema.components[pIdx]?.children?.[cIdx];
+    if (apiModalTargetSubtitle) {
+      apiModalTargetSubtitle.innerText = `Configuring for Child Component: ${child?.type?.toUpperCase() || 'BUTTON'} "${child?.text || child?.id || ''}"`;
+    }
+  }
+
+  // Populate Endpoint & Method
+  if (apiMethodSelect) apiMethodSelect.value = (cfg.method || "POST").toUpperCase();
+  if (apiUrlInput) apiUrlInput.value = cfg.url || "/api/submissions";
+
+  // Populate Headers
+  modalHeaders = [];
+  const rawHeaders = cfg.headers || { "Content-Type": "application/json" };
+  for (const [k, v] of Object.entries(rawHeaders)) {
+    modalHeaders.push({ key: k, value: String(v) });
+  }
+
+  // Populate Field Mappings
+  modalMappings = [];
+  const rawMapping = cfg.body_mapping || {};
+  for (const [k, v] of Object.entries(rawMapping)) {
+    modalMappings.push({ apiKey: k, fieldId: String(v) });
+  }
+  // If no mapping exists yet, auto-map from current screen inputs!
+  if (modalMappings.length === 0) {
+    const inputs = getScreenInputComponents();
+    inputs.forEach(inp => {
+      const cleanKey = inp.id.replace(/^input_/, "").replace(/^sim_input_/, "") || inp.id;
+      modalMappings.push({ apiKey: cleanKey, fieldId: inp.id });
+    });
+  }
+
+  // Populate Static Params
+  modalStaticParams = [];
+  const rawStatic = cfg.static_body || {};
+  for (const [k, v] of Object.entries(rawStatic)) {
+    modalStaticParams.push({ key: k, value: String(v) });
+  }
+
+  // Outcome
+  const onSuccess = cfg.on_success || {};
+  if (apiSuccessTypeSelect) apiSuccessTypeSelect.value = onSuccess.action || "dialog";
+  if (apiSuccessTitleInput) apiSuccessTitleInput.value = onSuccess.title || "Submitted Successfully!";
+  if (apiSuccessMsgInput) apiSuccessMsgInput.value = onSuccess.message || "Your details have been submitted to cloud API.";
+  if (apiSuccessNavInput) apiSuccessNavInput.value = onSuccess.route || "/";
+  if (apiErrorMsgInput) apiErrorMsgInput.value = cfg.on_error?.message || "";
+  if (apiResetFormCheckbox) apiResetFormCheckbox.checked = cfg.reset_form !== false;
+
+  toggleOutcomeFields(apiSuccessTypeSelect ? apiSuccessTypeSelect.value : "dialog");
+
+  // Render Table UI
+  renderHeadersTable();
+  renderMappingTable();
+  renderStaticParamsTable();
+  updateApiPayloadPreview();
+
+  // Reset Test runner output
+  if (apiTestResult) apiTestResult.style.display = "none";
+
+  apiConfigModal.style.display = "flex";
+}
+
+function closeApiConfigModal() {
+  if (apiConfigModal) apiConfigModal.style.display = "none";
+}
+
+// Table Renders & Row Operations
+function renderHeadersTable() {
+  if (!apiHeadersTbody) return;
+  apiHeadersTbody.innerHTML = "";
+  modalHeaders.forEach((h, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input type="text" value="${escapeHtml(h.key)}" placeholder="e.g. Authorization" oninput="modalHeaders[${idx}].key = this.value; updateApiPayloadPreview();"></td>
+      <td><input type="text" value="${escapeHtml(h.value)}" placeholder="e.g. Bearer token_xyz" oninput="modalHeaders[${idx}].value = this.value; updateApiPayloadPreview();"></td>
+      <td style="text-align: center;"><button class="api-btn-del" type="button" onclick="removeHeaderRow(${idx})">✕</button></td>
+    `;
+    apiHeadersTbody.appendChild(tr);
+  });
+}
+
+function addHeaderRow(key = "", value = "") {
+  modalHeaders.push({ key, value });
+  renderHeadersTable();
+}
+
+function removeHeaderRow(idx) {
+  modalHeaders.splice(idx, 1);
+  renderHeadersTable();
+}
+
+function renderMappingTable() {
+  if (!apiMappingTbody) return;
+  apiMappingTbody.innerHTML = "";
+  const availableInputs = getScreenInputComponents();
+
+  modalMappings.forEach((m, idx) => {
+    const tr = document.createElement("tr");
+
+    let optionsHtml = `<option value="">-- Select Screen Input --</option>`;
+    let foundInList = false;
+    availableInputs.forEach(inp => {
+      const isSel = inp.id === m.fieldId;
+      if (isSel) foundInList = true;
+      optionsHtml += `<option value="${escapeHtml(inp.id)}" ${isSel ? 'selected' : ''}>${escapeHtml(inp.label)} (${escapeHtml(inp.id)})</option>`;
+    });
+    if (!foundInList && m.fieldId) {
+      optionsHtml += `<option value="${escapeHtml(m.fieldId)}" selected>${escapeHtml(m.fieldId)} (Custom / Preserved ID)</option>`;
+    }
+
+    tr.innerHTML = `
+      <td>
+        <input type="text" value="${escapeHtml(m.apiKey)}" placeholder="e.g. user_email" oninput="modalMappings[${idx}].apiKey = this.value; updateApiPayloadPreview();">
+      </td>
+      <td>
+        <select onchange="modalMappings[${idx}].fieldId = this.value; if(!modalMappings[${idx}].apiKey) modalMappings[${idx}].apiKey = this.value.replace(/^input_/, ''); updateApiPayloadPreview();">
+          ${optionsHtml}
+        </select>
+      </td>
+      <td style="text-align: center;">
+        <button class="api-btn-del" type="button" onclick="removeMappingRow(${idx})">✕</button>
+      </td>
+    `;
+    apiMappingTbody.appendChild(tr);
+  });
+}
+
+function addMappingRow(apiKey = "", fieldId = "") {
+  modalMappings.push({ apiKey, fieldId });
+  renderMappingTable();
+  updateApiPayloadPreview();
+}
+
+function removeMappingRow(idx) {
+  modalMappings.splice(idx, 1);
+  renderMappingTable();
+  updateApiPayloadPreview();
+}
+
+function autoMapAllFields() {
+  const inputs = getScreenInputComponents();
+  if (inputs.length === 0) {
+    showToast("⚠️ No input components found on this screen to map", true);
+    return;
+  }
+  modalMappings = inputs.map(inp => ({
+    apiKey: inp.id.replace(/^input_/, "").replace(/^sim_input_/, "") || inp.id,
+    fieldId: inp.id
+  }));
+  renderMappingTable();
+  updateApiPayloadPreview();
+  showToast(`⚡ Auto-mapped ${modalMappings.length} screen input fields!`);
+}
+
+function renderStaticParamsTable() {
+  if (!apiStaticParamsTbody) return;
+  apiStaticParamsTbody.innerHTML = "";
+  modalStaticParams.forEach((s, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input type="text" value="${escapeHtml(s.key)}" placeholder="e.g. source, tenant_id" oninput="modalStaticParams[${idx}].key = this.value; updateApiPayloadPreview();"></td>
+      <td><input type="text" value="${escapeHtml(s.value)}" placeholder="e.g. web_app, production" oninput="modalStaticParams[${idx}].value = this.value; updateApiPayloadPreview();"></td>
+      <td style="text-align: center;"><button class="api-btn-del" type="button" onclick="removeStaticParamRow(${idx})">✕</button></td>
+    `;
+    apiStaticParamsTbody.appendChild(tr);
+  });
+}
+
+function addStaticParamRow(key = "", value = "") {
+  modalStaticParams.push({ key, value });
+  renderStaticParamsTable();
+  updateApiPayloadPreview();
+}
+
+function removeStaticParamRow(idx) {
+  modalStaticParams.splice(idx, 1);
+  renderStaticParamsTable();
+  updateApiPayloadPreview();
+}
+
+function buildCurrentModalPayload() {
+  const payload = {};
+  modalMappings.forEach(m => {
+    if (!m.apiKey) return;
+    const simVal = typeof getSimulatorInputValue === "function" ? getSimulatorInputValue(m.fieldId) : "";
+    if (simVal !== "" && simVal !== undefined) {
+      payload[m.apiKey] = simVal;
+    } else {
+      payload[m.apiKey] = `<${m.fieldId || m.apiKey}>`;
+    }
+  });
+  modalStaticParams.forEach(s => {
+    if (!s.key) return;
+    payload[s.key] = s.value;
+  });
+  return payload;
+}
+
+function updateApiPayloadPreview() {
+  if (!apiPayloadPreviewJson) return;
+  const payload = buildCurrentModalPayload();
+  apiPayloadPreviewJson.textContent = JSON.stringify(payload, null, 2);
+}
+
+// Live Direct Cloud API Test Runner
+async function runApiTest() {
+  if (!btnRunApiTest) return;
+  const method = (apiMethodSelect?.value || "POST").toUpperCase();
+  const rawUrl = (apiUrlInput?.value || "").trim();
+
+  if (!rawUrl) {
+    showToast("⚠️ Please enter an API Endpoint URL first!", true);
+    return;
+  }
+
+  const headers = {};
+  modalHeaders.forEach(h => {
+    if (h.key && h.key.trim()) headers[h.key.trim()] = h.value;
+  });
+
+  const payload = buildCurrentModalPayload();
+
+  let testUrl = rawUrl;
+  for (const k in payload) {
+    if (testUrl.includes(`{${k}}`)) {
+      testUrl = testUrl.replace(`{${k}}`, encodeURIComponent(payload[k]));
+    }
+  }
+
+  btnRunApiTest.disabled = true;
+  btnRunApiTest.innerText = "⏳ Sending Test Request...";
+
+  const startTime = performance.now();
+
+  try {
+    const fetchOpts = {
+      method: method,
+      headers: headers
+    };
+    if (method !== "GET" && method !== "HEAD") {
+      fetchOpts.body = JSON.stringify(payload);
+    }
+
+    const res = await fetch(testUrl, fetchOpts);
+    const duration = Math.round(performance.now() - startTime);
+
+    let resBodyText = "";
+    try {
+      const json = await res.json();
+      resBodyText = JSON.stringify(json, null, 2);
+    } catch (_) {
+      resBodyText = await res.text();
+    }
+
+    if (apiTestResult) apiTestResult.style.display = "block";
+    if (apiTestStatusBadge) {
+      apiTestStatusBadge.innerText = `${res.status} ${res.statusText || (res.ok ? 'OK' : 'Error')}`;
+      apiTestStatusBadge.className = `badge ${res.ok ? 'badge-success' : 'badge-danger'}`;
+    }
+    if (apiTestDuration) {
+      apiTestDuration.innerText = `${duration} ms`;
+    }
+    if (apiTestResponseBody) {
+      apiTestResponseBody.textContent = resBodyText || "(Empty Response Body)";
+    }
+    showToast(res.ok ? `✅ Test Request Succeeded (${res.status})` : `⚠️ Test Request Received (${res.status})`, !res.ok);
+  } catch (err) {
+    const duration = Math.round(performance.now() - startTime);
+    if (apiTestResult) apiTestResult.style.display = "block";
+    if (apiTestStatusBadge) {
+      apiTestStatusBadge.innerText = "Connection Failed";
+      apiTestStatusBadge.className = "badge badge-danger";
+    }
+    if (apiTestDuration) apiTestDuration.innerText = `${duration} ms`;
+    if (apiTestResponseBody) apiTestResponseBody.textContent = `Error: ${err.message}\n(Make sure URL is reachable or CORS allows requests)`;
+    showToast(`⚠️ Connection Error: ${err.message}`, true);
+  } finally {
+    btnRunApiTest.disabled = false;
+    btnRunApiTest.innerText = "▶ Send Test Request Now";
+  }
+}
+
+function saveApiConfig() {
+  const url = (apiUrlInput?.value || "").trim();
+  if (!url) {
+    alert("Please enter an API Endpoint URL!");
+    return;
+  }
+
+  const headers = {};
+  modalHeaders.forEach(h => {
+    if (h.key && h.key.trim()) headers[h.key.trim()] = h.value;
+  });
+
+  const bodyMapping = {};
+  modalMappings.forEach(m => {
+    if (m.apiKey && m.apiKey.trim() && m.fieldId) {
+      bodyMapping[m.apiKey.trim()] = m.fieldId.trim();
+    }
+  });
+
+  const staticBody = {};
+  modalStaticParams.forEach(s => {
+    if (s.key && s.key.trim()) {
+      staticBody[s.key.trim()] = s.value;
+    }
+  });
+
+  const successAction = apiSuccessTypeSelect ? apiSuccessTypeSelect.value : "dialog";
+  const onSuccess = {
+    action: successAction,
+    title: apiSuccessTitleInput ? apiSuccessTitleInput.value.trim() : "Submitted Successfully!",
+    message: apiSuccessMsgInput ? apiSuccessMsgInput.value.trim() : "Your details have been submitted to cloud API.",
+    route: apiSuccessNavInput ? apiSuccessNavInput.value.trim() : "/"
+  };
+
+  const onError = {
+    message: apiErrorMsgInput ? apiErrorMsgInput.value.trim() : ""
+  };
+
+  const api_config = {
+    url: url,
+    method: apiMethodSelect ? apiMethodSelect.value : "POST",
+    headers: headers,
+    body_mapping: bodyMapping,
+    static_body: staticBody,
+    on_success: onSuccess,
+    on_error: onError,
+    reset_form: apiResetFormCheckbox ? apiResetFormCheckbox.checked : true
+  };
+
+  setTargetApiConfig(currentApiTarget, api_config);
+  closeApiConfigModal();
+  showToast("💾 Cloud API Configuration Saved & Bound!");
+}
+
+function removeApiConfig() {
+  if (!confirm("Are you sure you want to remove the Cloud API configuration from this target?")) return;
+  setTargetApiConfig(currentApiTarget, null);
+  closeApiConfigModal();
+  showToast("🗑 Cloud API Configuration Removed.");
+}
+
+// Global Presets Handlers
+window.setApiUrlPreset = function(url) {
+  if (apiUrlInput) {
+    apiUrlInput.value = url;
+    updateApiPayloadPreview();
+  }
+};
+
+window.addHeaderPreset = function(key, val) {
+  addHeaderRow(key, val);
+};
+
+window.openApiConfigModal = openApiConfigModal;
+window.closeApiConfigModal = closeApiConfigModal;
+window.removeHeaderRow = removeHeaderRow;
+window.removeMappingRow = removeMappingRow;
+window.removeStaticParamRow = removeStaticParamRow;
+
+// Bind Modal Listeners
+if (btnOpenScreenApiModal) {
+  btnOpenScreenApiModal.addEventListener("click", () => openApiConfigModal("screen"));
+}
+if (btnCloseApiConfigModal) {
+  btnCloseApiConfigModal.addEventListener("click", closeApiConfigModal);
+}
+if (btnCancelApiConfigModal) {
+  btnCancelApiConfigModal.addEventListener("click", closeApiConfigModal);
+}
+if (btnSaveApiConfig) {
+  btnSaveApiConfig.addEventListener("click", saveApiConfig);
+}
+if (btnRemoveApiConfig) {
+  btnRemoveApiConfig.addEventListener("click", removeApiConfig);
+}
+if (btnAddHeaderRow) {
+  btnAddHeaderRow.addEventListener("click", () => addHeaderRow("", ""));
+}
+if (btnAddMappingRow) {
+  btnAddMappingRow.addEventListener("click", () => addMappingRow("", ""));
+}
+if (btnAutoMapAllFields) {
+  btnAutoMapAllFields.addEventListener("click", autoMapAllFields);
+}
+if (btnAddStaticParamRow) {
+  btnAddStaticParamRow.addEventListener("click", () => addStaticParamRow("", ""));
+}
+if (btnRefreshPayloadPreview) {
+  btnRefreshPayloadPreview.addEventListener("click", updateApiPayloadPreview);
+}
+if (apiSuccessTypeSelect) {
+  apiSuccessTypeSelect.addEventListener("change", (e) => toggleOutcomeFields(e.target.value));
+}
+if (btnRunApiTest) {
+  btnRunApiTest.addEventListener("click", runApiTest);
+}
+if (apiConfigModal) {
+  apiConfigModal.addEventListener("click", (e) => {
+    if (e.target === apiConfigModal) closeApiConfigModal();
+  });
+}
+
 // Tabs Handling
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -852,16 +1800,217 @@ function createDefaultWidget(type, customId) {
           { id: `${id}_chip`, type: "chip", label: "Status: Live", is_selected: true, icon: "check" }
         ]
       };
+    case "container":
+      return {
+        id,
+        type: "container",
+        background_color: "#1E293B",
+        border_color: "#38BDF8",
+        border_width: 1.5,
+        border_radius: 12,
+        padding: 16,
+        margin: 8,
+        alignment: "topLeft",
+        children: [
+          { id: `${id}_t1`, type: "text", text: "Decorated Container", font_size: 15, is_bold: true, color: "#FFFFFF" },
+          { id: `${id}_t2`, type: "text", text: "Background, border & radius styling with custom padding & margin", font_size: 12, color: "#94A3B8" }
+        ]
+      };
+    case "stack":
+      return {
+        id,
+        type: "stack",
+        alignment: "topLeft",
+        height: 180,
+        clip: "hardEdge",
+        children: [
+          {
+            id: `${id}_img`,
+            type: "image",
+            image_url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&q=80",
+            height: 180,
+            border_radius: 12
+          },
+          {
+            id: `${id}_badge`,
+            type: "chip",
+            label: "FEATURED",
+            is_selected: true,
+            icon: "star",
+            is_positioned: true,
+            top: 12,
+            left: 12
+          },
+          {
+            id: `${id}_btn`,
+            type: "button",
+            text: "⚡ Buy Now",
+            variant: "primary",
+            action_id: "stack_action",
+            is_positioned: true,
+            bottom: 12,
+            right: 12
+          }
+        ]
+      };
     default:
       return { id, type, text: `Default ${type}` };
   }
 }
 
-function addComponent(type) {
-  const newComp = createDefaultWidget(type);
-  activeSchema.components.push(newComp);
-  renderAll();
+let draggedCompIndex = null;
+let insertTargetIndex = -1;
+let contextInsertMenuEl = null;
+
+function highlightCard(index) {
+  setTimeout(() => {
+    const cards = componentCardsContainer.querySelectorAll(".component-card-editor");
+    const card = cards[index];
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      card.classList.add("card-highlight-flash");
+      setTimeout(() => card.classList.remove("card-highlight-flash"), 1200);
+    }
+  }, 60);
 }
+
+function getContextInsertMenu() {
+  if (!contextInsertMenuEl) {
+    contextInsertMenuEl = document.createElement("div");
+    contextInsertMenuEl.className = "context-insert-menu";
+    contextInsertMenuEl.id = "contextInsertMenu";
+    contextInsertMenuEl.innerHTML = `
+      <div class="dropdown-category">COMPOSITE SECTIONS</div>
+      <a href="#" data-add="banner">📢 Promo Banner</a>
+      <a href="#" data-add="metric_row">📊 Metric Stats Row</a>
+      <a href="#" data-add="card">💳 Feature Action Card</a>
+      <a href="#" data-add="button">🔘 Action Button</a>
+      <div class="dropdown-divider"></div>
+      <div class="dropdown-category">LAYOUT CONTAINERS</div>
+      <a href="#" data-add="column">🏛️ Column (Vertical)</a>
+      <a href="#" data-add="row">↔️ Row (Horizontal)</a>
+      <a href="#" data-add="container">📦 Container (Box & Decoration)</a>
+      <a href="#" data-add="stack">🥞 Stack (Layered Overlays)</a>
+      <a href="#" data-add="divider">➖ Divider Line</a>
+      <a href="#" data-add="spacer">↕️ Spacer Box</a>
+      <div class="dropdown-divider"></div>
+      <div class="dropdown-category">FLUTTER DEFAULT WIDGETS</div>
+      <a href="#" data-add="text">📝 Text (Headline/Body)</a>
+      <a href="#" data-add="image">🖼 Image (Network)</a>
+      <a href="#" data-add="textfield">💬 Text Input Field</a>
+      <a href="#" data-add="listtile">📋 List Tile</a>
+      <a href="#" data-add="chip">🏷 Chip Tag</a>
+      <a href="#" data-add="switch">🎚 Switch Toggle</a>
+      <a href="#" data-add="checkbox">☑ Checkbox Tile</a>
+      <a href="#" data-add="radio">🔘 Radio Option</a>
+      <a href="#" data-add="icon">⭐ Material Icon</a>
+    `;
+    document.body.appendChild(contextInsertMenuEl);
+
+    contextInsertMenuEl.querySelectorAll("a").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const type = item.dataset.add;
+        addComponent(type, insertTargetIndex);
+        closeInsertMenu();
+      });
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!contextInsertMenuEl.contains(e.target)) {
+        closeInsertMenu();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeInsertMenu();
+      }
+    });
+  }
+  return contextInsertMenuEl;
+}
+
+window.openInsertMenu = function(idx, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  insertTargetIndex = idx >= 0 ? idx + 1 : 0;
+  const menu = getContextInsertMenu();
+  menu.classList.add("show");
+
+  const target = event ? event.currentTarget : null;
+  if (target) {
+    const rect = target.getBoundingClientRect();
+    const menuWidth = 220;
+    const menuHeight = 350;
+
+    let left = rect.left;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+
+    let top = rect.bottom + 4;
+    if (top + menuHeight > window.innerHeight - 10) {
+      top = Math.max(10, rect.top - menuHeight - 4);
+    }
+
+    menu.style.left = `${Math.max(10, left)}px`;
+    menu.style.top = `${Math.max(10, top)}px`;
+  }
+};
+
+function closeInsertMenu() {
+  if (contextInsertMenuEl) {
+    contextInsertMenuEl.classList.remove("show");
+  }
+}
+
+function addComponent(type, insertAtIndex = -1) {
+  const newComp = createDefaultWidget(type);
+  if (!activeSchema.components) activeSchema.components = [];
+
+  if (insertAtIndex >= 0 && insertAtIndex <= activeSchema.components.length) {
+    activeSchema.components.splice(insertAtIndex, 0, newComp);
+    renderAll();
+    highlightCard(insertAtIndex);
+    showToast(`Inserted ${type.toUpperCase()} at #${insertAtIndex + 1}`);
+  } else {
+    activeSchema.components.push(newComp);
+    renderAll();
+    highlightCard(activeSchema.components.length - 1);
+    showToast(`Added ${type.toUpperCase()} to end`);
+  }
+}
+
+window.moveComponent = function(idx, direction) {
+  if (!activeSchema.components) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= activeSchema.components.length) return;
+  const item = activeSchema.components.splice(idx, 1)[0];
+  activeSchema.components.splice(newIdx, 0, item);
+  renderAll();
+  highlightCard(newIdx);
+  showToast(`Moved to #${newIdx + 1}`);
+};
+
+window.duplicateComponent = function(idx) {
+  if (!activeSchema.components || !activeSchema.components[idx]) return;
+  const original = activeSchema.components[idx];
+  const clone = JSON.parse(JSON.stringify(original));
+  clone.id = `comp_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  if (Array.isArray(clone.children)) {
+    clone.children.forEach((c, i) => {
+      c.id = `${clone.id}_c${i + 1}_${Date.now().toString(36)}`;
+    });
+  }
+  activeSchema.components.splice(idx + 1, 0, clone);
+  renderAll();
+  highlightCard(idx + 1);
+  showToast(`Duplicated ${original.type.toUpperCase()}`);
+};
 
 window.addChildToContainer = function(parentIdx, childType = 'text') {
   const parent = activeSchema.components[parentIdx];
@@ -877,6 +2026,16 @@ window.removeChildFromContainer = function(parentIdx, childIdx) {
     activeSchema.components[parentIdx].children.splice(childIdx, 1);
     renderAll();
   }
+};
+
+window.moveChildInContainer = function(parentIdx, childIdx, direction) {
+  const children = activeSchema.components[parentIdx]?.children;
+  if (!children) return;
+  const newIdx = childIdx + direction;
+  if (newIdx < 0 || newIdx >= children.length) return;
+  const item = children.splice(childIdx, 1)[0];
+  children.splice(newIdx, 0, item);
+  renderAll();
 };
 
 window.updateChildField = function(parentIdx, childIdx, key, val) {
@@ -1132,9 +2291,17 @@ function renderChildEditor(parentIdx, cIdx, child) {
           <option value="true" ${child.is_bold ? 'selected' : ''}>Bold</option>
         </select>
       </div>
+      <div class="nested-child-field" style="grid-column: 1 / -1;">
+        <label>Text Color</label>
+        <div style="display:flex; gap:4px;">
+          <input type="color" value="${isValidHexColor(child.color || child.text_color) ? (child.color || child.text_color) : '#F8FAFC'}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'color', this.value)">
+          <input type="text" value="${escapeHtml(child.color || child.text_color || '')}" placeholder="#F8FAFC" oninput="updateChildField(${parentIdx}, ${cIdx}, 'color', this.value)">
+        </div>
+      </div>
       ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
     `;
   } else if (type === "button") {
+    const hasApi = !!(child.api_config && child.api_config.url);
     propsHtml = `
       <div class="nested-child-field" style="grid-column: 1 / -1;">
         <label>Button Text</label>
@@ -1151,6 +2318,30 @@ function renderChildEditor(parentIdx, cIdx, child) {
       <div class="nested-child-field">
         <label>Action ID (Fallback)</label>
         <input type="text" value="${escapeHtml(child.action_id || "")}" placeholder="action_name" oninput="updateChildField(${parentIdx}, ${cIdx}, 'action_id', this.value)">
+      </div>
+      <div class="nested-child-field">
+        <label>Background</label>
+        <div style="display:flex; gap:4px;">
+          <input type="color" value="${isValidHexColor(child.background_color) ? child.background_color : '#4F46E5'}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'background_color', this.value)">
+          <input type="text" value="${escapeHtml(child.background_color || '')}" placeholder="#4F46E5" oninput="updateChildField(${parentIdx}, ${cIdx}, 'background_color', this.value)">
+        </div>
+      </div>
+      <div class="nested-child-field">
+        <label>Text Color</label>
+        <div style="display:flex; gap:4px;">
+          <input type="color" value="${isValidHexColor(child.text_color || child.color) ? (child.text_color || child.color) : '#FFFFFF'}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'text_color', this.value)">
+          <input type="text" value="${escapeHtml(child.text_color || child.color || '')}" placeholder="#FFFFFF" oninput="updateChildField(${parentIdx}, ${cIdx}, 'text_color', this.value)">
+        </div>
+      </div>
+      <div class="nested-child-field" style="grid-column: 1 / -1; padding: 4px 6px; background: rgba(79, 70, 229, 0.08); border-radius: 4px; border: 1px solid rgba(79, 70, 229, 0.15);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:10px; color:${hasApi ? '#818CF8' : 'var(--text-muted)'};">
+            ${hasApi ? `✓ API: ${escapeHtml(child.api_config.method || 'POST')} ${escapeHtml(child.api_config.url)}` : '🔌 No API Configured'}
+          </span>
+          <button class="btn btn-xs ${hasApi ? 'btn-outline-primary' : 'btn-outline'}" type="button" onclick="openApiConfigModal('child_${parentIdx}_${cIdx}')">
+            ${hasApi ? '⚙️ Edit API' : '+ Config API'}
+          </button>
+        </div>
       </div>
       ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
     `;
@@ -1171,7 +2362,12 @@ function renderChildEditor(parentIdx, cIdx, child) {
       ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
     `;
   } else if (type === "textfield" || type === "input") {
+    const v = child.validation || {};
     propsHtml = `
+      <div class="nested-child-field">
+        <label>Field Key / ID</label>
+        <input type="text" value="${escapeHtml(child.id || "")}" placeholder="e.g. user_name" oninput="updateChildField(${parentIdx}, ${cIdx}, 'id', this.value)">
+      </div>
       <div class="nested-child-field">
         <label>Label</label>
         <input type="text" value="${escapeHtml(child.label || "")}" placeholder="Field label..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'label', this.value)">
@@ -1187,9 +2383,23 @@ function renderChildEditor(parentIdx, cIdx, child) {
           <option value="true" ${child.is_password ? 'selected' : ''}>Password</option>
         </select>
       </div>
-      <div class="nested-child-field">
-        <label>Lines</label>
-        <input type="number" min="1" max="8" value="${child.max_lines || 1}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'max_lines', Number(this.value))">
+      <div class="nested-child-field" style="grid-column: 1 / -1; padding: 4px 6px; background: rgba(255,255,255,0.03); border-radius: 4px; border: 1px dashed rgba(255,255,255,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:9px; font-weight:600; color:var(--text-muted);">🛡 Validation Rule</span>
+          <label style="font-size:9px; margin:0; display:flex; align-items:center; gap:3px;">
+            <input type="checkbox" ${v.required ? 'checked' : ''} onchange="updateChildValidation(${parentIdx}, ${cIdx}, 'required', this.checked)"> Required
+          </label>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 2fr; gap:4px;">
+          <select style="font-size:9px; padding:2px;" onchange="updateChildValidation(${parentIdx}, ${cIdx}, 'type', this.value)">
+            <option value="" ${!v.type ? 'selected' : ''}>General</option>
+            <option value="email" ${v.type === 'email' ? 'selected' : ''}>Email</option>
+            <option value="phone" ${v.type === 'phone' ? 'selected' : ''}>Phone</option>
+            <option value="number" ${v.type === 'number' ? 'selected' : ''}>Number</option>
+          </select>
+          <input type="number" style="font-size:9px; padding:2px;" placeholder="Min len" value="${v.min_length || ''}" oninput="updateChildValidation(${parentIdx}, ${cIdx}, 'min_length', this.value ? Number(this.value) : undefined)">
+          <input type="text" style="font-size:9px; padding:2px;" placeholder="Custom error..." value="${escapeHtml(v.error_message || '')}" oninput="updateChildValidation(${parentIdx}, ${cIdx}, 'error_message', this.value)">
+        </div>
       </div>
     `;
   } else if (type === "listtile") {
@@ -1232,7 +2442,12 @@ function renderChildEditor(parentIdx, cIdx, child) {
   } else if (type === "switch" || type === "checkbox" || type === "radio") {
     const isRadio = type === "radio";
     const isChecked = isRadio ? child.is_selected : child.is_checked;
+    const v = child.validation || {};
     propsHtml = `
+      <div class="nested-child-field">
+        <label>Field Key / ID</label>
+        <input type="text" value="${escapeHtml(child.id || "")}" placeholder="e.g. terms" oninput="updateChildField(${parentIdx}, ${cIdx}, 'id', this.value)">
+      </div>
       <div class="nested-child-field">
         <label>Label</label>
         <input type="text" value="${escapeHtml(child.label || "")}" placeholder="Label..." oninput="updateChildField(${parentIdx}, ${cIdx}, 'label', this.value)">
@@ -1247,6 +2462,14 @@ function renderChildEditor(parentIdx, cIdx, child) {
           <option value="true" ${isChecked ? 'selected' : ''}>Active / Checked</option>
           <option value="false" ${!isChecked ? 'selected' : ''}>Inactive / Unchecked</option>
         </select>
+      </div>
+      <div class="nested-child-field" style="grid-column: 1 / -1; padding: 4px 6px; background: rgba(255,255,255,0.03); border-radius: 4px; border: 1px dashed rgba(255,255,255,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:9px; margin:0; display:flex; align-items:center; gap:3px;">
+            <input type="checkbox" ${v.required ? 'checked' : ''} onchange="updateChildValidation(${parentIdx}, ${cIdx}, 'required', this.checked)"> Must be checked
+          </label>
+          <input type="text" style="font-size:9px; padding:2px; width:60%;" placeholder="Error if not checked..." value="${escapeHtml(v.error_message || '')}" oninput="updateChildValidation(${parentIdx}, ${cIdx}, 'error_message', this.value)">
+        </div>
       </div>
     `;
   } else if (type === "icon") {
@@ -1291,6 +2514,32 @@ function renderChildEditor(parentIdx, cIdx, child) {
         <input type="number" min="2" max="150" value="${child.width || 16}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'width', Number(this.value))">
       </div>
     `;
+  } else if (type === "container") {
+    propsHtml = `
+      <div class="nested-child-field">
+        <label>Background</label>
+        <div style="display:flex; gap:4px;">
+          <input type="color" value="${isValidHexColor(child.background_color) ? child.background_color : '#1E293B'}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'background_color', this.value)">
+          <input type="text" value="${escapeHtml(child.background_color || '#1E293B')}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'background_color', this.value)">
+        </div>
+      </div>
+      <div class="nested-child-field">
+        <label>Border Color</label>
+        <div style="display:flex; gap:4px;">
+          <input type="color" value="${isValidHexColor(child.border_color) ? child.border_color : '#38BDF8'}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'border_color', this.value)">
+          <input type="text" value="${escapeHtml(child.border_color || '#38BDF8')}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'border_color', this.value)">
+        </div>
+      </div>
+      <div class="nested-child-field">
+        <label>Radius (px)</label>
+        <input type="number" min="0" max="64" value="${child.border_radius !== undefined ? child.border_radius : 8}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'border_radius', Number(this.value))">
+      </div>
+      <div class="nested-child-field">
+        <label>Padding (px)</label>
+        <input type="number" min="0" max="64" value="${child.padding !== undefined ? child.padding : 12}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'padding', Number(this.value))">
+      </div>
+      ${renderOnClickCodeEditor(child, cIdx, true, parentIdx)}
+    `;
   } else {
     propsHtml = `
       <div class="nested-child-field" style="grid-column: 1 / -1;">
@@ -1300,14 +2549,59 @@ function renderChildEditor(parentIdx, cIdx, child) {
     `;
   }
 
+  const parentComp = activeSchema.components[parentIdx];
+  const isStackParent = parentComp?.type === 'stack';
+  const showPositioning = isStackParent || child.is_positioned || child.top !== undefined || child.bottom !== undefined || child.left !== undefined || child.right !== undefined;
+
+  let positioningHtml = "";
+  if (showPositioning) {
+    positioningHtml = `
+      <div class="child-position-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <label style="font-size:9px; font-weight:700; color:#38BDF8; margin:0; display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" ${child.is_positioned !== false ? 'checked' : ''} onchange="updateChildField(${parentIdx}, ${cIdx}, 'is_positioned', this.checked)">
+            📌 Positioned Overlay
+          </label>
+          <span style="font-size:9px; color:var(--text-muted);">Coordinates (px)</span>
+        </div>
+        <div class="child-position-grid">
+          <div>
+            <label>Top</label>
+            <input type="number" placeholder="auto" value="${child.top !== undefined ? child.top : ''}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'top', this.value !== '' ? Number(this.value) : undefined)">
+          </div>
+          <div>
+            <label>Bottom</label>
+            <input type="number" placeholder="auto" value="${child.bottom !== undefined ? child.bottom : ''}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'bottom', this.value !== '' ? Number(this.value) : undefined)">
+          </div>
+          <div>
+            <label>Left</label>
+            <input type="number" placeholder="auto" value="${child.left !== undefined ? child.left : ''}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'left', this.value !== '' ? Number(this.value) : undefined)">
+          </div>
+          <div>
+            <label>Right</label>
+            <input type="number" placeholder="auto" value="${child.right !== undefined ? child.right : ''}" oninput="updateChildField(${parentIdx}, ${cIdx}, 'right', this.value !== '' ? Number(this.value) : undefined)">
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const childCount = activeSchema.components[parentIdx]?.children?.length || 1;
   return `
     <div class="nested-child-item">
       <div class="nested-child-item-header">
-        <span>#${cIdx + 1} <strong class="comp-tag">${type.toUpperCase()}</strong></span>
-        <button class="comp-delete-btn" title="Remove Child" onclick="removeChildFromContainer(${parentIdx}, ${cIdx})">✕</button>
+        <div class="nested-child-header-left">
+          <span>#${cIdx + 1} <strong class="comp-tag">${type.toUpperCase()}</strong></span>
+        </div>
+        <div class="nested-child-header-actions">
+          <button class="comp-btn comp-btn-xs" title="Move Up" ${cIdx === 0 ? 'disabled' : ''} onclick="moveChildInContainer(${parentIdx}, ${cIdx}, -1)">▲</button>
+          <button class="comp-btn comp-btn-xs" title="Move Down" ${cIdx === childCount - 1 ? 'disabled' : ''} onclick="moveChildInContainer(${parentIdx}, ${cIdx}, 1)">▼</button>
+          <button class="comp-delete-btn" title="Remove Child" onclick="removeChildFromContainer(${parentIdx}, ${cIdx})">✕</button>
+        </div>
       </div>
       <div class="nested-child-grid">
         ${propsHtml}
+        ${positioningHtml}
       </div>
     </div>
   `;
@@ -1316,9 +2610,86 @@ function renderChildEditor(parentIdx, cIdx, child) {
 // Render Component List in Editor Panel
 function renderComponentEditors() {
   componentCardsContainer.innerHTML = "";
-  activeSchema.components.forEach((comp, idx) => {
+  const comps = activeSchema.components || [];
+
+  if (comps.length === 0) {
+    componentCardsContainer.innerHTML = `
+      <div class="empty-components-placeholder">
+        No dynamic components on this screen yet.<br>
+        Click <strong>+ Add Component ▾</strong> above to create your first widget.
+      </div>
+    `;
+    return;
+  }
+
+  // Top quick-insert bar
+  const topBar = document.createElement("div");
+  topBar.className = "top-insert-bar";
+  topBar.innerHTML = `<button class="btn btn-xs btn-outline" title="Insert a component at the very beginning of the screen" onclick="openInsertMenu(-1, event)">+ Insert at Top</button>`;
+  componentCardsContainer.appendChild(topBar);
+
+  comps.forEach((comp, idx) => {
     const card = document.createElement("div");
     card.className = "component-card-editor";
+    card.setAttribute("draggable", "true");
+    card.dataset.index = idx;
+
+    // Drag & Drop event handlers
+    card.addEventListener("dragstart", (e) => {
+      if (["INPUT", "SELECT", "TEXTAREA", "BUTTON", "LABEL"].includes(e.target.tagName)) {
+        e.preventDefault();
+        return;
+      }
+      draggedCompIndex = idx;
+      e.dataTransfer.setData("text/plain", String(idx));
+      e.dataTransfer.effectAllowed = "move";
+      card.classList.add("is-dragging");
+    });
+
+    card.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = card.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) {
+        card.classList.add("drag-over-top");
+        card.classList.remove("drag-over-bottom");
+      } else {
+        card.classList.add("drag-over-bottom");
+        card.classList.remove("drag-over-top");
+      }
+    });
+
+    card.addEventListener("dragleave", () => {
+      card.classList.remove("drag-over-top", "drag-over-bottom");
+    });
+
+    card.addEventListener("drop", (e) => {
+      e.preventDefault();
+      card.classList.remove("drag-over-top", "drag-over-bottom");
+      const fromIdx = draggedCompIndex !== null ? draggedCompIndex : parseInt(e.dataTransfer.getData("text/plain"), 10);
+      if (isNaN(fromIdx) || fromIdx === idx) return;
+
+      const rect = card.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      let toIdx = e.clientY < midY ? idx : idx + 1;
+      if (fromIdx < toIdx) toIdx--;
+
+      if (fromIdx !== toIdx) {
+        const item = activeSchema.components.splice(fromIdx, 1)[0];
+        activeSchema.components.splice(toIdx, 0, item);
+        renderAll();
+        highlightCard(toIdx);
+        showToast(`Moved ${item.type.toUpperCase()} to #${toIdx + 1}`);
+      }
+    });
+
+    card.addEventListener("dragend", () => {
+      draggedCompIndex = null;
+      document.querySelectorAll(".component-card-editor").forEach(c => {
+        c.classList.remove("is-dragging", "drag-over-top", "drag-over-bottom");
+      });
+    });
 
     let fieldsHtml = "";
     if (comp.type === "banner") {
@@ -1377,10 +2748,11 @@ function renderComponentEditors() {
         </div>
       `;
     } else if (comp.type === "button") {
+      const hasApi = !!(comp.api_config && comp.api_config.url);
       fieldsHtml = `
         <div class="field">
           <label>Button Text</label>
-          <input type="text" value="${comp.text || ""}" oninput="updateCompField(${idx}, 'text', this.value)">
+          <input type="text" value="${escapeHtml(comp.text || "")}" oninput="updateCompField(${idx}, 'text', this.value)">
         </div>
         <div class="input-row">
           <div class="field flex-1">
@@ -1393,7 +2765,36 @@ function renderComponentEditors() {
           </div>
           <div class="field flex-1">
             <label>Action ID (Fallback)</label>
-            <input type="text" value="${comp.action_id || ""}" oninput="updateCompField(${idx}, 'action_id', this.value)">
+            <input type="text" value="${escapeHtml(comp.action_id || "")}" oninput="updateCompField(${idx}, 'action_id', this.value)">
+          </div>
+        </div>
+        <div class="input-row" style="margin-bottom: 6px;">
+          <div class="field flex-1">
+            <label>Background Color</label>
+            <div style="display:flex; gap:4px;">
+              <input type="color" value="${isValidHexColor(comp.background_color) ? comp.background_color : '#4F46E5'}" oninput="updateCompField(${idx}, 'background_color', this.value)">
+              <input type="text" value="${escapeHtml(comp.background_color || '')}" placeholder="Default (Primary)" oninput="updateCompField(${idx}, 'background_color', this.value)">
+            </div>
+          </div>
+          <div class="field flex-1">
+            <label>Text Color</label>
+            <div style="display:flex; gap:4px;">
+              <input type="color" value="${isValidHexColor(comp.text_color || comp.color) ? (comp.text_color || comp.color) : '#FFFFFF'}" oninput="updateCompField(${idx}, 'text_color', this.value)">
+              <input type="text" value="${escapeHtml(comp.text_color || comp.color || '')}" placeholder="Default (#FFFFFF)" oninput="updateCompField(${idx}, 'text_color', this.value)">
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top: 6px; margin-bottom: 6px; padding: 6px 8px; background: rgba(79, 70, 229, 0.08); border-radius: 6px; border: 1px solid rgba(79, 70, 229, 0.2);">
+          <div class="flex-between" style="align-items: center;">
+            <div>
+              <div style="font-size: 11px; font-weight: 600; color: #818CF8;">🔌 Cloud API Binding</div>
+              <div style="font-size: 10px; margin-top: 2px;">
+                ${hasApi ? `<span class="api-configured-pill">✓ ${escapeHtml(comp.api_config.method || 'POST')} ${escapeHtml(comp.api_config.url)}</span>` : `<span style="color: var(--text-muted);">No API configured for this button</span>`}
+              </div>
+            </div>
+            <button class="btn btn-xs ${hasApi ? 'btn-outline-primary' : 'btn-outline'}" type="button" onclick="openApiConfigModal('comp_${idx}')">
+              ${hasApi ? '⚙️ Edit API Config' : '🔌 Configure API'}
+            </button>
           </div>
         </div>
         ${renderOnClickCodeEditor(comp, idx, false)}
@@ -1404,7 +2805,7 @@ function renderComponentEditors() {
           <label>Text Content</label>
           <input type="text" value="${comp.text || ""}" oninput="updateCompField(${idx}, 'text', this.value)">
         </div>
-        <div class="input-row">
+        <div class="input-row" style="margin-bottom: 6px;">
           <div class="field flex-1">
             <label>Font Size (px)</label>
             <input type="number" min="10" max="48" value="${comp.font_size || 16}" oninput="updateCompField(${idx}, 'font_size', Number(this.value))">
@@ -1423,6 +2824,13 @@ function renderComponentEditors() {
               <option value="false" ${!comp.is_bold ? 'selected' : ''}>Normal</option>
               <option value="true" ${comp.is_bold ? 'selected' : ''}>Bold</option>
             </select>
+          </div>
+          <div class="field flex-1">
+            <label>Text Color</label>
+            <div style="display:flex; gap:4px;">
+              <input type="color" value="${isValidHexColor(comp.color || comp.text_color) ? (comp.color || comp.text_color) : '#F8FAFC'}" oninput="updateCompField(${idx}, 'color', this.value)">
+              <input type="text" value="${escapeHtml(comp.color || comp.text_color || '')}" placeholder="#F8FAFC" oninput="updateCompField(${idx}, 'color', this.value)">
+            </div>
           </div>
         </div>
         ${renderOnClickCodeEditor(comp, idx, false)}
@@ -1446,18 +2854,23 @@ function renderComponentEditors() {
         ${renderOnClickCodeEditor(comp, idx, false)}
       `;
     } else if (comp.type === "textfield" || comp.type === "input") {
+      const v = comp.validation || {};
       fieldsHtml = `
         <div class="input-row">
+          <div class="field flex-1">
+            <label>Field Key / ID</label>
+            <input type="text" value="${escapeHtml(comp.id || "")}" oninput="updateCompField(${idx}, 'id', this.value)" placeholder="e.g. email">
+          </div>
           <div class="field flex-1">
             <label>Label</label>
             <input type="text" value="${escapeHtml(comp.label || "")}" oninput="updateCompField(${idx}, 'label', this.value)">
           </div>
+        </div>
+        <div class="input-row">
           <div class="field flex-1">
             <label>Hint / Placeholder</label>
             <input type="text" value="${escapeHtml(comp.hint || "")}" oninput="updateCompField(${idx}, 'hint', this.value)">
           </div>
-        </div>
-        <div class="input-row">
           <div class="field flex-1">
             <label>Input Mode</label>
             <select onchange="updateCompField(${idx}, 'is_password', this.value === 'true')">
@@ -1466,8 +2879,36 @@ function renderComponentEditors() {
             </select>
           </div>
           <div class="field flex-1">
-            <label>Max Lines (1 for single line)</label>
+            <label>Max Lines</label>
             <input type="number" min="1" max="8" value="${comp.max_lines || 1}" oninput="updateCompField(${idx}, 'max_lines', Number(this.value))">
+          </div>
+        </div>
+        <div class="field" style="margin-top: 6px; padding: 6px 8px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px dashed rgba(255,255,255,0.12);">
+          <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🛡 Form Validation Rule</span>
+            <label class="checkbox-inline" style="font-size: 10px; text-transform: none; margin: 0;">
+              <input type="checkbox" ${v.required ? 'checked' : ''} onchange="updateCompValidation(${idx}, 'required', this.checked)">
+              <span>Required</span>
+            </label>
+          </div>
+          <div class="input-row">
+            <div class="field flex-1">
+              <label style="font-size:9px;">Format Type</label>
+              <select style="font-size:10px; padding:3px 6px;" onchange="updateCompValidation(${idx}, 'type', this.value)">
+                <option value="" ${!v.type ? 'selected' : ''}>None (General)</option>
+                <option value="email" ${v.type === 'email' ? 'selected' : ''}>Email</option>
+                <option value="phone" ${v.type === 'phone' ? 'selected' : ''}>Phone Number</option>
+                <option value="number" ${v.type === 'number' ? 'selected' : ''}>Number</option>
+              </select>
+            </div>
+            <div class="field flex-1">
+              <label style="font-size:9px;">Min Length</label>
+              <input type="number" style="font-size:10px; padding:3px 6px;" min="0" value="${v.min_length || ''}" placeholder="None" oninput="updateCompValidation(${idx}, 'min_length', this.value ? Number(this.value) : undefined)">
+            </div>
+            <div class="field flex-2">
+              <label style="font-size:9px;">Custom Error Message</label>
+              <input type="text" style="font-size:10px; padding:3px 6px;" value="${escapeHtml(v.error_message || '')}" placeholder="e.g. Please enter valid email" oninput="updateCompValidation(${idx}, 'error_message', this.value)">
+            </div>
           </div>
         </div>
       `;
@@ -1515,15 +2956,22 @@ function renderComponentEditors() {
     } else if (comp.type === "switch" || comp.type === "checkbox" || comp.type === "radio") {
       const isRadio = comp.type === "radio";
       const checkedVal = isRadio ? comp.is_selected : comp.is_checked;
+      const v = comp.validation || {};
       fieldsHtml = `
-        <div class="field">
-          <label>Label</label>
-          <input type="text" value="${comp.label || ""}" oninput="updateCompField(${idx}, 'label', this.value)">
+        <div class="input-row">
+          <div class="field flex-1">
+            <label>Field Key / ID</label>
+            <input type="text" value="${escapeHtml(comp.id || "")}" oninput="updateCompField(${idx}, 'id', this.value)" placeholder="e.g. terms_accepted">
+          </div>
+          <div class="field flex-2">
+            <label>Label</label>
+            <input type="text" value="${escapeHtml(comp.label || "")}" oninput="updateCompField(${idx}, 'label', this.value)">
+          </div>
         </div>
         <div class="input-row">
           <div class="field flex-1">
             <label>Subtitle</label>
-            <input type="text" value="${comp.subtitle || ""}" oninput="updateCompField(${idx}, 'subtitle', this.value)">
+            <input type="text" value="${escapeHtml(comp.subtitle || "")}" oninput="updateCompField(${idx}, 'subtitle', this.value)">
           </div>
           <div class="field flex-1">
             <label>Checked State</label>
@@ -1531,6 +2979,15 @@ function renderComponentEditors() {
               <option value="true" ${checkedVal ? 'selected' : ''}>Checked / Active</option>
               <option value="false" ${!checkedVal ? 'selected' : ''}>Unchecked</option>
             </select>
+          </div>
+        </div>
+        <div class="field" style="margin-top: 4px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; border: 1px dashed rgba(255,255,255,0.12);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="checkbox-inline" style="font-size: 10px; margin: 0;">
+              <input type="checkbox" ${v.required ? 'checked' : ''} onchange="updateCompValidation(${idx}, 'required', this.checked)">
+              <span>Must be checked (Required)</span>
+            </label>
+            <input type="text" style="font-size:10px; padding:2px 6px; width:60%;" placeholder="Error message if not checked" value="${escapeHtml(v.error_message || '')}" oninput="updateCompValidation(${idx}, 'error_message', this.value)">
           </div>
         </div>
       `;
@@ -1605,6 +3062,8 @@ function renderComponentEditors() {
                 <option value="textfield">TextField (Input)</option>
                 <option value="listtile">ListTile (Tile Row)</option>
                 <option value="chip">Chip (Badge)</option>
+                <option value="container">Container (Box & Decoration)</option>
+                <option value="stack">Stack (Layered Overlays)</option>
                 <option value="switch">Switch (Toggle)</option>
                 <option value="checkbox">Checkbox (Check)</option>
                 <option value="radio">Radio (Option)</option>
@@ -1621,12 +3080,165 @@ function renderComponentEditors() {
           ${(comp.children || []).map((child, cIdx) => renderChildEditor(idx, cIdx, child)).join("")}
         </div>
       `;
+    } else if (comp.type === "container") {
+      fieldsHtml = `
+        <div class="input-row" style="margin-bottom: 8px;">
+          <div class="field flex-1">
+            <label>Background Color</label>
+            <div style="display:flex; gap:4px;">
+              <input type="color" value="${isValidHexColor(comp.background_color || comp.color) ? (comp.background_color || comp.color) : '#1E293B'}" oninput="updateCompField(${idx}, 'background_color', this.value)">
+              <input type="text" value="${escapeHtml(comp.background_color || comp.color || '#1E293B')}" placeholder="#1E293B or transparent" oninput="updateCompField(${idx}, 'background_color', this.value)">
+            </div>
+          </div>
+          <div class="field flex-1">
+            <label>Border Color</label>
+            <div style="display:flex; gap:4px;">
+              <input type="color" value="${isValidHexColor(comp.border_color) ? comp.border_color : '#38BDF8'}" oninput="updateCompField(${idx}, 'border_color', this.value)">
+              <input type="text" value="${escapeHtml(comp.border_color || '#38BDF8')}" placeholder="#38BDF8" oninput="updateCompField(${idx}, 'border_color', this.value)">
+            </div>
+          </div>
+        </div>
+        <div class="input-row" style="margin-bottom: 8px;">
+          <div class="field">
+            <label>Border Width (px)</label>
+            <input type="number" min="0" max="24" value="${comp.border_width !== undefined ? comp.border_width : 1}" oninput="updateCompField(${idx}, 'border_width', Number(this.value))">
+          </div>
+          <div class="field">
+            <label>Border Radius (px)</label>
+            <input type="number" min="0" max="64" value="${comp.border_radius !== undefined ? comp.border_radius : 12}" oninput="updateCompField(${idx}, 'border_radius', Number(this.value))">
+          </div>
+          <div class="field">
+            <label>Padding (px)</label>
+            <input type="number" min="0" max="64" value="${comp.padding !== undefined ? comp.padding : 16}" oninput="updateCompField(${idx}, 'padding', Number(this.value))">
+          </div>
+          <div class="field">
+            <label>Margin (px)</label>
+            <input type="number" min="0" max="64" value="${comp.margin !== undefined ? comp.margin : 8}" oninput="updateCompField(${idx}, 'margin', Number(this.value))">
+          </div>
+        </div>
+        <div class="input-row" style="margin-bottom: 8px;">
+          <div class="field flex-1">
+            <label>Width</label>
+            <input type="text" placeholder="100% or px..." value="${escapeHtml(comp.width !== undefined ? String(comp.width) : '')}" oninput="updateCompField(${idx}, 'width', this.value ? (isNaN(this.value) ? this.value : Number(this.value)) : undefined)">
+          </div>
+          <div class="field flex-1">
+            <label>Height (px)</label>
+            <input type="number" min="0" max="800" placeholder="auto" value="${comp.height || ''}" oninput="updateCompField(${idx}, 'height', this.value ? Number(this.value) : undefined)">
+          </div>
+          <div class="field flex-1">
+            <label>Alignment</label>
+            <select onchange="updateCompField(${idx}, 'alignment', this.value)">
+              <option value="topLeft" ${comp.alignment === 'topLeft' || !comp.alignment ? 'selected' : ''}>Top Left</option>
+              <option value="topCenter" ${comp.alignment === 'topCenter' ? 'selected' : ''}>Top Center</option>
+              <option value="topRight" ${comp.alignment === 'topRight' ? 'selected' : ''}>Top Right</option>
+              <option value="centerLeft" ${comp.alignment === 'centerLeft' ? 'selected' : ''}>Center Left</option>
+              <option value="center" ${comp.alignment === 'center' ? 'selected' : ''}>Center</option>
+              <option value="centerRight" ${comp.alignment === 'centerRight' ? 'selected' : ''}>Center Right</option>
+              <option value="bottomLeft" ${comp.alignment === 'bottomLeft' ? 'selected' : ''}>Bottom Left</option>
+              <option value="bottomCenter" ${comp.alignment === 'bottomCenter' ? 'selected' : ''}>Bottom Center</option>
+              <option value="bottomRight" ${comp.alignment === 'bottomRight' ? 'selected' : ''}>Bottom Right</option>
+            </select>
+          </div>
+        </div>
+        ${renderOnClickCodeEditor(comp, idx, false)}
+        <div class="nested-child-container">
+          <div class="nested-child-header">
+            <span>📦 CONTAINER CHILDREN (${(comp.children || []).length})</span>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <select class="child-add-dropdown" onchange="if(this.value){ addChildToContainer(${idx}, this.value); this.value=''; }">
+                <option value="">+ Add Child Widget...</option>
+                <option value="text">Text (Typography)</option>
+                <option value="button">Button (Action)</option>
+                <option value="image">Image (Network)</option>
+                <option value="chip">Chip (Badge)</option>
+                <option value="icon">Icon (Symbol)</option>
+                <option value="textfield">TextField (Input)</option>
+                <option value="listtile">ListTile (Tile Row)</option>
+                <option value="divider">Divider (Line)</option>
+                <option value="spacer">Spacer (Spacing)</option>
+                <option value="row">Row (Horizontal)</option>
+                <option value="column">Column (Vertical)</option>
+                <option value="stack">Stack (Layered Overlays)</option>
+              </select>
+              <button class="btn btn-xs btn-outline" title="Quick Add Text" onclick="addChildToContainer(${idx}, 'text')">+ Text</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Button" onclick="addChildToContainer(${idx}, 'button')">+ Button</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Image" onclick="addChildToContainer(${idx}, 'image')">+ Image</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Chip" onclick="addChildToContainer(${idx}, 'chip')">+ Chip</button>
+            </div>
+          </div>
+          ${(comp.children || []).map((child, cIdx) => renderChildEditor(idx, cIdx, child)).join("")}
+        </div>
+      `;
+    } else if (comp.type === "stack") {
+      fieldsHtml = `
+        <div class="input-row" style="margin-bottom: 8px;">
+          <div class="field flex-1">
+            <label>Stack Alignment</label>
+            <select onchange="updateCompField(${idx}, 'alignment', this.value)">
+              <option value="topLeft" ${comp.alignment === 'topLeft' || !comp.alignment ? 'selected' : ''}>Top Left</option>
+              <option value="topCenter" ${comp.alignment === 'topCenter' ? 'selected' : ''}>Top Center</option>
+              <option value="topRight" ${comp.alignment === 'topRight' ? 'selected' : ''}>Top Right</option>
+              <option value="centerLeft" ${comp.alignment === 'centerLeft' ? 'selected' : ''}>Center Left</option>
+              <option value="center" ${comp.alignment === 'center' ? 'selected' : ''}>Center</option>
+              <option value="centerRight" ${comp.alignment === 'centerRight' ? 'selected' : ''}>Center Right</option>
+              <option value="bottomLeft" ${comp.alignment === 'bottomLeft' ? 'selected' : ''}>Bottom Left</option>
+              <option value="bottomCenter" ${comp.alignment === 'bottomCenter' ? 'selected' : ''}>Bottom Center</option>
+              <option value="bottomRight" ${comp.alignment === 'bottomRight' ? 'selected' : ''}>Bottom Right</option>
+            </select>
+          </div>
+          <div class="field flex-1">
+            <label>Stack Height (px)</label>
+            <input type="number" min="40" max="800" value="${comp.height || 180}" oninput="updateCompField(${idx}, 'height', Number(this.value))">
+          </div>
+          <div class="field flex-1">
+            <label>Clip Behavior</label>
+            <select onchange="updateCompField(${idx}, 'clip', this.value)">
+              <option value="hardEdge" ${comp.clip === 'hardEdge' || !comp.clip ? 'selected' : ''}>Hard Edge (Clip)</option>
+              <option value="none" ${comp.clip === 'none' ? 'selected' : ''}>None (Overflow)</option>
+            </select>
+          </div>
+        </div>
+        ${renderOnClickCodeEditor(comp, idx, false)}
+        <div class="nested-child-container">
+          <div class="nested-child-header">
+            <span>🥞 STACK OVERLAY LAYERS (${(comp.children || []).length})</span>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <select class="child-add-dropdown" onchange="if(this.value){ addChildToContainer(${idx}, this.value); this.value=''; }">
+                <option value="">+ Add Layer Widget...</option>
+                <option value="image">Image (Background/Base)</option>
+                <option value="button">Button (Floating Action)</option>
+                <option value="chip">Chip (Overlay Badge)</option>
+                <option value="text">Text (Overlay Title)</option>
+                <option value="icon">Icon (Overlay)</option>
+                <option value="container">Container (Overlay Box)</option>
+              </select>
+              <button class="btn btn-xs btn-outline" title="Quick Add Image" onclick="addChildToContainer(${idx}, 'image')">+ Image</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Button" onclick="addChildToContainer(${idx}, 'button')">+ Button</button>
+              <button class="btn btn-xs btn-outline" title="Quick Add Chip" onclick="addChildToContainer(${idx}, 'chip')">+ Chip</button>
+            </div>
+          </div>
+          <div style="font-size:10px; color:#94A3B8; margin-bottom:8px; padding:4px 6px; background:rgba(255,255,255,0.03); border-radius:4px;">
+            ℹ️ Layers are rendered bottom-to-top. Turn on <strong>📌 Positioned Overlay</strong> inside any layer to position it precisely at top/bottom/left/right!
+          </div>
+          ${(comp.children || []).map((child, cIdx) => renderChildEditor(idx, cIdx, child)).join("")}
+        </div>
+      `;
     }
 
     card.innerHTML = `
       <div class="comp-header">
-        <span class="comp-tag">${comp.type.toUpperCase()}</span>
-        <button class="comp-delete-btn" onclick="removeComponent(${idx})">✕</button>
+        <div class="comp-header-left">
+          <span class="comp-drag-handle" title="Drag and drop to reorder">⋮⋮</span>
+          <span class="comp-order-badge">#${idx + 1}</span>
+          <span class="comp-tag">${comp.type.toUpperCase()}</span>
+        </div>
+        <div class="comp-header-actions">
+          <button class="comp-btn comp-move-btn" title="Move Up" ${idx === 0 ? 'disabled' : ''} onclick="moveComponent(${idx}, -1)">▲</button>
+          <button class="comp-btn comp-move-btn" title="Move Down" ${idx === comps.length - 1 ? 'disabled' : ''} onclick="moveComponent(${idx}, 1)">▼</button>
+          <button class="comp-btn comp-insert-btn" title="Insert new component below this" onclick="openInsertMenu(${idx}, event)">+ Below</button>
+          <button class="comp-btn comp-duplicate-btn" title="Duplicate component" onclick="duplicateComponent(${idx})">📋</button>
+          <button class="comp-delete-btn" title="Delete component" onclick="removeComponent(${idx})">✕</button>
+        </div>
       </div>
       ${fieldsHtml}
     `;
@@ -1636,6 +3248,40 @@ function renderComponentEditors() {
 
 window.updateCompField = function(idx, key, val) {
   activeSchema.components[idx][key] = val;
+  updateSimulator();
+  updateJsonEditor();
+};
+
+window.updateCompValidation = function(idx, key, val) {
+  if (!activeSchema.components[idx].validation) {
+    activeSchema.components[idx].validation = {};
+  }
+  if (val === undefined || val === "") {
+    delete activeSchema.components[idx].validation[key];
+    if (Object.keys(activeSchema.components[idx].validation).length === 0) {
+      delete activeSchema.components[idx].validation;
+    }
+  } else {
+    activeSchema.components[idx].validation[key] = val;
+  }
+  markActiveScreenDirty();
+  updateSimulator();
+  updateJsonEditor();
+};
+
+window.updateChildValidation = function(parentIdx, cIdx, key, val) {
+  const child = activeSchema.components[parentIdx]?.children?.[cIdx];
+  if (!child) return;
+  if (!child.validation) child.validation = {};
+  if (val === undefined || val === "") {
+    delete child.validation[key];
+    if (Object.keys(child.validation).length === 0) {
+      delete child.validation;
+    }
+  } else {
+    child.validation[key] = val;
+  }
+  markActiveScreenDirty();
   updateSimulator();
   updateJsonEditor();
 };
@@ -1729,7 +3375,7 @@ const ALL_SUPPORTED_TYPES = [
   "banner", "metric_row", "metrics", "card", "button",
   "text", "image", "textfield", "input", "listtile", "chip",
   "switch", "checkbox", "radio", "icon", "divider", "spacer", "sized_box",
-  "column", "layout_column", "row", "layout_row"
+  "column", "layout_column", "row", "layout_row", "container", "stack"
 ];
 
 function renderSimChildHtml(comp) {
@@ -1753,30 +3399,27 @@ function renderSimChildHtml(comp) {
 
   if (type === "text") {
     const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
-    return `<div class="sim-text ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="text-align:${comp.align || 'left'}; font-size:${comp.font_size || 14}px; font-weight:${comp.is_bold ? '700' : '400'}; color:${comp.color || 'var(--sim-text)'}; padding:${comp.padding !== undefined ? comp.padding : 2}px 0; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(comp.text || "")}</div>`;
+    const textColor = comp.text_color || comp.color || 'var(--sim-text)';
+    return `<div class="sim-text ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="text-align:${comp.align || 'left'}; font-size:${comp.font_size || 14}px; font-weight:${comp.is_bold ? '700' : '400'}; color:${textColor}; padding:${comp.padding !== undefined ? comp.padding : 2}px 0; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(comp.text || "")}</div>`;
   }
   if (type === "button") {
     const isOutline = comp.variant === 'outline' || comp.variant === 'ghost';
-    const bg = isOutline ? 'transparent' : primaryColor;
-    const border = isOutline ? `1px solid ${primaryColor}` : 'none';
-    const textColor = isOutline ? primaryColor : '#fff';
+    const bg = comp.background_color || comp.bg_color || (isOutline ? 'transparent' : primaryColor);
+    const border = isOutline ? `1px solid ${comp.border_color || comp.color || primaryColor}` : (comp.border_color ? `1px solid ${comp.border_color}` : 'none');
+    const textColor = comp.text_color || (isOutline ? (comp.color || primaryColor) : (comp.color || '#fff'));
     return `<button class="sim-btn-primary sim-clickable" onclick="handleSimulatorDartClick('${comp.id}', event)" style="background:${bg}; border:${border}; color:${textColor}; padding:6px 14px; font-size:12px; height:auto; width:auto; border-radius:6px; cursor:pointer;">${escapeHtml(comp.text || 'Action')}</button>`;
   }
   if (type === "image") {
     const imgUrl = comp.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80";
     const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
-    return `<div class="sim-image ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="padding:${comp.padding !== undefined ? comp.padding : 2}px 0;"><img src="${escapeHtml(imgUrl)}" style="height:${comp.height || 80}px; border-radius:${comp.border_radius || 6}px; max-width:100%; object-fit:cover;" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';" /></div>`;
+    return `<img src="${escapeHtml(imgUrl)}" class="sim-image ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute Flutter code"` : ''} style="width:100%; height:${comp.height || 80}px; border-radius:${comp.border_radius || 8}px; object-fit:cover; display:block;" onerror="this.src='https://placehold.co/600x200/1E293B/94A3B8?text=Image+Load+Error'">`;
   }
   if (type === "textfield" || type === "input") {
-    const isMultiLine = Number(comp.max_lines) > 1;
+    const isPass = comp.is_password === true;
     return `
-      <div class="sim-textfield" style="padding:${comp.padding !== undefined ? comp.padding : 2}px 0; width:100%;">
-        ${comp.label ? `<label style="font-size:10px; color:#94A3B8; margin-bottom:2px; display:block;">${escapeHtml(comp.label)}</label>` : ""}
-        ${isMultiLine ? `
-          <textarea id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" rows="${comp.max_lines || 3}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:var(--sim-surface); border:1px solid var(--sim-border); color:var(--sim-text); resize:vertical; font-family:inherit;"></textarea>
-        ` : `
-          <input type="${comp.is_password ? 'password' : 'text'}" id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter text...')}" style="width:100%; font-size:11px; padding:6px 8px; border-radius:6px; background:var(--sim-surface); border:1px solid var(--sim-border); color:var(--sim-text);" />
-        `}
+      <div style="width:100%;margin:2px 0;">
+        ${comp.label ? `<div style="font-size:11px;font-weight:600;color:var(--sim-text);margin-bottom:3px;">${escapeHtml(comp.label)}</div>` : ""}
+        <input type="${isPass ? 'password' : 'text'}" placeholder="${escapeHtml(comp.hint || comp.placeholder || '')}" style="width:100%;padding:6px 8px;font-size:12px;background:rgba(255,255,255,0.06);border:1px solid #334155;border-radius:6px;color:var(--sim-text);" />
       </div>
     `;
   }
@@ -1858,6 +3501,63 @@ function renderSimChildHtml(comp) {
     const align = crossAlignMap[String(comp.cross_axis_alignment || '').toLowerCase()] || (isRow ? 'center' : 'stretch');
     const childrenHtml = (comp.children || []).map(renderSimChildHtml).join("");
     return `<div class="${isRow ? 'sim-row' : 'sim-column'}" style="display:flex; flex-direction:${isRow ? 'row' : 'column'}; flex-wrap:${isRow ? 'wrap' : 'nowrap'}; justify-content:${justify}; align-items:${align}; gap:6px; width:100%;">${childrenHtml}</div>`;
+  }
+  if (type === "container") {
+    const bg = isValidHexColor(comp.background_color || comp.color) ? (comp.background_color || comp.color) : (comp.background_color === 'transparent' ? 'transparent' : 'transparent');
+    const borderColor = isValidHexColor(comp.border_color) ? comp.border_color : '';
+    const borderWidth = comp.border_width !== undefined ? Number(comp.border_width) : (borderColor ? 1 : 0);
+    const borderStyle = borderWidth > 0 ? `${borderWidth}px solid ${borderColor || 'currentColor'}` : 'none';
+    const borderRadius = comp.border_radius !== undefined ? `${Number(comp.border_radius)}px` : '0px';
+    const padding = comp.padding !== undefined ? `${Number(comp.padding)}px` : '12px';
+    const margin = comp.margin !== undefined ? `${Number(comp.margin)}px 0` : '4px 0';
+    const width = comp.width ? (typeof comp.width === 'number' ? `${comp.width}px` : comp.width) : '100%';
+    const height = comp.height ? `${comp.height}px` : 'auto';
+
+    const alignMap = {
+      topleft: 'align-items:flex-start; justify-content:flex-start;',
+      topcenter: 'align-items:center; justify-content:flex-start;',
+      topright: 'align-items:flex-end; justify-content:flex-start;',
+      centerleft: 'align-items:flex-start; justify-content:center;',
+      center: 'align-items:center; justify-content:center;',
+      centerright: 'align-items:flex-end; justify-content:center;',
+      bottomleft: 'align-items:flex-start; justify-content:flex-end;',
+      bottomcenter: 'align-items:center; justify-content:flex-end;',
+      bottomright: 'align-items:flex-end; justify-content:flex-end;'
+    };
+    const alignCss = alignMap[String(comp.alignment || '').toLowerCase()] || '';
+
+    const isInteractive = comp.custom_dart_code || comp.onclick || comp.action_id;
+    const childrenList = Array.isArray(comp.children) ? comp.children : (comp.child ? [comp.child] : []);
+    const childrenHtml = childrenList.map(renderSimChildHtml).join("");
+
+    return `<div class="sim-container ${isInteractive ? 'sim-clickable' : ''}" ${isInteractive ? `onclick="handleSimulatorDartClick('${comp.id}', event)" title="Click to execute container action"` : ''} style="background:${bg}; border:${borderStyle}; border-radius:${borderRadius}; padding:${padding}; margin:${margin}; width:${width}; height:${height}; ${alignCss}">${childrenHtml}</div>`;
+  }
+  if (type === "stack") {
+    const stackHeight = comp.height ? `${Number(comp.height)}px` : '180px';
+    const clipStyle = comp.clip === 'none' ? 'visible' : 'hidden';
+    const borderRadius = comp.border_radius !== undefined ? `${Number(comp.border_radius)}px` : '12px';
+    const childrenList = Array.isArray(comp.children) ? comp.children : (comp.child ? [comp.child] : []);
+
+    const childrenHtml = childrenList.map((c, cIdx) => {
+      const isPositioned = c.is_positioned !== false && (
+        c.is_positioned === true ||
+        c.top !== undefined || c.bottom !== undefined ||
+        c.left !== undefined || c.right !== undefined
+      );
+
+      if (isPositioned) {
+        const top = c.top !== undefined ? `top:${Number(c.top)}px;` : '';
+        const bottom = c.bottom !== undefined ? `bottom:${Number(c.bottom)}px;` : '';
+        const left = c.left !== undefined ? `left:${Number(c.left)}px;` : '';
+        const right = c.right !== undefined ? `right:${Number(c.right)}px;` : '';
+        const w = c.width !== undefined ? `width:${Number(c.width)}px;` : '';
+        const h = c.height !== undefined ? `height:${Number(c.height)}px;` : '';
+        return `<div class="sim-stack-child-positioned" style="${top} ${bottom} ${left} ${right} ${w} ${h} z-index:${cIdx + 1};">${renderSimChildHtml(c)}</div>`;
+      }
+      return `<div style="width:100%; height:100%;">${renderSimChildHtml(c)}</div>`;
+    }).join("");
+
+    return `<div class="sim-stack" style="min-height:${stackHeight}; overflow:${clipStyle}; border-radius:${borderRadius};">${childrenHtml}</div>`;
   }
   return `<span style="font-size:11px;color:#94A3B8;padding:2px 4px;background:#1E293B;border-radius:4px;">[${comp.type}]</span>`;
 }
@@ -2045,9 +3745,12 @@ function updateSimulator() {
       const primaryColor = isValidHexColor(activeSchema.theme?.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
       const variant = String(comp.variant || "").toLowerCase();
       const isOutline = variant === "outline" || variant === "secondary" || variant === "ghost";
-      const btnStyle = isOutline
-        ? `background: transparent; border: 1.5px solid ${primaryColor}; color: ${primaryColor};`
-        : `background: ${primaryColor};`;
+      const bg = comp.background_color || comp.bg_color || (isOutline ? "transparent" : primaryColor);
+      const border = isOutline
+        ? `1.5px solid ${comp.border_color || comp.color || primaryColor}`
+        : (comp.border_color ? `1.5px solid ${comp.border_color}` : "none");
+      const textColor = comp.text_color || (isOutline ? (comp.color || primaryColor) : (comp.color || "#ffffff"));
+      const btnStyle = `background: ${bg}; border: ${border}; color: ${textColor};`;
       el.innerHTML = `
         <button class="sim-btn-primary sim-clickable" onclick="handleSimulatorDartClick('${comp.id}', event)" style="${btnStyle}">
           ${comp.text || "Click Here"}
@@ -2058,7 +3761,7 @@ function updateSimulator() {
       el.style.textAlign = comp.align || "left";
       el.style.fontSize = `${comp.font_size || 15}px`;
       el.style.fontWeight = comp.is_bold ? "700" : "400";
-      el.style.color = comp.color || "var(--sim-text)";
+      el.style.color = comp.text_color || comp.color || "var(--sim-text)";
       el.style.padding = `${comp.padding || 4}px 0`;
       el.innerText = comp.text || comp.title || "Dynamic Text";
 
@@ -2210,6 +3913,73 @@ function updateSimulator() {
         el.style.alignItems = crossAlignMap[String(comp.cross_axis_alignment).toLowerCase()] || 'center';
       }
       el.innerHTML = (comp.children || []).map(renderSimChildHtml).join("");
+    } else if (comp.type === "container") {
+      el.className = "sim-container";
+      const bg = isValidHexColor(comp.background_color || comp.color) ? (comp.background_color || comp.color) : (comp.background_color === 'transparent' ? 'transparent' : 'transparent');
+      const borderColor = isValidHexColor(comp.border_color) ? comp.border_color : '';
+      const borderWidth = comp.border_width !== undefined ? Number(comp.border_width) : (borderColor ? 1 : 0);
+      el.style.backgroundColor = bg;
+      if (borderWidth > 0 && borderColor) {
+        el.style.border = `${borderWidth}px solid ${borderColor}`;
+      } else if (borderWidth > 0) {
+        el.style.border = `${borderWidth}px solid currentColor`;
+      } else {
+        el.style.border = 'none';
+      }
+      el.style.borderRadius = `${comp.border_radius !== undefined ? Number(comp.border_radius) : 12}px`;
+      el.style.padding = `${comp.padding !== undefined ? Number(comp.padding) : 16}px`;
+      el.style.margin = `${comp.margin !== undefined ? Number(comp.margin) : 8}px 0`;
+      if (comp.width) el.style.width = typeof comp.width === 'number' ? `${comp.width}px` : comp.width;
+      if (comp.height) el.style.height = `${comp.height}px`;
+
+      const alignMap = {
+        topleft: { ai: 'flex-start', jc: 'flex-start' },
+        topcenter: { ai: 'center', jc: 'flex-start' },
+        topright: { ai: 'flex-end', jc: 'flex-start' },
+        centerleft: { ai: 'flex-start', jc: 'center' },
+        center: { ai: 'center', jc: 'center' },
+        centerright: { ai: 'flex-end', jc: 'center' },
+        bottomleft: { ai: 'flex-start', jc: 'flex-end' },
+        bottomcenter: { ai: 'center', jc: 'flex-end' },
+        bottomright: { ai: 'flex-end', jc: 'flex-end' }
+      };
+      const a = alignMap[String(comp.alignment || '').toLowerCase()];
+      if (a) {
+        el.style.alignItems = a.ai;
+        el.style.justifyContent = a.jc;
+      }
+
+      if (comp.custom_dart_code || comp.action_id) {
+        el.classList.add("sim-clickable");
+        el.setAttribute("title", "Click to execute container action");
+        el.onclick = (e) => handleSimulatorDartClick(comp.id, e);
+      }
+      const childrenList = Array.isArray(comp.children) ? comp.children : (comp.child ? [comp.child] : []);
+      el.innerHTML = childrenList.map(renderSimChildHtml).join("");
+    } else if (comp.type === "stack") {
+      el.className = "sim-stack";
+      el.style.minHeight = `${comp.height || 180}px`;
+      el.style.overflow = comp.clip === 'none' ? 'visible' : 'hidden';
+      el.style.borderRadius = `${comp.border_radius !== undefined ? Number(comp.border_radius) : 12}px`;
+
+      const childrenList = Array.isArray(comp.children) ? comp.children : (comp.child ? [comp.child] : []);
+      el.innerHTML = childrenList.map((c, cIdx) => {
+        const isPositioned = c.is_positioned !== false && (
+          c.is_positioned === true ||
+          c.top !== undefined || c.bottom !== undefined ||
+          c.left !== undefined || c.right !== undefined
+        );
+        if (isPositioned) {
+          const top = c.top !== undefined ? `top:${Number(c.top)}px;` : '';
+          const bottom = c.bottom !== undefined ? `bottom:${Number(c.bottom)}px;` : '';
+          const left = c.left !== undefined ? `left:${Number(c.left)}px;` : '';
+          const right = c.right !== undefined ? `right:${Number(c.right)}px;` : '';
+          const w = c.width !== undefined ? `width:${Number(c.width)}px;` : '';
+          const h = c.height !== undefined ? `height:${Number(c.height)}px;` : '';
+          return `<div class="sim-stack-child-positioned" style="${top} ${bottom} ${left} ${right} ${w} ${h} z-index:${cIdx + 1};">${renderSimChildHtml(c)}</div>`;
+        }
+        return `<div style="width:100%; height:100%;">${renderSimChildHtml(c)}</div>`;
+      }).join("");
     } else {
       el.className = "sim-fallback-box";
       el.innerHTML = `🛡 Guarded Fallback: [${comp.type || "unknown"}] (Safe)`;
@@ -2824,56 +4594,226 @@ function showToast(msg, isError = false) {
   setTimeout(() => appToast.classList.remove("show"), 3200);
 }
 
-window.handleSimulatorAction = function(actionId, comp) {
-  const actionLower = String(actionId || "").toLowerCase();
-  const isFormSubmit = actionLower.includes("login") ||
-      actionLower.includes("submit") ||
-      actionLower.includes("signin") ||
-      actionLower.includes("register") ||
-      actionLower.includes("signup") ||
-      actionLower.includes("feedback") ||
-      actionLower.includes("review") ||
-      actionLower.includes("auth");
+function validateSimulatorScreen(apiConfig) {
+  const allComponents = [];
+  function collect(c) {
+    if (!c) return;
+    allComponents.push(c);
+    if (Array.isArray(c.children)) c.children.forEach(collect);
+  }
+  (activeSchema.components || []).forEach(collect);
 
-  if (isFormSubmit) {
-    const fields = collectSimulatorFormFields();
-    if (fields.length === 0) {
-      showToast(`Triggered Action: "${actionId}"`);
-      return;
-    }
+  for (const comp of allComponents) {
+    const rule = comp.validation;
+    if (!rule) continue;
 
-    const emptyField = fields.find(f => f.type === "text" && !String(f.value || "").trim());
-    if (emptyField) {
-      showToast(`⚠️ Validation Error: "${emptyField.label}" cannot be empty!`, true);
-      return;
-    }
+    const val = getSimulatorInputValue(comp.id);
+    const label = comp.label || comp.hint || comp.title || comp.id || "Field";
 
-    // Check terms for register action if present
-    if (actionLower.includes("register") || actionLower.includes("signup")) {
-      const termsBox = fields.find(f => f.type === "checkbox" && f.label.toLowerCase().includes("terms"));
-      if (termsBox && termsBox.value !== true) {
-        showToast("⚠️ Validation Error: Please accept the Terms & Conditions!", true);
-        return;
+    // Required check
+    if (rule.required) {
+      if (val === null || val === undefined || val === "" || val === false) {
+        return rule.error_message || `⚠️ Validation Error: "${label}" is required!`;
       }
     }
 
-    // Persist to the local Submissions API so it appears on /submissions
-    postSimulatorSubmission(actionId, fields);
+    // Format checks when value is present as a string
+    if (val !== null && val !== undefined && val !== "" && typeof val === "string") {
+      if (rule.type === "email") {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(val)) {
+          return rule.error_message || `⚠️ Validation Error: "${label}" must be a valid email address!`;
+        }
+      } else if (rule.type === "phone") {
+        const phoneRegex = /^[+0-9()\- ]{7,20}$/;
+        if (!phoneRegex.test(val)) {
+          return rule.error_message || `⚠️ Validation Error: "${label}" must be a valid phone number!`;
+        }
+      } else if (rule.type === "number") {
+        if (isNaN(Number(val))) {
+          return rule.error_message || `⚠️ Validation Error: "${label}" must be a valid number!`;
+        }
+      }
 
-    // Buttons with a success_dialog (Contact Us / Feedback & Review) show a
-    // confirmation dialog with a "Back to Home Screen" action.
-    if (comp && comp.success_dialog && typeof comp.success_dialog === "object") {
-      showSimulatorSuccessDialog(comp.success_dialog);
-      return;
+      if (typeof rule.min_length === "number" && val.length < rule.min_length) {
+        return rule.error_message || `⚠️ Validation Error: "${label}" must be at least ${rule.min_length} characters!`;
+      }
+
+      if (typeof rule.max_length === "number" && val.length > rule.max_length) {
+        return rule.error_message || `⚠️ Validation Error: "${label}" cannot exceed ${rule.max_length} characters!`;
+      }
+
+      if (rule.regex) {
+        try {
+          const r = new RegExp(rule.regex);
+          if (!r.test(val)) {
+            return rule.error_message || `⚠️ Validation Error: "${label}" format is invalid!`;
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  return null; // All validation rules passed
+}
+
+function resetSimulatorForm() {
+  const root = getSimulatorActiveScreenRoot();
+  if (!root) return;
+  root.querySelectorAll("input:not([type=checkbox]), textarea").forEach(i => i.value = "");
+  root.querySelectorAll("input[type=checkbox]").forEach(i => i.checked = false);
+  root.querySelectorAll("[data-sim-field='checkbox'], [data-sim-field='switch']").forEach(el => {
+    el.dataset.checked = "false";
+    const box = el.querySelector(".sim-check-box");
+    if (box) { box.style.background = "transparent"; box.innerHTML = ""; }
+    const pill = el.querySelector(".sim-switch-pill");
+    if (pill) { pill.classList.remove("active"); pill.style.background = ""; }
+  });
+}
+
+function navigateToRouteInSimulator(route) {
+  if (route === "/" || route === "") {
+    const screen = document.getElementById("phoneSimulatorScreen");
+    if (screen) screen.querySelectorAll(".sim-screen-overlay, .sim-bottomsheet-wrapper, .sim-modal-backdrop").forEach(el => el.remove());
+    if (simBackBtn) simBackBtn.style.display = "none";
+    return;
+  }
+  const matchingScreenEntry = Object.entries(screens).find(([sid, scr]) => {
+    const scrRoute = scr.route || (sid === "home" ? "/" : `/${sid}`);
+    return scrRoute === route || sid === route.replaceAll('/', '') || sid === route;
+  });
+  if (matchingScreenEntry) {
+    const [matchedSid, matchedScr] = matchingScreenEntry;
+    showSimulatorDynamicScreen(matchedSid, matchedScr);
+    if (simBackBtn) simBackBtn.style.display = "inline-flex";
+  } else {
+    showToast(`Navigated to ${route}`);
+  }
+}
+
+async function executeSimulatorDynamicApi(apiConfig, comp) {
+  if (!apiConfig || !apiConfig.url) {
+    showToast("⚠️ No Cloud API configured for this action", true);
+    return;
+  }
+
+  // 1. Declarative Form Validation
+  const validationError = validateSimulatorScreen(apiConfig);
+  if (validationError) {
+    showToast(validationError, true);
+    return;
+  }
+
+  // 2. Build outgoing request payload
+  const payload = {};
+  const mapping = apiConfig.body_mapping || {};
+  const staticBody = apiConfig.static_body || {};
+
+  for (const apiKey in mapping) {
+    const fieldId = mapping[apiKey];
+    payload[apiKey] = getSimulatorInputValue(fieldId);
+  }
+
+  for (const k in staticBody) {
+    payload[k] = staticBody[k];
+  }
+
+  // Fallback if mapping was completely empty
+  if (Object.keys(mapping).length === 0 && Object.keys(staticBody).length === 0) {
+    const autoFields = collectSimulatorFormFields();
+    autoFields.forEach(f => {
+      payload[f.id] = f.value;
+    });
+  }
+
+  // 3. Path Variable Substitution ({id}, {userId})
+  let url = apiConfig.url.trim();
+  for (const k in payload) {
+    if (url.includes(`{${k}}`)) {
+      url = url.replace(`{${k}}`, encodeURIComponent(payload[k]));
+    }
+  }
+
+  // 4. Headers & HTTP Dispatch
+  const headers = Object.assign({ "Content-Type": "application/json" }, apiConfig.headers || {});
+  const method = (apiConfig.method || "POST").toUpperCase();
+
+  showToast(`⚡ Dispatching ${method} ${url}...`);
+
+  try {
+    const fetchOptions = {
+      method: method,
+      headers: headers
+    };
+    if (method !== "GET" && method !== "HEAD") {
+      fetchOptions.body = JSON.stringify(payload);
     }
 
-    const summary = fields
-      .map(f => `${f.label}: ${f.label.toLowerCase().includes('pass') ? '••••••••' : (f.value === true ? 'Yes' : (f.value === false ? 'No' : f.value))}`)
-      .join(", ");
-    showToast(`✅ Validation Passed! ${summary}`);
-  } else {
-    showToast(`Triggered Action: "${actionId}"`);
+    const res = await fetch(url, fetchOptions);
+
+    if (res.ok) {
+      // Store submission log for dashboard if not already posted to /api/submissions
+      if (!url.includes("/api/submissions")) {
+        postSimulatorSubmission(comp?.action_id || comp?.id || "dynamic_api", Object.entries(payload).map(([k, v]) => ({ id: k, label: k, value: v })));
+      }
+
+      // Reset form if configured
+      if (apiConfig.reset_form !== false) {
+        resetSimulatorForm();
+      }
+
+      const onSuccess = apiConfig.on_success || {};
+      const action = onSuccess.action || "dialog";
+
+      if (action === "dialog") {
+        showSimulatorSuccessDialog({
+          title: onSuccess.title || "Submitted Successfully!",
+          message: onSuccess.message || "Your details have been submitted to cloud API.",
+          button_text: "Back to Home Screen",
+          route: onSuccess.route || "/"
+        });
+      } else if (action === "snackbar" || action === "toast") {
+        showToast(onSuccess.message || "✅ Successfully submitted to Cloud API!");
+      } else if (action === "navigate") {
+        const route = onSuccess.route || "/";
+        showToast(`✅ Submitted! Navigating to ${route}...`);
+        navigateToRouteInSimulator(route);
+      } else {
+        showToast(onSuccess.message || "✅ API Request Succeeded!");
+      }
+    } else {
+      const errMsg = apiConfig.on_error?.message || `⚠️ Cloud API Error (${res.status}): ${res.statusText}`;
+      showToast(errMsg, true);
+    }
+  } catch (err) {
+    console.error("Dynamic API invocation error:", err);
+    const errMsg = apiConfig.on_error?.message || `⚠️ Network Error: ${err.message}`;
+    showToast(errMsg, true);
   }
+}
+
+window.handleSimulatorAction = function(actionId, comp) {
+  // 1. If component has an API Config, execute it dynamically
+  if (comp && comp.api_config && comp.api_config.url) {
+    executeSimulatorDynamicApi(comp.api_config, comp);
+    return;
+  }
+
+  // 2. If screen has an API Config, execute it dynamically
+  if (activeSchema && activeSchema.api_config && activeSchema.api_config.url) {
+    executeSimulatorDynamicApi(activeSchema.api_config, comp);
+    return;
+  }
+
+  // 3. Fallback: if component has a success_dialog
+  if (comp && comp.success_dialog && typeof comp.success_dialog === "object") {
+    const fields = collectSimulatorFormFields();
+    postSimulatorSubmission(actionId, fields);
+    showSimulatorSuccessDialog(comp.success_dialog);
+    return;
+  }
+
+  showToast(`Triggered Action: "${actionId}"`);
 };
 
 /**
@@ -3055,12 +4995,20 @@ window.handleSimulatorDartClick = function(compId, event) {
     return;
   }
 
+  // 1. If component has an API Config, prioritize dynamic execution
+  if (comp.api_config && comp.api_config.url) {
+    executeSimulatorDynamicApi(comp.api_config, comp);
+    return;
+  }
+
   const dartCode = comp.custom_dart_code || (typeof comp.onclick === 'string' ? comp.onclick : comp.onclick?.code);
 
   if (dartCode && dartCode.trim().length > 0) {
     executeSimulatorDartSnippet(dartCode.trim(), comp);
   } else if (comp.action_id) {
     window.handleSimulatorAction(comp.action_id, comp);
+  } else if (activeSchema && activeSchema.api_config && activeSchema.api_config.url && comp.type === "button") {
+    executeSimulatorDynamicApi(activeSchema.api_config, comp);
   } else {
     showToast(`⚡ Clicked ${comp.type.toUpperCase()}`);
   }
@@ -3071,19 +5019,36 @@ function getSimulatorInputValue(keyOrId) {
   const screen = document.getElementById("phoneSimulatorScreen");
   if (!screen) return '';
 
-  // 1. Direct match by id: sim_input_{keyOrId} or sim_input_input_{keyOrId}
+  // 1. Direct match by id: sim_input_{keyOrId} or sim_input_input_{keyOrId} or keyOrId
   let el = document.getElementById(`sim_input_${keyOrId}`) ||
            document.getElementById(`sim_input_input_${keyOrId}`) ||
            document.getElementById(keyOrId);
-  if (el && el.value !== undefined) return el.value.trim();
+  if (el) {
+    if (el.type === 'checkbox') return el.checked;
+    if (el.value !== undefined) return el.value.trim();
+  }
 
-  // 2. Search inputs & textareas
+  // 2. Search data-field-id (for switch, checkbox, chip)
+  const fieldEl = screen.querySelector(`[data-field-id="${keyOrId}"]`) ||
+                  screen.querySelector(`[data-field-id="input_${keyOrId}"]`);
+  if (fieldEl) {
+    const sField = fieldEl.dataset.simField;
+    if (sField === 'checkbox' || sField === 'switch') {
+      return fieldEl.dataset.checked === 'true';
+    }
+    if (sField === 'chip') {
+      return fieldEl.classList.contains('selected');
+    }
+  }
+
+  // 3. Search inputs & textareas by matching label, placeholder, or id
   const inputs = screen.querySelectorAll('input, textarea');
   for (const input of inputs) {
     const id = (input.id || '').toLowerCase();
     const label = (input.getAttribute('data-label') || '').toLowerCase();
     const placeholder = (input.getAttribute('placeholder') || '').toLowerCase();
     if (id === query || id.includes(query) || label === query || label.includes(query) || placeholder.includes(query)) {
+      if (input.type === 'checkbox') return input.checked;
       return input.value.trim();
     }
   }
@@ -3271,6 +5236,14 @@ function executeSimulatorDartSnippet(code, comp) {
 
   // 6. Form Submit / Validate
   if (code.includes("validate") || code.includes("FormRegistry") || code.toLowerCase().includes("submit")) {
+    if (comp?.api_config && comp.api_config.url) {
+      executeSimulatorDynamicApi(comp.api_config, comp);
+      return;
+    }
+    if (activeSchema?.api_config && activeSchema.api_config.url) {
+      executeSimulatorDynamicApi(activeSchema.api_config, comp);
+      return;
+    }
     window.handleSimulatorAction(comp?.action_id || "submit_form", comp);
     return;
   }
@@ -3690,6 +5663,7 @@ btnResetDefault.addEventListener("click", () => {
 
 // Initialization
 document.addEventListener("DOMContentLoaded", async () => {
+  initPanelVisibility();
   renderFromServer(renderAll);
   await loadScreensFromServer();
   dirtyScreens.clear();

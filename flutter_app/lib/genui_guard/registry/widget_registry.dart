@@ -34,6 +34,8 @@ class SafeWidgetRegistry {
     'layout_column',
     'row',
     'layout_row',
+    'container',
+    'stack',
   };
 
   /// Build a widget safely with ErrorBoundary and Whitelist protection
@@ -102,6 +104,24 @@ class SafeWidgetRegistry {
           case 'row':
           case 'layout_row':
             return SafeGenUiLayoutContainer(
+              node: node,
+              theme: theme,
+              isGuarded: true,
+              onAction: onAction,
+              onExecute: onExecute,
+              onError: onError,
+            );
+          case 'container':
+            return SafeGenUiContainer(
+              node: node,
+              theme: theme,
+              isGuarded: true,
+              onAction: onAction,
+              onExecute: onExecute,
+              onError: onError,
+            );
+          case 'stack':
+            return SafeGenUiStack(
               node: node,
               theme: theme,
               isGuarded: true,
@@ -239,6 +259,22 @@ class SafeWidgetRegistry {
       return SafeGenUiSpacer(node: node);
     } else if (node.type == 'column' || node.type == 'layout_column' || node.type == 'row' || node.type == 'layout_row') {
       return SafeGenUiLayoutContainer(
+        node: node,
+        theme: theme,
+        isGuarded: false,
+        onAction: onAction,
+        onExecute: onExecute,
+      );
+    } else if (node.type == 'container') {
+      return SafeGenUiContainer(
+        node: node,
+        theme: theme,
+        isGuarded: false,
+        onAction: onAction,
+        onExecute: onExecute,
+      );
+    } else if (node.type == 'stack') {
+      return SafeGenUiStack(
         node: node,
         theme: theme,
         isGuarded: false,

@@ -147,23 +147,99 @@ contact_schema = {
     "components": [
         {"id": "contact_header", "type": "text", "text": "Get in touch", "font_size": 20, "is_bold": True, "align": "center", "padding": 6},
         {"id": "contact_sub", "type": "text", "text": "Tell us how we can help and our team will reach out.", "font_size": 13, "is_bold": False, "align": "center", "padding": 2},
-        {"id": "contact_name", "type": "textfield", "label": "Full Name", "hint": "e.g. Alex Morgan", "padding": 6},
-        {"id": "contact_email", "type": "textfield", "label": "Email Address", "hint": "alex@example.com", "padding": 6},
-        {"id": "contact_phone", "type": "textfield", "label": "Phone Number", "hint": "+1 555 0100", "padding": 6},
-        {"id": "contact_subject", "type": "textfield", "label": "Subject", "hint": "What is this about?", "padding": 6},
-        {"id": "contact_message", "type": "textfield", "label": "Message", "hint": "Describe your request in detail...", "max_lines": 4, "padding": 6},
-        {"id": "contact_callback", "type": "switch", "label": "Request a callback", "subtitle": "We will phone you on the number above", "is_checked": False, "padding": 4},
+        {
+            "id": "contact_name",
+            "type": "textfield",
+            "label": "Full Name",
+            "hint": "e.g. Alex Morgan",
+            "padding": 6,
+            "validation": {
+                "required": True,
+                "error_message": "Please enter your full name"
+            }
+        },
+        {
+            "id": "contact_email",
+            "type": "textfield",
+            "label": "Email Address",
+            "hint": "alex@example.com",
+            "padding": 6,
+            "validation": {
+                "required": True,
+                "type": "email",
+                "error_message": "Please enter a valid email address"
+            }
+        },
+        {
+            "id": "contact_phone",
+            "type": "textfield",
+            "label": "Phone Number",
+            "hint": "+1 555 0100",
+            "padding": 6
+        },
+        {
+            "id": "contact_subject",
+            "type": "textfield",
+            "label": "Subject",
+            "hint": "What is this about?",
+            "padding": 6
+        },
+        {
+            "id": "contact_message",
+            "type": "textfield",
+            "label": "Message",
+            "hint": "Describe your request in detail...",
+            "max_lines": 4,
+            "padding": 6,
+            "validation": {
+                "required": True,
+                "error_message": "Please describe your request"
+            }
+        },
+        {
+            "id": "contact_callback",
+            "type": "switch",
+            "label": "Request a callback",
+            "subtitle": "We will phone you on the number above",
+            "is_checked": False,
+            "padding": 4
+        },
         {
             "id": "btn_submit_contact",
             "type": "button",
             "text": "Submit Contact Request",
             "variant": "primary",
-            "action_id": "submit_contact",
-            "success_dialog": {
-                "title": "Message Sent!",
-                "message": "Thank you for contacting us. Your request has been received and our support team will get back to you within 24 hours.",
-                "button_text": "Back to Home Screen",
-                "navigate_to": "/"
+            "action_type": "api_call",
+            "api_config": {
+                "url": "/api/submissions",
+                "method": "POST",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body_mapping": {
+                    "fullName": "contact_name",
+                    "email": "contact_email",
+                    "phone": "contact_phone",
+                    "subject": "contact_subject",
+                    "message": "contact_message",
+                    "requestCallback": "contact_callback"
+                },
+                "static_body": {
+                    "form_type": "contact_us",
+                    "source": "mobile_app"
+                },
+                "validate_fields": ["contact_name", "contact_email", "contact_message"],
+                "on_success": {
+                    "type": "dialog",
+                    "title": "Message Sent!",
+                    "message": "Thank you for contacting us. Your request has been received and our support team will get back to you within 24 hours.",
+                    "button_text": "Back to Home Screen",
+                    "navigate_to": "/"
+                },
+                "on_error": {
+                    "type": "snackbar",
+                    "message": "Failed to send message. Please check connection."
+                }
             }
         }
     ]
@@ -203,27 +279,100 @@ feedback_schema = {
                 {"id": "fb_chip_excellent", "type": "chip", "label": "⭐⭐⭐⭐⭐ Excellent", "is_selected": True}
             ]
         },
-        {"id": "fb_author", "type": "textfield", "label": "Your Name or Handle", "hint": "e.g. Alex Morgan", "padding": 6},
-        {"id": "fb_comments", "type": "textfield", "label": "Your Detailed Feedback", "hint": "What did you enjoy most, or what can we improve?", "max_lines": 3, "padding": 6},
+        {
+            "id": "fb_author",
+            "type": "textfield",
+            "label": "Your Name or Handle",
+            "hint": "e.g. Alex Morgan",
+            "padding": 6,
+            "validation": {
+                "required": True,
+                "error_message": "Please enter your name or handle"
+            }
+        },
+        {
+            "id": "fb_comments",
+            "type": "textfield",
+            "label": "Your Detailed Feedback",
+            "hint": "What did you enjoy most, or what can we improve?",
+            "max_lines": 3,
+            "padding": 6,
+            "validation": {
+                "required": True,
+                "error_message": "Please write your review comments"
+            }
+        },
         {"id": "fb_public", "type": "switch", "label": "Post as Public Review", "subtitle": "Allow displaying on community wall", "is_checked": True, "padding": 4},
         {
             "id": "btn_submit_feedback",
             "type": "button",
             "text": "Submit Customer Feedback",
             "variant": "primary",
-            "action_id": "submit_feedback",
-            "success_dialog": {
-                "title": "Thanks for your feedback!",
-                "message": "Your review has been submitted successfully. We read every piece of feedback and use it to make the app better for everyone.",
-                "button_text": "Back to Home Screen",
-                "navigate_to": "/"
+            "action_type": "api_call",
+            "api_config": {
+                "url": "/api/submissions",
+                "method": "POST",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body_mapping": {
+                    "author": "fb_author",
+                    "comments": "fb_comments",
+                    "isPublic": "fb_public"
+                },
+                "static_body": {
+                    "form_type": "customer_feedback",
+                    "source": "mobile_app"
+                },
+                "validate_fields": ["fb_author", "fb_comments"],
+                "on_success": {
+                    "type": "dialog",
+                    "title": "Thanks for your feedback!",
+                    "message": "Your review has been submitted successfully. We read every piece of feedback and use it to make the app better for everyone.",
+                    "button_text": "Back to Home Screen",
+                    "navigate_to": "/"
+                }
             }
+        }
+    ]
+}
+
+super_save_dashboard_schema = {
+    "version": schema_version,
+    "timestamp": int(time.time()),
+    "screen_id": "super_save_dashboard",
+    "screen_name": "Super Save Dashboard",
+    "route": "/super_save_dashboard",
+    "theme": {
+        "primary_color": "#10B981",
+        "background_color": "#0F172A",
+        "surface_color": "#1E293B",
+        "text_primary": "#F8FAFC",
+        "text_secondary": "#94A3B8",
+        "accent_color": "#4F46E5"
+    },
+    "header": {
+        "title": "Super Save Dynamic Campaign",
+        "subtitle": "Live Web-Controlled Section",
+        "show_back_button": False,
+        "action_icon": "campaign"
+    },
+    "components": [
+        {
+            "id": "ss_promo_banner",
+            "type": "banner",
+            "title": "⚡ Live Web-Controlled Dynamic Card",
+            "message": "This section is rendered dynamically from the Web Console without any static code in the mobile app.",
+            "badge": "SUPER SAVE LIVE",
+            "style": "gradient",
+            "color": "#10B981"
         }
     ]
 }
 
 screens = {
     "home": home_schema,
+    "super_save_dashboard": super_save_dashboard_schema,
     "contact": contact_schema,
     "feedback": feedback_schema
 }
@@ -270,15 +419,22 @@ def store_submission(payload):
     now = time.time()
     with submissions_lock:
         submission_counter += 1
+
+        # Extract fields from payload: support nested fields, values, or top-level mapped keys
+        raw_fields = payload.get("fields") or payload.get("values")
+        if not raw_fields:
+            meta_keys = {"source", "screen_id", "screen_title", "action_id", "timestamp", "version", "form_type"}
+            raw_fields = {k: v for k, v in payload.items() if k not in meta_keys}
+
         record = {
             "id": submission_counter,
             "submitted_at": int(now),
             "submitted_at_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now)),
-            "screen_id": str(payload.get("screen_id") or "unknown"),
-            "screen_title": str(payload.get("screen_title") or payload.get("screen_id") or "Untitled Screen"),
-            "action_id": str(payload.get("action_id") or "submit"),
+            "screen_id": str(payload.get("screen_id") or "contact"),
+            "screen_title": str(payload.get("screen_title") or payload.get("screen_id") or "Dynamic Form"),
+            "action_id": str(payload.get("action_id") or "api_call"),
             "source": str(payload.get("source") or "flutter_app"),
-            "fields": _normalize_fields(payload.get("fields") or payload.get("values") or {}),
+            "fields": _normalize_fields(raw_fields),
         }
         submissions.append(record)
         total = len(submissions)
@@ -588,21 +744,53 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
                         "type": "textfield",
                         "label": "Full Name",
                         "hint": "e.g. Alex Morgan",
-                        "padding": 6
+                        "padding": 6,
+                        "validation": {
+                            "required": True,
+                            "error_message": "Full Name is required"
+                        }
                     },
                     {
                         "id": f"{raw_id}_input_email",
                         "type": "textfield",
                         "label": "Email Address",
                         "hint": "alex@example.com",
-                        "padding": 6
+                        "padding": 6,
+                        "validation": {
+                            "required": True,
+                            "type": "email",
+                            "error_message": "Please enter a valid email address"
+                        }
                     },
                     {
                         "id": f"{raw_id}_btn_submit",
                         "type": "button",
                         "text": "Submit Information",
                         "variant": "primary",
-                        "custom_dart_code": f"final email = GenUiFormRegistry.instance.getValue('email');\nif (email.isEmpty || !email.contains('@')) {{\n  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please enter a valid email!'), backgroundColor: Colors.red));\n  return;\n}}\nScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully saved for \\$email!'), backgroundColor: Colors.green));"
+                        "action_type": "api_call",
+                        "api_config": {
+                            "url": "/api/submissions",
+                            "method": "POST",
+                            "headers": {
+                                "Content-Type": "application/json"
+                            },
+                            "body_mapping": {
+                                "name": f"{raw_id}_input_name",
+                                "email": f"{raw_id}_input_email"
+                            },
+                            "static_body": {
+                                "screen_id": raw_id,
+                                "screen_title": raw_name
+                            },
+                            "validate_fields": [f"{raw_id}_input_name", f"{raw_id}_input_email"],
+                            "on_success": {
+                                "type": "dialog",
+                                "title": "Information Saved!",
+                                "message": f"Details for {raw_name} have been submitted to cloud API.",
+                                "button_text": "Back to Home Screen",
+                                "navigate_to": "/"
+                            }
+                        }
                     }
                 ]
             elif template == "card" or template == "feed":
@@ -797,6 +985,32 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"success": True, "cleared": cleared, "total": 0}).encode("utf-8"))
+            return
+
+        elif path == "/api/cloud-mock":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length).decode("utf-8", errors="replace")
+            try:
+                payload = json.loads(body)
+            except Exception:
+                payload = {"raw_body": body}
+
+            if isinstance(payload, dict):
+                payload.setdefault("screen_title", "External Cloud API Mock")
+                payload.setdefault("action_id", "cloud_post")
+                store_submission(payload)
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            resp = {
+                "success": True,
+                "status": "200_OK",
+                "message": "Cloud API received payload successfully!",
+                "timestamp": int(time.time()),
+                "echo": payload
+            }
+            self.wfile.write(json.dumps(resp).encode("utf-8"))
             return
 
         elif path == "/api/telemetry":

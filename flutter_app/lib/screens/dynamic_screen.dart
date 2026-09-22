@@ -216,6 +216,22 @@ class _DynamicScreenState extends State<DynamicScreen> {
   }
 
   void _handleExecute(ComponentNode node) {
+    // 1. If component or screen has a dynamic API configured, execute it dynamically
+    final apiConfig = node.apiConfig ?? (node.properties['action_type'] == 'api_call' ? _currentSchema.apiConfig : null);
+    if (apiConfig != null) {
+      GenUiApiClient.executeApi(
+        context: context,
+        config: apiConfig,
+        screenFieldIds: _screenFieldIds,
+        components: _currentSchema.components,
+        screenId: _currentSchema.screenId,
+        screenTitle: _currentSchema.header.title.isNotEmpty ? _currentSchema.header.title : _currentSchema.screenName,
+        serverBaseUrl: _syncClient?.activeUrl ?? _serverUrl,
+      );
+      return;
+    }
+
+    // 2. Custom Dart code snippet configured from Web Console
     final customCode = GenUiDartExecutor.extractCode(node);
     if (customCode != null && customCode.isNotEmpty) {
       GenUiDartExecutor.execute(
@@ -224,10 +240,19 @@ class _DynamicScreenState extends State<DynamicScreen> {
         node: node,
         isGuarded: _isGuardedMode,
       );
-    } else {
-      final actionId = node.properties['action_id']?.toString() ?? 'action_default';
-      _handleAction(actionId, node: node);
+      return;
     }
+
+    // 3. Declarative Success Dialog on button
+    final successDialog = GenUiSuccessDialog.fromProperties(node.properties);
+    if (successDialog != null) {
+      GenUiSuccessDialog.show(context, successDialog);
+      return;
+    }
+
+    // 4. Fallback to actionId
+    final actionId = node.properties['action_id']?.toString() ?? 'action_default';
+    _handleAction(actionId, node: node);
   }
 
   /// IDs of the fields rendered on this screen (used to scope validation and
@@ -235,181 +260,25 @@ class _DynamicScreenState extends State<DynamicScreen> {
   Set<String> get _screenFieldIds => _currentSchema.allComponentIds;
 
   void _handleAction(String actionId, {ComponentNode? node}) {
-    final actionLower = actionId.toLowerCase();
-    final isFormSubmit = actionLower.contains('login') ||
-        actionLower.contains('submit') ||
-        actionLower.contains('signin') ||
-        actionLower.contains('register') ||
-        actionLower.contains('signup') ||
-        actionLower.contains('feedback') ||
-        actionLower.contains('review') ||
-        actionLower.contains('auth');
+    if (actionId.isEmpty || actionId == 'none') return;
 
-    if (isFormSubmit) {
-      final scopedIds = _screenFieldIds;
-      final errors = GenUiFormRegistry.instance.validateNonEmpty(onlyIds: scopedIds);
-      if (errors.isNotEmpty) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Validation Error: ${errors.join(", ")}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFFEF4444),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
-        return;
-      }
-
-      // Validate required terms agreement if registration
-      if (actionLower.contains('register') || actionLower.contains('signup')) {
-        final allValues = GenUiFormRegistry.instance.getValues(onlyIds: scopedIds);
-        final termsAccepted = allValues.entries.any((e) =>
-            (e.key.toLowerCase().contains('terms') ||
-             GenUiFormRegistry.instance.getFieldLabel(e.key).toLowerCase().contains('terms')) &&
-            e.value == true);
-        final hasTermsField = allValues.keys.any((k) =>
-            k.toLowerCase().contains('terms') ||
-            GenUiFormRegistry.instance.getFieldLabel(k).toLowerCase().contains('terms'));
-        if (hasTermsField && !termsAccepted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Please accept the Terms & Conditions to register.',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: const Color(0xFFEF4444),
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          );
-          return;
-        }
-      }
-
-      // Buttons configured with a `success_dialog` (e.g. Contact Us, Feedback &
-      // Review) show a confirmation dialog with a "Back to Home Screen" action
-      // instead of the summary snackbar.
-      final successDialog = GenUiSuccessDialog.fromProperties(node?.properties);
-      if (successDialog != null) {
-        _storeSubmissionOnServer(actionId);
-        GenUiSuccessDialog.show(context, successDialog);
-        return;
-      }
-
-      final values = GenUiFormRegistry.instance.getValues(onlyIds: scopedIds);
-      final summary = values.entries.map((e) {
-        final label = GenUiFormRegistry.instance.getFieldLabel(e.key);
-        final val = e.key.toLowerCase().contains('pass')
-            ? '••••••••'
-            : (e.value is bool ? (e.value ? 'Yes' : 'No') : e.value);
-        return '$label: "$val"';
-      }).join(', ');
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Form Validation Passed!',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                summary.isEmpty ? 'Action: $actionId' : summary,
-                style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0)),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF10B981),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      );
-
-      // Persist the submission to the local Sync Server (Shows Submission page)
-      _storeSubmissionOnServer(actionId);
-    } else {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Triggered Action: "$actionId"'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+    // Check if route navigation is specified in actionId (e.g. /contact or nav:/feedback)
+    if (actionId.startsWith('/')) {
+      Navigator.pushNamed(context, actionId);
+      return;
     }
-  }
-
-  /// POST the validated form values to `/api/submissions` and report the
-  /// outcome. Runs after the validation snackbar so the UI stays responsive.
-  Future<void> _storeSubmissionOnServer(String actionId) async {
-    final header = _currentSchema.header;
-    final result = await GenUiSubmissionClient.submit(
-      screenId: _currentSchema.screenId,
-      screenTitle: header.title.isNotEmpty ? header.title : _currentSchema.screenName,
-      actionId: actionId,
-      onlyIds: _screenFieldIds,
-      serverUrl: _syncClient?.activeUrl ?? _serverUrl,
-    );
-    if (!mounted) return;
+    if (actionId.startsWith('nav:') || actionId.startsWith('route:')) {
+      final target = actionId.substring(actionId.indexOf(':') + 1).trim();
+      Navigator.pushNamed(context, target.startsWith('/') ? target : '/$target');
+      return;
+    }
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              result.synced ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                result.synced
-                    ? 'Stored as submission #${result.id} • View on Show Submissions page'
-                    : 'Sync server unreachable • Submission not stored',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: result.synced ? const Color(0xFF0284C7) : const Color(0xFFF59E0B),
-        duration: const Duration(seconds: 3),
+        content: Text('Triggered Action: "$actionId"'),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

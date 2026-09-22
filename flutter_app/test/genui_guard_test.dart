@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:flutter_genui_guard_app/genui_guard/genui_guard.dart';
 import 'package:flutter_genui_guard_app/screens/dynamic_screen.dart';
 
@@ -911,6 +914,597 @@ void main() {
       expect(find.text('Live Dynamic Profile'), findsOneWidget);
       expect(find.text('Edit Profile'), findsOneWidget);
       expect(find.textContaining('tier: VIP'), findsOneWidget);
+    });
+  });
+
+  group('Dynamic Web Console API Engine Tests', () {
+    test('GenUiApiClient.buildPayload maps dynamic fields and static parameters accurately', () {
+      final registry = GenUiFormRegistry.instance;
+      registry.clear();
+      registry.getController('contact_name', label: 'Full Name').text = 'Jane Doe';
+      registry.getController('contact_email', label: 'Email').text = 'jane@example.com';
+      registry.getController('contact_msg', label: 'Message').text = 'Hello World';
+      registry.setValue('callback_switch', true, label: 'Callback');
+
+      const config = ApiConfig(
+        url: 'https://api.mycloud.com/v1/leads',
+        method: 'POST',
+        headers: {'Authorization': 'Bearer test_token'},
+        bodyMapping: {
+          'lead_name': 'contact_name',
+          'lead_email': 'contact_email',
+          'notes': 'contact_msg',
+          'needs_callback': 'callback_switch',
+        },
+        staticBody: {
+          'tenant_id': 'tenant_999',
+          'source': 'mobile_app',
+        },
+      );
+
+      final payload = GenUiApiClient.buildPayload(config: config);
+
+      expect(payload['lead_name'], 'Jane Doe');
+      expect(payload['lead_email'], 'jane@example.com');
+      expect(payload['notes'], 'Hello World');
+      expect(payload['needs_callback'], 'true');
+      expect(payload['tenant_id'], 'tenant_999');
+      expect(payload['source'], 'mobile_app');
+    });
+
+    testWidgets('GenUiApiClient declarative validation blocks invalid inputs before making HTTP call', (WidgetTester tester) async {
+      final registry = GenUiFormRegistry.instance;
+      registry.clear();
+      registry.getController('contact_email', label: 'Email').text = 'invalid_email';
+
+      const emailComp = ComponentNode(
+        id: 'contact_email',
+        type: 'textfield',
+        properties: {
+          'label': 'Email Address',
+          'validation': {
+            'required': true,
+            'type': 'email',
+            'error_message': 'Please enter a valid work email',
+          },
+        },
+      );
+
+      const config = ApiConfig(
+        url: 'https://api.mycloud.com/v1/leads',
+        method: 'POST',
+      );
+
+      bool httpCalled = false;
+      final mockClient = MockClient((request) async {
+        httpCalled = true;
+        return http.Response('{"success": true}', 200);
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () async {
+                  await GenUiApiClient.executeApi(
+                    context: ctx,
+                    config: config,
+                    components: [emailComp],
+                    httpClient: mockClient,
+                  );
+                },
+                child: const Text('Submit Lead'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Submit Lead'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Validation error snackbar displayed
+      expect(find.text('Validation Error: Please enter a valid work email'), findsOneWidget);
+      // HTTP call was blocked!
+      expect(httpCalled, isFalse);
+    });
+
+    testWidgets('GenUiApiClient executes dynamic HTTP POST with mapped keys and headers', (WidgetTester tester) async {
+      final registry = GenUiFormRegistry.instance;
+      registry.clear();
+      registry.getController('user_name', label: 'Name').text = 'Alex VIP';
+      registry.getController('user_email', label: 'Email').text = 'alex@enterprise.io';
+
+      const config = ApiConfig(
+        url: 'https://api.mycloud.com/v1/contact',
+        method: 'POST',
+        headers: {
+          'X-Custom-Header': 'SecretValue123',
+        },
+        bodyMapping: {
+          'fullName': 'user_name',
+          'contactEmail': 'user_email',
+        },
+        staticBody: {
+          'app_version': '2.0.0',
+        },
+        onSuccess: {
+          'type': 'dialog',
+          'title': 'Cloud Submission Received!',
+          'message': 'Your message has been received by Cloud API.',
+          'button_text': 'Done',
+          'navigate_to': '/',
+        },
+      );
+
+      http.Request? capturedRequest;
+      final mockClient = MockClient((request) async {
+        capturedRequest = request as http.Request;
+        return http.Response(json.encode({'status': 'ok', 'id': 42}), 200);
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () async {
+                  await GenUiApiClient.executeApi(
+                    context: ctx,
+                    config: config,
+                    httpClient: mockClient,
+                  );
+                },
+                child: const Text('Send To Cloud'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Send To Cloud'));
+      await tester.pumpAndSettle();
+
+      // Verify HTTP request details
+      expect(capturedRequest, isNotNull);
+      expect(capturedRequest!.url.toString(), 'https://api.mycloud.com/v1/contact');
+      expect(capturedRequest!.headers['X-Custom-Header'], 'SecretValue123');
+
+      final decodedBody = json.decode(capturedRequest!.body);
+      expect(decodedBody['fullName'], 'Alex VIP');
+      expect(decodedBody['contactEmail'], 'alex@enterprise.io');
+      expect(decodedBody['app_version'], '2.0.0');
+
+      // Verify Success Dialog rendered
+      expect(find.text('Cloud Submission Received!'), findsOneWidget);
+      expect(find.text('Your message has been received by Cloud API.'), findsOneWidget);
+    });
+
+    testWidgets('GenUiApiClient handles 500 error and connection failure without throwing', (WidgetTester tester) async {
+      const config = ApiConfig(
+        url: 'https://api.mycloud.com/v1/fail',
+        method: 'POST',
+        onError: {
+          'message': 'Cloud Server is currently undergoing maintenance.',
+        },
+      );
+
+      final failingClient = MockClient((request) async {
+        return http.Response('Internal Server Error', 500);
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () async {
+                  await GenUiApiClient.executeApi(
+                    context: ctx,
+                    config: config,
+                    httpClient: failingClient,
+                  );
+                },
+                child: const Text('Try Failing API'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Try Failing API'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Cloud Server is currently undergoing maintenance.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('DynamicScreen button with api_config executes dynamic API on-click and maps inputs', (WidgetTester tester) async {
+      GenUiFormRegistry.instance.clear();
+      GenUiScreenRegistry.instance.clear();
+
+      final dynamicContactSchema = UiSchema(
+        version: 1,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        screenId: 'contact_test',
+        screenName: 'Contact Test',
+        route: '/contact_test',
+        theme: ThemeConfig.fallback(),
+        header: const HeaderConfig(title: 'Contact Us', subtitle: 'Dynamic Form', showBackButton: false, actionIcon: 'mail'),
+        components: const [
+          ComponentNode(
+            id: 'c_name',
+            type: 'textfield',
+            properties: {
+              'label': 'Your Name',
+              'validation': {'required': true, 'error_message': 'Name is required'},
+            },
+          ),
+          ComponentNode(
+            id: 'c_btn',
+            type: 'button',
+            properties: {
+              'text': 'Send Message',
+              'action_type': 'api_call',
+              'api_config': {
+                'url': 'https://api.mycloud.com/v1/messages',
+                'method': 'POST',
+                'body_mapping': {'sender': 'c_name'},
+                'on_success': {'type': 'snackbar', 'message': 'Message Dispatched to Cloud!'},
+              },
+            },
+          ),
+        ],
+      );
+      GenUiScreenRegistry.instance.registerScreen(dynamicContactSchema);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: DynamicScreen(screenId: 'contact_test', route: '/contact_test', enableLiveSync: false),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Enter name
+      await tester.enterText(find.byType(TextField), 'John Cloud User');
+      await tester.pump();
+
+      // Tap Send Message
+      await tester.tap(find.text('Send Message'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 0% crash guarantee: gracefully handled even without mock client (hits candidate fallback or timeout)
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Dynamic API Client: prepends Flutter baseUrl and injects authToken for relative endpoints', (WidgetTester tester) async {
+      GenUiApiClient.setBaseUrl('https://api.myproject.com');
+      GenUiApiClient.setAuthToken('test_jwt_token_xyz');
+      GenUiApiClient.setDefaultHeaders({'X-Client': 'FlutterApp'});
+      GenUiApiClient.setUserContext({'userId': 'usr_456'});
+
+      final client = MockClient((request) async {
+        // Verify relative endpoint '/v1/leads' was resolved with Flutter's baseUrl
+        expect(request.url.toString(), 'https://api.myproject.com/v1/leads');
+        // Verify auth token and default headers were auto-injected
+        expect(request.headers['Authorization'], 'Bearer test_jwt_token_xyz');
+        expect(request.headers['X-Client'], 'FlutterApp');
+        return http.Response('{"status":"success","leadId":99}', 200);
+      });
+
+      final config = ApiConfig(
+        url: '/v1/leads',
+        method: 'POST',
+        headers: const {},
+        bodyMapping: const {},
+        staticBody: const {'source': 'mobile'},
+      );
+
+      GenUiApiResult? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () async {
+                  result = await GenUiApiClient.executeApi(
+                    context: ctx,
+                    config: config,
+                    httpClient: client,
+                  );
+                },
+                child: const Text('Execute'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Execute'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(result, isNotNull);
+      expect(result!.success, isTrue);
+      expect(result!.statusCode, 200);
+
+      // Clean up session
+      GenUiApiClient.clearSession();
+      GenUiApiClient.setBaseUrl(null);
+    });
+
+    testWidgets('Dynamic API Client: replaces {userId} path variable from userContext', (WidgetTester tester) async {
+      GenUiApiClient.setBaseUrl('https://api.myproject.com');
+      GenUiApiClient.setUserContext({'userId': 'usr_789'});
+
+      final client = MockClient((request) async {
+        expect(request.url.toString(), 'https://api.myproject.com/users/usr_789/profile');
+        return http.Response('{"profile":"ok"}', 200);
+      });
+
+      final config = ApiConfig(
+        url: '/users/{userId}/profile',
+        method: 'GET',
+        headers: const {},
+        bodyMapping: const {},
+        staticBody: const {},
+      );
+
+      GenUiApiResult? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () async {
+                  result = await GenUiApiClient.executeApi(
+                    context: ctx,
+                    config: config,
+                    httpClient: client,
+                  );
+                },
+                child: const Text('Execute Profile'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Execute Profile'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(result, isNotNull);
+      expect(result!.success, isTrue);
+
+      GenUiApiClient.clearSession();
+      GenUiApiClient.setBaseUrl(null);
+    });
+
+    testWidgets('GenUiContainer renders placeholder when empty and renders components when schema arrives', (tester) async {
+      final testSchema = UiSchema(
+        version: 1,
+        timestamp: 100,
+        screenId: 'super_save_dashboard',
+        screenName: 'Super Save Dashboard',
+        route: '/super_save_dashboard',
+        theme: const ThemeConfig(
+          primaryColor: Color(0xFF10B981),
+          backgroundColor: Color(0xFF0F172A),
+          surfaceColor: Color(0xFF1E293B),
+          textPrimary: Color(0xFFF8FAFC),
+          textSecondary: Color(0xFF94A3B8),
+          accentColor: Color(0xFF4F46E5),
+        ),
+        header: HeaderConfig.fallback(),
+        components: [
+          ComponentNode(
+            id: 'banner_test_ss',
+            type: 'banner',
+            properties: const {
+              'title': 'Dynamic Super Save Campaign',
+              'message': 'Loaded from Web Console!',
+            },
+          ),
+        ],
+      );
+
+      // Register schema in registry
+      GenUiScreenRegistry.instance.registerScreen(testSchema);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Text('Top Static Section'),
+                  GenUiContainer(screenId: 'super_save_dashboard'),
+                  Text('Bottom Static Section'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(find.text('Top Static Section'), findsOneWidget);
+      expect(find.text('Dynamic Super Save Campaign'), findsOneWidget);
+      expect(find.text('Bottom Static Section'), findsOneWidget);
+    });
+
+    testWidgets('SafeGenUiContainer renders with decoration properties and child', (WidgetTester tester) async {
+      const containerNode = ComponentNode(
+        id: 'box_1',
+        type: 'container',
+        properties: {
+          'background_color': '#1E293B',
+          'border_color': '#38BDF8',
+          'border_width': 2.0,
+          'border_radius': 16.0,
+          'padding': 12.0,
+        },
+        children: [
+          ComponentNode(
+            id: 'inner_text',
+            type: 'text',
+            properties: {'text': 'Container Content'},
+          ),
+        ],
+      );
+
+      final widget = SafeWidgetRegistry.buildNode(
+        node: containerNode,
+        theme: ThemeConfig.fallback(),
+        isGuarded: true,
+      );
+
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: widget)));
+      expect(find.text('Container Content'), findsOneWidget);
+    });
+
+    testWidgets('SafeGenUiStack renders layered widgets and positioned overlay', (WidgetTester tester) async {
+      const stackNode = ComponentNode(
+        id: 'stack_1',
+        type: 'stack',
+        properties: {
+          'alignment': 'topLeft',
+          'height': 200.0,
+        },
+        children: [
+          ComponentNode(
+            id: 'base_text',
+            type: 'text',
+            properties: {'text': 'Base Layer'},
+          ),
+          ComponentNode(
+            id: 'overlay_chip',
+            type: 'chip',
+            properties: {
+              'label': 'Badge',
+              'is_positioned': true,
+              'top': 10.0,
+              'left': 10.0,
+            },
+          ),
+        ],
+      );
+
+      final widget = SafeWidgetRegistry.buildNode(
+        node: stackNode,
+        theme: ThemeConfig.fallback(),
+        isGuarded: true,
+      );
+
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: widget)));
+      expect(find.text('Base Layer'), findsOneWidget);
+      expect(find.text('Badge'), findsOneWidget);
+    });
+
+    test('Schema validator sanitizes container and stack properties with child coercion', () {
+      final payload = {
+        'version': 1,
+        'components': [
+          {
+            'id': 'c1',
+            'type': 'container',
+            'background_color': '#112233',
+            'border_color': '#AABBCC',
+            'border_width': '3px',
+            'border_radius': '12px',
+            'child': {
+              'id': 'inner',
+              'type': 'text',
+              'text': 'Inside Single Child',
+            }
+          },
+          {
+            'id': 's1',
+            'type': 'stack',
+            'alignment': 'topRight',
+            'children': [
+              {
+                'id': 'pos_child',
+                'type': 'button',
+                'text': 'Overlay Button',
+                'is_positioned': true,
+                'bottom': '20px',
+                'right': '15px'
+              }
+            ]
+          }
+        ]
+      };
+
+      final result = GenUiSchemaValidator.validateAndSanitize(payload);
+      expect(result.isValid, true);
+      expect(result.sanitizedSchema.components.length, 2);
+
+      final cNode = result.sanitizedSchema.components[0];
+      expect(cNode.properties['background_color'], '#112233');
+      expect(cNode.properties['border_color'], '#AABBCC');
+      expect(cNode.properties['border_width'], 3.0);
+      expect(cNode.properties['border_radius'], 12.0);
+      expect(cNode.children.length, 1);
+      expect(cNode.children[0].properties['text'], 'Inside Single Child');
+
+      final sNode = result.sanitizedSchema.components[1];
+      expect(sNode.children.length, 1);
+      expect(sNode.children[0].properties['is_positioned'], true);
+      expect(sNode.children[0].properties['bottom'], 20.0);
+      expect(sNode.children[0].properties['right'], 15.0);
+    });
+
+    testWidgets('SafeGenUiButton and SafeGenUiText apply custom background_color and text_color', (WidgetTester tester) async {
+      const textNode = ComponentNode(
+        id: 'txt_custom',
+        type: 'text',
+        properties: {
+          'text': 'Custom Styled Text',
+          'text_color': '#38BDF8',
+        },
+      );
+
+      const btnNode = ComponentNode(
+        id: 'btn_custom',
+        type: 'button',
+        properties: {
+          'text': 'Custom Styled Button',
+          'background_color': '#10B981',
+          'text_color': '#FFFFFF',
+        },
+      );
+
+      final textWidget = SafeWidgetRegistry.buildNode(
+        node: textNode,
+        theme: ThemeConfig.fallback(),
+        isGuarded: true,
+      );
+
+      final btnWidget = SafeWidgetRegistry.buildNode(
+        node: btnNode,
+        theme: ThemeConfig.fallback(),
+        isGuarded: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [textWidget, btnWidget],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Custom Styled Text'), findsOneWidget);
+      expect(find.text('Custom Styled Button'), findsOneWidget);
     });
   });
 }

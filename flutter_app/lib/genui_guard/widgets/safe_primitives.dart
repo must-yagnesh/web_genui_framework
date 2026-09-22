@@ -62,7 +62,7 @@ class SafeGenUiText extends StatelessWidget {
     final fontSize = (rawSize is num ? rawSize.toDouble() : 15.0).clamp(10.0, 36.0);
     final rawPadding = node.properties['padding'] ?? 4.0;
     final padding = (rawPadding is num ? rawPadding.toDouble() : 4.0).clamp(0.0, 48.0);
-    final colorHex = node.properties['color'];
+    final colorHex = node.properties['color'] ?? node.properties['text_color'];
     final color = colorHex != null
         ? parseHexColor(colorHex, theme.textPrimary)
         : theme.textPrimary;
@@ -839,5 +839,242 @@ class SafeGenUiLayoutContainer extends StatelessWidget {
         children: builtChildren,
       ),
     );
+  }
+}
+
+Alignment parseAlignment(dynamic val, {Alignment fallback = Alignment.topLeft}) {
+  switch (val?.toString().toLowerCase().trim()) {
+    case 'topleft': case 'top_left': return Alignment.topLeft;
+    case 'topcenter': case 'top_center': return Alignment.topCenter;
+    case 'topright': case 'top_right': return Alignment.topRight;
+    case 'centerleft': case 'center_left': return Alignment.centerLeft;
+    case 'center': return Alignment.center;
+    case 'centerright': case 'center_right': return Alignment.centerRight;
+    case 'bottomleft': case 'bottom_left': return Alignment.bottomLeft;
+    case 'bottomcenter': case 'bottom_center': return Alignment.bottomCenter;
+    case 'bottomright': case 'bottom_right': return Alignment.bottomRight;
+    default: return fallback;
+  }
+}
+
+/// Safe Dynamic Container with rich decoration properties (background, border, radius, padding, margin)
+class SafeGenUiContainer extends StatelessWidget {
+  final ComponentNode node;
+  final ThemeConfig theme;
+  final bool isGuarded;
+  final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
+  final Function(String componentId, String error)? onError;
+
+  const SafeGenUiContainer({
+    super.key,
+    required this.node,
+    required this.theme,
+    this.isGuarded = true,
+    this.onAction,
+    this.onExecute,
+    this.onError,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rawBg = node.properties['background_color'] ?? node.properties['color'];
+    final bgColor = rawBg != null ? parseHexColor(rawBg, Colors.transparent) : null;
+
+    final rawBorderColor = node.properties['border_color'];
+    final borderColor = rawBorderColor != null ? parseHexColor(rawBorderColor, theme.surfaceColor) : null;
+
+    final rawBorderWidth = node.properties['border_width'];
+    final borderWidth = (rawBorderWidth is num ? rawBorderWidth.toDouble() : 0.0).clamp(0.0, 32.0);
+
+    final rawBorderRadius = node.properties['border_radius'];
+    final borderRadius = (rawBorderRadius is num ? rawBorderRadius.toDouble() : 0.0).clamp(0.0, 100.0);
+
+    final rawPadding = node.properties['padding'];
+    final padding = rawPadding is num
+        ? EdgeInsets.all((rawPadding.toDouble()).clamp(0.0, 100.0))
+        : (rawPadding != null ? const EdgeInsets.all(12.0) : EdgeInsets.zero);
+
+    final rawMargin = node.properties['margin'];
+    final margin = rawMargin is num
+        ? EdgeInsets.all((rawMargin.toDouble()).clamp(0.0, 100.0))
+        : (rawMargin != null ? const EdgeInsets.symmetric(vertical: 4.0) : EdgeInsets.zero);
+
+    final rawW = node.properties['width'];
+    final double? width = (rawW is num)
+        ? rawW.toDouble()
+        : (rawW == '100%' || rawW == 'infinity' ? double.infinity : null);
+
+    final rawH = node.properties['height'];
+    final double? height = (rawH is num) ? rawH.toDouble() : null;
+
+    final alignment = node.properties.containsKey('alignment')
+        ? parseAlignment(node.properties['alignment'], fallback: Alignment.topLeft)
+        : null;
+
+    final decoration = BoxDecoration(
+      color: bgColor,
+      borderRadius: borderRadius > 0 ? BorderRadius.circular(borderRadius) : null,
+      border: (borderColor != null || borderWidth > 0)
+          ? Border.all(
+              color: borderColor ?? theme.surfaceColor,
+              width: borderWidth > 0 ? borderWidth : 1.0,
+            )
+          : null,
+    );
+
+    // Build children
+    final children = node.children;
+    Widget? childWidget;
+
+    if (children.length == 1) {
+      childWidget = SafeWidgetRegistry.buildNode(
+        node: children.first,
+        theme: theme,
+        isGuarded: isGuarded,
+        onAction: onAction,
+        onExecute: onExecute,
+        onError: onError,
+      );
+    } else if (children.length > 1) {
+      final builtChildren = children.map((c) => SafeWidgetRegistry.buildNode(
+        node: c,
+        theme: theme,
+        isGuarded: isGuarded,
+        onAction: onAction,
+        onExecute: onExecute,
+        onError: onError,
+      )).toList();
+
+      childWidget = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: builtChildren,
+      );
+    }
+
+    final actionId = node.properties['action_id']?.toString();
+    final hasAction = actionId != null && actionId.isNotEmpty;
+    final hasCode = node.properties['custom_dart_code'] != null;
+
+    if (hasAction || hasCode) {
+      childWidget = InkWell(
+        onTap: () {
+          if (hasCode && onExecute != null) {
+            onExecute!(node);
+          } else if (hasAction && onAction != null) {
+            onAction!(actionId!);
+          }
+        },
+        borderRadius: borderRadius > 0 ? BorderRadius.circular(borderRadius) : null,
+        child: childWidget ?? const SizedBox.shrink(),
+      );
+    }
+
+    return Container(
+      width: width,
+      height: height,
+      margin: margin,
+      padding: padding,
+      alignment: alignment,
+      decoration: decoration,
+      child: childWidget,
+    );
+  }
+}
+
+/// Safe Dynamic Stack widget supporting layered z-index order and Positioned coordinates
+class SafeGenUiStack extends StatelessWidget {
+  final ComponentNode node;
+  final ThemeConfig theme;
+  final bool isGuarded;
+  final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
+  final Function(String componentId, String error)? onError;
+
+  const SafeGenUiStack({
+    super.key,
+    required this.node,
+    required this.theme,
+    this.isGuarded = true,
+    this.onAction,
+    this.onExecute,
+    this.onError,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final children = node.children;
+    if (children.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final alignment = parseAlignment(node.properties['alignment'], fallback: Alignment.topLeft);
+    final fit = node.properties['fit'] == 'expand' ? StackFit.expand : StackFit.loose;
+    final clipBehavior = node.properties['clip'] == 'none' ? Clip.none : Clip.hardEdge;
+
+    final rawW = node.properties['width'];
+    final double? width = (rawW is num)
+        ? rawW.toDouble()
+        : (rawW == '100%' || rawW == 'infinity' ? double.infinity : null);
+
+    final rawH = node.properties['height'];
+    final double? height = (rawH is num) ? rawH.toDouble() : null;
+
+    final builtChildren = children.map((childNode) {
+      final childWidget = SafeWidgetRegistry.buildNode(
+        node: childNode,
+        theme: theme,
+        isGuarded: isGuarded,
+        onAction: onAction,
+        onExecute: onExecute,
+        onError: onError,
+      );
+
+      final props = childNode.properties;
+      final isPositioned = props['is_positioned'] == true ||
+          props.containsKey('top') ||
+          props.containsKey('bottom') ||
+          props.containsKey('left') ||
+          props.containsKey('right');
+
+      if (isPositioned) {
+        final top = (props['top'] is num) ? (props['top'] as num).toDouble() : null;
+        final bottom = (props['bottom'] is num) ? (props['bottom'] as num).toDouble() : null;
+        final left = (props['left'] is num) ? (props['left'] as num).toDouble() : null;
+        final right = (props['right'] is num) ? (props['right'] as num).toDouble() : null;
+        final w = (props['width'] is num) ? (props['width'] as num).toDouble() : null;
+        final h = (props['height'] is num) ? (props['height'] as num).toDouble() : null;
+
+        return Positioned(
+          top: top,
+          bottom: bottom,
+          left: left,
+          right: right,
+          width: w,
+          height: h,
+          child: childWidget,
+        );
+      }
+
+      return childWidget;
+    }).toList();
+
+    Widget stackWidget = Stack(
+      alignment: alignment,
+      fit: fit,
+      clipBehavior: clipBehavior,
+      children: builtChildren,
+    );
+
+    if (height != null || width != null) {
+      return SizedBox(
+        width: width,
+        height: height,
+        child: stackWidget,
+      );
+    }
+
+    return stackWidget;
   }
 }

@@ -149,16 +149,17 @@ class GenUiSchemaValidator {
     props.remove('id');
     props.remove('type');
     props.remove('children');
+    props.remove('child');
 
     // Strings & Text Overflow Protection
-    for (final textKey in ['title', 'message', 'description', 'text', 'badge', 'hint', 'placeholder', 'label', 'subtitle', 'trailing_text', 'icon', 'leading_icon', 'trailing_icon', 'align']) {
+    for (final textKey in ['title', 'message', 'description', 'text', 'badge', 'hint', 'placeholder', 'label', 'subtitle', 'trailing_text', 'icon', 'leading_icon', 'trailing_icon', 'align', 'alignment', 'clip', 'fit']) {
       if (props.containsKey(textKey) && props[textKey] != null) {
         props[textKey] = _sanitizeString(props[textKey], warnings, textKey);
       }
     }
 
     // Dimension & Layout Protection (Prevent RenderFlex overflows and negative assertion errors)
-    for (final dimKey in ['height', 'width', 'padding', 'elevation', 'font_size', 'border_radius', 'thickness', 'size']) {
+    for (final dimKey in ['height', 'width', 'padding', 'margin', 'elevation', 'font_size', 'border_radius', 'border_width', 'thickness', 'size', 'top', 'bottom', 'left', 'right']) {
       if (props.containsKey(dimKey)) {
         double fallbackVal = 0.0;
         if (dimKey == 'padding') fallbackVal = 16.0;
@@ -170,7 +171,7 @@ class GenUiSchemaValidator {
     }
 
     // Boolean flags coercion
-    for (final boolKey in ['is_positive', 'is_checked', 'is_selected', 'is_bold', 'is_password', 'show_back_button']) {
+    for (final boolKey in ['is_positive', 'is_checked', 'is_selected', 'is_bold', 'is_password', 'is_positioned', 'show_back_button']) {
       if (props.containsKey(boolKey)) {
         props[boolKey] = _coerceBool(props[boolKey], boolKey == 'is_positive');
       }
@@ -190,13 +191,15 @@ class GenUiSchemaValidator {
       props['action_id'] = _sanitizeActionId(props['action_id'], warnings);
     }
     // Color sanitization
-    if (props.containsKey('color')) {
-      final cVal = props['color'];
-      if (cVal != null && !isValidHexColor(cVal)) {
-        warnings.add('[Style Shield] Malformed color "$cVal" sanitized to brand token.');
-        props['has_color_anomaly'] = true;
-        props['raw_color_value'] = cVal.toString();
-        props['color'] = '#4F46E5';
+    for (final colorKey in ['color', 'background_color', 'border_color', 'text_color', 'bg_color']) {
+      if (props.containsKey(colorKey)) {
+        final cVal = props[colorKey];
+        if (cVal != null && !isValidHexColor(cVal)) {
+          warnings.add('[Style Shield] Malformed $colorKey "$cVal" sanitized to brand token.');
+          props['has_color_anomaly'] = true;
+          props['raw_${colorKey}_value'] = cVal.toString();
+          props[colorKey] = colorKey == 'border_color' ? '#334155' : (colorKey == 'text_color' ? '#FFFFFF' : '#4F46E5');
+        }
       }
     }
 
@@ -252,6 +255,13 @@ class GenUiSchemaValidator {
           ));
         }
       }
+    } else if (rawNode['child'] is Map) {
+      cleanChildren.add(_sanitizeComponentNode(
+        Map<String, dynamic>.from(rawNode['child']),
+        depth + 1,
+        warnings,
+        '${id}_child',
+      ));
     }
 
     return ComponentNode(

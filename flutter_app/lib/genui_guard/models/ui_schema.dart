@@ -10,6 +10,7 @@ class UiSchema {
   final ThemeConfig theme;
   final HeaderConfig header;
   final List<ComponentNode> components;
+  final ApiConfig? apiConfig;
 
   const UiSchema({
     required this.version,
@@ -20,6 +21,7 @@ class UiSchema {
     required this.theme,
     required this.header,
     required this.components,
+    this.apiConfig,
   });
 
   /// IDs of every component in this screen, including nested children.
@@ -83,6 +85,7 @@ class UiSchema {
     final rawScreenId = map['screen_id']?.toString() ?? 'unknown_screen';
     final rawScreenName = map['screen_name']?.toString() ?? (map['header'] is Map ? map['header']['title']?.toString() : null) ?? rawScreenId;
     final rawRoute = map['route']?.toString() ?? (rawScreenId == 'home' ? '/' : '/$rawScreenId');
+    final apiConfig = ApiConfig.fromProperties(map);
 
     return UiSchema(
       version: _parseInt(map['version'], 1),
@@ -93,6 +96,7 @@ class UiSchema {
       theme: theme,
       header: header,
       components: components,
+      apiConfig: apiConfig,
     );
   }
 
@@ -198,6 +202,8 @@ class ComponentNode {
     final properties = Map<String, dynamic>.from(map);
     properties.remove('type');
     properties.remove('id');
+    properties.remove('children');
+    properties.remove('child');
 
     List<ComponentNode> children = [];
     final rawChildren = map['children'];
@@ -208,6 +214,8 @@ class ComponentNode {
           children.add(ComponentNode.fromMap(child, fallbackId: '${id}_c$i'));
         }
       }
+    } else if (map['child'] is Map<String, dynamic>) {
+      children.add(ComponentNode.fromMap(map['child'] as Map<String, dynamic>, fallbackId: '${id}_child'));
     }
 
     return ComponentNode(
@@ -216,6 +224,86 @@ class ComponentNode {
       properties: properties,
       children: children,
     );
+  }
+
+  /// Dynamic API configuration attached to this component (e.g. on click / submit)
+  ApiConfig? get apiConfig => ApiConfig.fromProperties(properties);
+}
+
+/// Dynamic API Call Configuration configured from the Web Console
+class ApiConfig {
+  final String url;
+  final String method; // GET, POST, PUT, DELETE, PATCH
+  final Map<String, String> headers;
+  final Map<String, String> bodyMapping; // apiKey -> fieldId
+  final Map<String, dynamic> staticBody; // static payload values (e.g. source, form_type)
+  final List<String> validateFields; // optional list of field IDs to validate
+  final Map<String, dynamic>? onSuccess; // { type: 'dialog'|'snackbar'|'navigate', title, message, navigate_to }
+  final Map<String, dynamic>? onError; // { type: 'snackbar'|'dialog', message }
+  final bool resetFormOnSuccess;
+
+  const ApiConfig({
+    required this.url,
+    this.method = 'POST',
+    this.headers = const {},
+    this.bodyMapping = const {},
+    this.staticBody = const {},
+    this.validateFields = const [],
+    this.onSuccess,
+    this.onError,
+    this.resetFormOnSuccess = false,
+  });
+
+  factory ApiConfig.fromMap(Map<String, dynamic> map) {
+    final rawHeaders = map['headers'];
+    final Map<String, String> headers = {};
+    if (rawHeaders is Map) {
+      rawHeaders.forEach((k, v) => headers[k.toString()] = v?.toString() ?? '');
+    }
+
+    final rawMapping = map['body_mapping'] ?? map['mapping'] ?? map['field_mapping'];
+    final Map<String, String> bodyMapping = {};
+    if (rawMapping is Map) {
+      rawMapping.forEach((k, v) => bodyMapping[k.toString()] = v?.toString() ?? '');
+    }
+
+    final rawStatic = map['static_body'] ?? map['static_params'];
+    final Map<String, dynamic> staticBody = {};
+    if (rawStatic is Map) {
+      rawStatic.forEach((k, v) => staticBody[k.toString()] = v);
+    }
+
+    final rawValidate = map['validate_fields'];
+    final List<String> validateFields = [];
+    if (rawValidate is List) {
+      for (final f in rawValidate) {
+        if (f != null) validateFields.add(f.toString());
+      }
+    }
+
+    return ApiConfig(
+      url: map['url']?.toString() ?? '',
+      method: (map['method']?.toString() ?? 'POST').toUpperCase().trim(),
+      headers: headers,
+      bodyMapping: bodyMapping,
+      staticBody: staticBody,
+      validateFields: validateFields,
+      onSuccess: map['on_success'] is Map
+          ? Map<String, dynamic>.from(map['on_success'])
+          : null,
+      onError: map['on_error'] is Map
+          ? Map<String, dynamic>.from(map['on_error'])
+          : null,
+      resetFormOnSuccess: map['reset_form_on_success'] == true,
+    );
+  }
+
+  static ApiConfig? fromProperties(Map<String, dynamic>? props) {
+    if (props == null) return null;
+    final raw = props['api_config'] ?? props['api'];
+    if (raw is Map<String, dynamic>) return ApiConfig.fromMap(raw);
+    if (raw is Map) return ApiConfig.fromMap(Map<String, dynamic>.from(raw));
+    return null;
   }
 }
 

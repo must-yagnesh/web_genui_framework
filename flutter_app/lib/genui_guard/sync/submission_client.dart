@@ -19,12 +19,8 @@ class GenUiSubmissionResult {
   });
 }
 
-/// Sends validated form data to the Sync Server's `POST /api/submissions`
-/// endpoint so it can be reviewed on the "Shows Submission" web page
-/// (`http://localhost:8080/submissions`).
-///
-/// The server keeps every submission in an in-memory array; nothing is
-/// persisted to disk, which is intentional for the local demo workflow.
+/// Client helper for development sync logging.
+/// In production, all API calls are configured in the Web Console and executed via [GenUiApiClient.executeApi].
 class GenUiSubmissionClient {
   GenUiSubmissionClient._();
 
@@ -74,12 +70,14 @@ class GenUiSubmissionClient {
     return urls;
   }
 
-  /// POST a submission. Never throws; returns [GenUiSubmissionResult.synced]
-  /// = false when no server could be reached.
+  /// Optional form submission helper.
+  /// All production cloud submissions are managed dynamically from the Web Console schema
+  /// via [GenUiApiClient.executeApi].
   static Future<GenUiSubmissionResult> submit({
     required String screenId,
     required String screenTitle,
     required String actionId,
+    String? endpoint,
     List<Map<String, dynamic>>? fields,
     Iterable<String>? onlyIds,
     String source = 'flutter_app',
@@ -94,12 +92,17 @@ class GenUiSubmissionClient {
     };
     final body = json.encode(payload);
 
+    final cleanEndpoint = (endpoint != null && endpoint.trim().isNotEmpty)
+        ? (endpoint.trim().startsWith('/') ? endpoint.trim() : '/${endpoint.trim()}')
+        : '';
+
     String? lastError;
     for (final base in _candidateUrls(serverUrl)) {
       try {
+        final targetUrl = cleanEndpoint.isNotEmpty ? '$base$cleanEndpoint' : base;
         final response = await http
             .post(
-              Uri.parse('$base/api/submissions'),
+              Uri.parse(targetUrl),
               headers: {'Content-Type': 'application/json'},
               body: body,
             )

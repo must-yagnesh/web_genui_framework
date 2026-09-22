@@ -44,28 +44,59 @@
   <!-- Screen Management & Routing Bar -->
   <nav class="screens-navbar">
     <div class="screens-nav-left">
-      <span class="screens-nav-label">📱 Screens:</span>
+      <div class="screen-switcher-container dropdown">
+        <button class="screen-switcher-btn" id="btnScreenSwitcher" title="Click to view all screens">
+          <span class="switcher-icon" id="switcherActiveIcon">🏠</span>
+          <span class="switcher-name" id="switcherActiveName">Home</span>
+          <span class="switcher-route" id="switcherActiveRoute">/</span>
+          <span class="switcher-caret">▾</span>
+        </button>
+        <div class="dropdown-menu" id="screenSwitcherMenu">
+          <div class="dropdown-category">SWITCH SCREEN (<span id="switcherScreenCount">0</span>)</div>
+          <div class="screen-switcher-items" id="screenSwitcherItems">
+            <!-- Populated dynamically by JS -->
+          </div>
+          <div class="dropdown-divider"></div>
+          <a href="#" id="switcherBtnNewScreen">➕ Create New Screen...</a>
+        </div>
+      </div>
+
+      <div class="screen-tabs-divider"></div>
+
       <div class="screen-tabs" id="screenTabsContainer">
         <!-- Injected dynamically by JS -->
       </div>
+
       <button class="btn btn-sm btn-outline-dashed" id="btnOpenNewScreenModal">
         <span>➕ New Screen</span>
       </button>
     </div>
+
     <div class="screens-nav-right">
       <span class="active-route-pill" id="currentScreenRouteBadge">Route: <code>/</code></span>
+      <button class="btn btn-xs btn-outline" id="btnOpenScreenApiModal" title="Configure Cloud API for this screen">🔌 Screen API</button>
       <button class="btn btn-xs btn-outline-danger" id="btnDeleteCurrentScreen" style="display: none;" title="Delete this custom screen">🗑 Delete Screen</button>
     </div>
   </nav>
 
   <!-- Main 3-Column Layout -->
-  <main class="dashboard-grid">
+  <main class="dashboard-grid" id="dashboardGrid">
     
     <!-- Column 1: Visual Screen & Component Editor -->
-    <section class="panel editor-panel">
+    <section class="panel editor-panel" id="editorPanel">
+      <!-- Collapsed Strip (Shown when panel is collapsed) -->
+      <div class="panel-collapsed-bar" onclick="togglePanel('designer')" title="Click to show 🛠 Visual Screen Designer">
+        <button class="collapsed-expand-btn" title="Expand 🛠 Visual Screen Designer">⊞</button>
+        <span class="collapsed-title-vertical">🛠 Visual Screen Designer</span>
+        <span class="collapsed-show-badge">Show</span>
+      </div>
+
       <div class="panel-header">
-        <h2>🛠 Visual Screen Designer</h2>
-        <span class="badge">No Rebuild Required</span>
+        <div class="panel-header-title">
+          <h2>🛠 Visual Screen Designer</h2>
+          <span class="badge">No Rebuild Required</span>
+        </div>
+        <button class="panel-hide-btn" title="Collapse Visual Screen Designer (Alt+1)" onclick="togglePanel('designer')">⊟ Collapse</button>
       </div>
       <div class="panel-body scrollable">
         
@@ -107,6 +138,8 @@
                 <div class="dropdown-category">LAYOUT CONTAINERS</div>
                 <a href="#" data-add="column">🏛️ Column (Vertical)</a>
                 <a href="#" data-add="row">↔️ Row (Horizontal)</a>
+                <a href="#" data-add="container">📦 Container (Box & Decoration)</a>
+                <a href="#" data-add="stack">🥞 Stack (Layered Overlays)</a>
                 <a href="#" data-add="divider">➖ Divider Line</a>
                 <a href="#" data-add="spacer">↕️ Spacer Box</a>
                 <div class="dropdown-divider"></div>
@@ -133,7 +166,14 @@
     </section>
 
     <!-- Column 2: AI Prompt Studio & JSON Schema Editor -->
-    <section class="panel ai-panel">
+    <section class="panel ai-panel" id="aiPanel">
+      <!-- Collapsed Strip (Shown when panel is collapsed) -->
+      <div class="panel-collapsed-bar" onclick="togglePanel('ai')" title="Click to show 🤖 Prompt, Template & JSON Panel">
+        <button class="collapsed-expand-btn" title="Expand 🤖 Prompt, Template & JSON Panel">⊞</button>
+        <span class="collapsed-title-vertical">🤖 Prompt, Template & JSON</span>
+        <span class="collapsed-show-badge">Show</span>
+      </div>
+
       <div class="panel-header">
         <div class="tabs">
           <button class="tab-btn active" data-tab="tab-ai">🤖 AI Prompt Studio</button>
@@ -141,6 +181,7 @@
           <button class="tab-btn" data-tab="tab-json">📄 Raw Schema JSON</button>
           <button class="tab-btn" data-tab="tab-stress">⚡ Stress & Adversarial</button>
         </div>
+        <button class="panel-hide-btn" title="Collapse Prompt & JSON Panel (Alt+2)" onclick="togglePanel('ai')">⊟ Collapse</button>
       </div>
 
       <div class="panel-body">
@@ -369,10 +410,20 @@
     </section>
 
     <!-- Column 3: Live Mobile Phone Simulator & Telemetry -->
-    <section class="panel simulator-panel">
+    <section class="panel simulator-panel" id="simulatorPanel">
+      <!-- Collapsed Strip (Shown when panel is collapsed) -->
+      <div class="panel-collapsed-bar" onclick="togglePanel('simulator')" title="Click to show 📱 Live App Simulator">
+        <button class="collapsed-expand-btn" title="Expand 📱 Live App Simulator">⊞</button>
+        <span class="collapsed-title-vertical">📱 Live App Simulator</span>
+        <span class="collapsed-show-badge">Show</span>
+      </div>
+
       <div class="panel-header">
-        <h2>📱 Live App Simulator</h2>
-        <span class="live-pill">Real-Time</span>
+        <div class="panel-header-title">
+          <h2>📱 Live App Simulator</h2>
+          <span class="live-pill">Real-Time</span>
+        </div>
+        <button class="panel-hide-btn" title="Collapse Live Simulator (Alt+3)" onclick="togglePanel('simulator')">⊟ Collapse</button>
       </div>
 
       <div class="panel-body center-content">
@@ -467,6 +518,212 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" id="btnCancelNewScreenModal">Cancel</button>
         <button class="btn btn-primary" id="btnSubmitCreateScreen">Create & Open Screen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Configuration Modal -->
+  <div class="modal-backdrop" id="apiConfigModal" style="display: none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h3>🔌 Configure Cloud API Endpoint & Field Mapping</h3>
+          <span class="modal-subtitle" id="apiModalTargetSubtitle">Configuring for Button: "Submit Request"</span>
+        </div>
+        <button class="modal-close" id="btnCloseApiConfigModal">&times;</button>
+      </div>
+      <div class="modal-body api-modal-body">
+        
+        <!-- Info Banner -->
+        <div class="api-info-banner">
+          <span class="api-info-icon">⚡</span>
+          <div class="api-info-text">
+            <strong>Flutter Dynamic Cloud Connector</strong>
+            <span>Configure the API URL, HTTP Method, Headers, and map screen inputs to request body parameters. The Flutter app executes this call dynamically on click without any code changes or app store rebuilds.</span>
+          </div>
+        </div>
+
+        <!-- Section 1: Endpoint & Method -->
+        <div class="api-config-section">
+          <label class="section-badge">1. ENDPOINT & HTTP METHOD</label>
+          <div class="input-row">
+            <div class="field flex-1" style="max-width: 140px;">
+              <label>HTTP Method</label>
+              <select id="apiMethodSelect">
+                <option value="POST">POST</option>
+                <option value="GET">GET</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+            <div class="field flex-3">
+              <label>API Endpoint URL</label>
+              <input type="text" id="apiUrlInput" placeholder="e.g. https://api.mycloud.com/v1/leads or /api/submissions">
+            </div>
+          </div>
+          <div class="api-url-presets">
+            <span class="preset-label">Presets:</span>
+            <button class="chip-preset" type="button" onclick="setApiUrlPreset('/api/submissions')">/api/submissions</button>
+            <button class="chip-preset" type="button" onclick="setApiUrlPreset('/api/cloud-mock')">/api/cloud-mock</button>
+            <button class="chip-preset" type="button" onclick="setApiUrlPreset('https://jsonplaceholder.typicode.com/posts')">JSONPlaceholder Posts</button>
+            <button class="chip-preset" type="button" onclick="setApiUrlPreset('https://reqres.in/api/users')">ReqRes Users</button>
+          </div>
+          <p class="field-hint" style="margin-top: 8px; color: #818CF8; font-size: 11px;">
+            💡 <strong>Production Tip:</strong> You can pass just the relative endpoint path (e.g. <code>/api/leads</code> or <code>/v1/checkout</code>). The Flutter mobile app automatically prepends its configured Base URL (e.g. <code>https://api.myproject.com</code>) and auto-injects the user's active Bearer Auth Token!
+          </p>
+        </div>
+
+        <!-- Section 2: Request Headers -->
+        <div class="api-config-section">
+          <div class="flex-between">
+            <label class="section-badge">2. REQUEST HEADERS</label>
+            <button class="btn btn-xs btn-outline" type="button" id="btnAddHeaderRow">+ Add Header</button>
+          </div>
+          <div class="api-table-wrapper">
+            <table class="api-table" id="apiHeadersTable">
+              <thead>
+                <tr>
+                  <th style="width: 45%;">Header Key</th>
+                  <th style="width: 45%;">Header Value</th>
+                  <th style="width: 10%; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="apiHeadersTbody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+          <div class="api-quick-headers">
+            <button class="chip-preset" type="button" onclick="addHeaderPreset('Content-Type', 'application/json')">+ Content-Type: JSON</button>
+            <button class="chip-preset" type="button" onclick="addHeaderPreset('Authorization', 'Bearer YOUR_TOKEN')">+ Bearer Token</button>
+            <button class="chip-preset" type="button" onclick="addHeaderPreset('X-Api-Key', 'your_api_key_here')">+ X-Api-Key</button>
+          </div>
+        </div>
+
+        <!-- Section 3: Request Body & Screen Field Mapping -->
+        <div class="api-config-section">
+          <div class="flex-between">
+            <div>
+              <label class="section-badge">3. REQUEST BODY & FIELD MAPPING</label>
+              <p class="field-hint" style="margin: 0;">Map user input fields from this screen to your Cloud API parameter keys:</p>
+            </div>
+            <div class="action-btn-group">
+              <button class="btn btn-xs btn-outline-success" type="button" id="btnAutoMapAllFields">⚡ Auto-Map All Screen Inputs</button>
+              <button class="btn btn-xs btn-outline" type="button" id="btnAddMappingRow">+ Add Field</button>
+            </div>
+          </div>
+          
+          <div class="api-table-wrapper">
+            <table class="api-table" id="apiMappingTable">
+              <thead>
+                <tr>
+                  <th style="width: 45%;">API Body Parameter Key</th>
+                  <th style="width: 45%;">Screen Form Input Field</th>
+                  <th style="width: 10%; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="apiMappingTbody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Static Parameters Section -->
+          <div class="static-params-toggle" style="margin-top: 14px;">
+            <div class="flex-between">
+              <label style="font-size: 11px; font-weight: 600; color: var(--text-muted);">STATIC / CONSTANT PARAMETERS (e.g. source, tenant_id)</label>
+              <button class="btn btn-xs btn-outline" type="button" id="btnAddStaticParamRow">+ Add Static Parameter</button>
+            </div>
+            <div class="api-table-wrapper" style="margin-top: 6px;">
+              <table class="api-table" id="apiStaticParamsTable">
+                <thead>
+                  <tr>
+                    <th style="width: 45%;">Static Key</th>
+                    <th style="width: 45%;">Static Value</th>
+                    <th style="width: 10%; text-align: center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="apiStaticParamsTbody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Real-time Payload Preview -->
+          <div class="payload-preview-box">
+            <div class="preview-header">
+              <span>👁 Live Outgoing JSON Request Payload Preview:</span>
+              <button class="btn btn-xs btn-outline" type="button" id="btnRefreshPayloadPreview">Refresh Preview</button>
+            </div>
+            <pre class="json-preview-code" id="apiPayloadPreviewJson">{}</pre>
+          </div>
+        </div>
+
+        <!-- Section 4: Response Outcome & Validation -->
+        <div class="api-config-section">
+          <label class="section-badge">4. SUCCESS & ERROR OUTCOME ACTIONS</label>
+          <div class="input-row">
+            <div class="field flex-1">
+              <label>On Success Action</label>
+              <select id="apiSuccessTypeSelect">
+                <option value="dialog">Show Confirmation Dialog</option>
+                <option value="snackbar">Show Toast / SnackBar Notification</option>
+                <option value="navigate">Direct Screen Navigation</option>
+              </select>
+            </div>
+            <div class="field flex-1" id="apiSuccessNavField">
+              <label>Navigate To (Route)</label>
+              <input type="text" id="apiSuccessNavInput" placeholder="e.g. / or /orders" value="/">
+            </div>
+          </div>
+
+          <div class="input-row" id="apiDialogFieldsRow">
+            <div class="field flex-1">
+              <label>Dialog Title</label>
+              <input type="text" id="apiSuccessTitleInput" value="Submitted Successfully!">
+            </div>
+            <div class="field flex-2">
+              <label>Dialog Confirmation Message</label>
+              <input type="text" id="apiSuccessMsgInput" value="Your details have been submitted to cloud API.">
+            </div>
+          </div>
+
+          <div class="input-row">
+            <div class="field flex-1">
+              <label>Custom Error Message (On Failure)</label>
+              <input type="text" id="apiErrorMsgInput" placeholder="e.g. Submission failed. Please verify your connection.">
+            </div>
+            <div class="field flex-1" style="display: flex; align-items: center; padding-top: 18px;">
+              <label class="checkbox-inline">
+                <input type="checkbox" id="apiResetFormCheckbox" checked>
+                <span>Reset form fields after successful submission</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live API Test Console -->
+        <div class="api-test-card" id="apiTestCard">
+          <div class="api-test-header">
+            <span>🧪 Direct Cloud API Test Runner</span>
+            <button class="btn btn-sm btn-outline-success" type="button" id="btnRunApiTest">▶ Send Test Request Now</button>
+          </div>
+          <div class="api-test-result" id="apiTestResult" style="display:none;">
+            <div class="test-result-meta">
+              <span class="badge" id="apiTestStatusBadge">200 OK</span>
+              <span class="test-time" id="apiTestDuration">18 ms</span>
+            </div>
+            <pre class="test-result-body" id="apiTestResponseBody"></pre>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-danger" type="button" id="btnRemoveApiConfig" style="margin-right: auto;">Remove API Binding</button>
+        <button class="btn btn-secondary" type="button" id="btnCancelApiConfigModal">Cancel</button>
+        <button class="btn btn-primary" type="button" id="btnSaveApiConfig">💾 Save &amp; Bind API</button>
       </div>
     </div>
   </div>
