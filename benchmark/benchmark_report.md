@@ -16,13 +16,13 @@
 
 | Category | Test Count | Naive Parser Crashes | Guard Failures | Average Guard Latency |
 | :--- | :---: | :---: | :---: | :---: |
-| `hallucinated_widget` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
+| `hallucinated_widget` | 10 | 10/10 (100%) | 0/10 (0%) | 0.01 ms |
 | `layout_trap` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `malformed_styling` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `malicious_injection` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `nan_dimension_trap` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `null_coalescing_hazard` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
-| `stream_race_condition` | 10 | 10/10 (100%) | 0/10 (0%) | 0.01 ms |
+| `stream_race_condition` | 10 | 10/10 (100%) | 0/10 (0%) | 0.02 ms |
 | `text_overflow_bomb` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `tree_corruption` | 10 | 10/10 (100%) | 0/10 (0%) | 0.00 ms |
 | `type_mismatch` | 10 | 10/10 (100%) | 0/10 (0%) | 0.01 ms |
@@ -63,7 +63,7 @@
 | `TC-30` | `malformed_styling` | Invalid shadow elevation string ('heavy_shadow') | 💥 CRASH: `TypeError: elevation expected ...` | 🛡 SAFE (0.00ms) |
 | `TC-31` | `hallucinated_widget` | LLM hallucinated QuantumLaserCard widget | 💥 CRASH: `UnsupportedError: No registere...` | 🛡 SAFE (0.00ms) |
 | `TC-32` | `hallucinated_widget` | LLM invented HTML div tag inside Flutter schema | 💥 CRASH: `UnsupportedError: No registere...` | 🛡 SAFE (0.00ms) |
-| `TC-33` | `hallucinated_widget` | LLM invented SwiftUI VStack tag inside Flutter schema | 💥 CRASH: `UnsupportedError: No registere...` | 🛡 SAFE (0.00ms) |
+| `TC-33` | `hallucinated_widget` | LLM invented SwiftUI VStack tag inside Flutter schema | 💥 CRASH: `UnsupportedError: No registere...` | 🛡 SAFE (0.07ms) |
 | `TC-34` | `hallucinated_widget` | LLM hallucinated 3D Hologram viewport widget | 💥 CRASH: `UnsupportedError: No registere...` | 🛡 SAFE (0.00ms) |
 | `TC-35` | `hallucinated_widget` | Empty string widget type | 💥 CRASH: `AssertionError: Component at i...` | 🛡 SAFE (0.00ms) |
 | `TC-36` | `hallucinated_widget` | Missing type key entirely on component object | 💥 CRASH: `AssertionError: Component at i...` | 🛡 SAFE (0.00ms) |
@@ -128,7 +128,7 @@
 | `TC-95` | `stream_race_condition` | Screen ID mismatch (payload sent for screen A to screen B) | 💥 CRASH: `ArgumentError: Screen ID misma...` | 🛡 SAFE (0.00ms) |
 | `TC-96` | `stream_race_condition` | Non-numeric string version ("v2.0-beta.rc1") | 💥 CRASH: `TypeError: type 'str' is not a...` | 🛡 SAFE (0.00ms) |
 | `TC-97` | `stream_race_condition` | Stale backwards version push (client on v14, received v2) | 💥 CRASH: `StateError: Out of order schem...` | 🛡 SAFE (0.00ms) |
-| `TC-98` | `stream_race_condition` | Rapid state toggle payload (flickering theme between dark/light) | 💥 CRASH: `StateError: Rapid state mutati...` | 🛡 SAFE (0.05ms) |
+| `TC-98` | `stream_race_condition` | Rapid state toggle payload (flickering theme between dark/light) | 💥 CRASH: `StateError: Rapid state mutati...` | 🛡 SAFE (0.06ms) |
 | `TC-99` | `stream_race_condition` | Massive payload size (250 components) stressing garbage collection | 💥 CRASH: `MemoryBudgetExceededError: Com...` | 🛡 SAFE (0.08ms) |
 | `TC-100` | `stream_race_condition` | Empty string screen_id with null header and empty component array | 💥 CRASH: `AssertionError: screen_id cann...` | 🛡 SAFE (0.00ms) |
 

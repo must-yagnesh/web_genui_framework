@@ -663,8 +663,8 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
             self.send_header("Pragma", "no-cache")
         # Enable CORS for local testing and cross-origin Web & Emulator connections
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Cache-Control")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE, PATCH")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Cache-Control, Authorization, X-API-Key, api-key, x-auth-token, *")
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -710,13 +710,30 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
                 if clean_url.startswith("/"):
                     clean_url = f"http://127.0.0.1:{SERVER_PORT}{clean_url}"
 
-                req = urllib.request.Request(
-                    clean_url,
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                        "Accept": "application/json, text/plain, */*"
-                    }
-                )
+                fwd_headers = {
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/json, text/plain, */*"
+                }
+
+                # 1. Forward headers passed via JSON in query param ?headers={...}
+                if "headers" in query:
+                    try:
+                        custom_h = json.loads(query["headers"][0])
+                        if isinstance(custom_h, dict):
+                            for k, v in custom_h.items():
+                                if k and v is not None:
+                                    fwd_headers[str(k)] = str(v)
+                    except Exception:
+                        pass
+
+                # 2. Forward Authorization and custom headers from incoming HTTP request
+                for h_key, h_val in self.headers.items():
+                    h_lower = h_key.lower()
+                    if h_lower in ("authorization", "x-api-key", "api-key", "token", "x-auth-token") or h_lower.startswith("x-"):
+                        if h_key not in fwd_headers:
+                            fwd_headers[h_key] = h_val
+
+                req = urllib.request.Request(clean_url, headers=fwd_headers)
                 ssl_ctx = ssl.create_default_context()
                 ssl_ctx.check_hostname = False
                 ssl_ctx.verify_mode = ssl.CERT_NONE
@@ -943,6 +960,93 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(resp).encode("utf-8"))
             return
 
+        elif path == "/api/mock/secure-data":
+            auth_header = self.headers.get("Authorization") or self.headers.get("authorization") or ""
+            api_key = self.headers.get("X-API-Key") or self.headers.get("x-api-key") or self.headers.get("api-key") or ""
+            query = parse_qs(parsed.query)
+            query_key = query.get("api_key", [None])[0] or query.get("key", [None])[0]
+
+            is_bearer = auth_header.strip().lower().startswith("bearer ") and len(auth_header.strip()) > 7
+            is_valid_key = bool(api_key.strip() or query_key)
+
+            if not is_bearer and not is_valid_key:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                err_resp = {
+                    "error": "Unauthorized",
+                    "status": 401,
+                    "message": "Missing or invalid authorization. Please provide an 'Authorization: Bearer <token>' header or an 'X-API-Key' header to access this protected endpoint.",
+                    "supported_auth": [
+                        "Header 'Authorization: Bearer <token>'",
+                        "Header 'X-API-Key: <key>'",
+                        "Query param '?api_key=<key>'"
+                    ]
+                }
+                self.wfile.write(json.dumps(err_resp, indent=2).encode("utf-8"))
+                return
+
+            auth_type = "Bearer Token" if is_bearer else "API Key"
+            token_display = (auth_header[7:].strip()[:10] + "...") if is_bearer else ((api_key or query_key)[:6] + "...")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            secure_payload = {
+                "status": "success",
+                "auth_status": "authenticated",
+                "auth_method": auth_type,
+                "authenticated_identity": {
+                    "user_id": "usr_sec_9918",
+                    "username": "admin_demo",
+                    "role": "Super Admin",
+                    "email": "admin@cloudproject.dev",
+                    "token_fingerprint": token_display
+                },
+                "project": {
+                    "id": "proj_enterprise_01",
+                    "name": "Cloud Production Enterprise Feed",
+                    "environment": "production",
+                    "version": "v3.2.0"
+                },
+                "metrics": {
+                    "total_revenue": 128450.75,
+                    "active_subscribers": 3420,
+                    "conversion_rate": "4.8%",
+                    "server_uptime": "99.98%"
+                },
+                "items": [
+                    {
+                        "id": "rec_001",
+                        "title": "Enterprise Cloud Cluster A",
+                        "status": "Active",
+                        "region": "us-east-1",
+                        "cost": "$420/mo",
+                        "utilization": "78%"
+                    },
+                    {
+                        "id": "rec_002",
+                        "title": "Analytics Pipeline Worker",
+                        "status": "Healthy",
+                        "region": "eu-central-1",
+                        "cost": "$280/mo",
+                        "utilization": "42%"
+                    },
+                    {
+                        "id": "rec_003",
+                        "title": "Dynamic AST AI Gateway",
+                        "status": "Optimal",
+                        "region": "ap-southeast-1",
+                        "cost": "$650/mo",
+                        "utilization": "91%"
+                    }
+                ]
+            }
+            self.wfile.write(json.dumps(secure_payload, indent=2).encode("utf-8"))
+            return
+
         # Serve Web Control Dashboard files by default
         return super().do_GET()
 
@@ -951,7 +1055,80 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
-        if path == "/api/schema/apply":
+        if path == "/api/proxy":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body_bytes = self.rfile.read(content_length)
+            try:
+                payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+            except Exception:
+                payload = {}
+            target_url = payload.get("url")
+            if not target_url:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Missing 'url' in body"}).encode("utf-8"))
+                return
+            clean_url = target_url.strip()
+            if clean_url.startswith("/"):
+                clean_url = f"http://127.0.0.1:{SERVER_PORT}{clean_url}"
+
+            method = (payload.get("method") or "GET").upper()
+            fwd_headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json, text/plain, */*"
+            }
+            if isinstance(payload.get("headers"), dict):
+                for k, v in payload["headers"].items():
+                    if k and v is not None:
+                        fwd_headers[str(k)] = str(v)
+
+            for h_name, h_val in self.headers.items():
+                h_lower = h_name.lower()
+                if h_lower in ("authorization", "x-api-key", "api-key", "token", "x-auth-token") or h_lower.startswith("x-"):
+                    if h_name not in fwd_headers:
+                        fwd_headers[h_name] = h_val
+
+            req_data = None
+            if payload.get("body") is not None and method not in ("GET", "HEAD"):
+                req_data = json.dumps(payload["body"]).encode("utf-8")
+                fwd_headers["Content-Type"] = "application/json"
+
+            try:
+                req = urllib.request.Request(clean_url, data=req_data, headers=fwd_headers, method=method)
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+                with urllib.request.urlopen(req, timeout=15, context=ssl_ctx) as response:
+                    content_type = response.headers.get("Content-Type", "application/json")
+                    body = response.read()
+                    self.send_response(response.status)
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+            except urllib.error.HTTPError as he:
+                err_body = he.read() if hasattr(he, "read") else b""
+                self.send_response(he.code)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                if err_body:
+                    self.wfile.write(err_body)
+                else:
+                    self.wfile.write(json.dumps({"error": f"HTTP {he.code}: {he.reason}"}).encode("utf-8"))
+                return
+            except Exception as e:
+                self.send_response(502)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Proxy request failed: {str(e)}"}).encode("utf-8"))
+                return
+
+        elif path == "/api/schema/apply":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length).decode("utf-8")
             try:

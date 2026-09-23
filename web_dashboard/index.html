@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Web-Controlled Gen UI Dashboard — Instant Mobile Delivery</title>
-  <link rel="stylesheet" href="style.css?v=20260918b">
+  <link rel="stylesheet" href="style.css?v=20260923_modal95">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -592,16 +592,111 @@
               <button class="chip-preset" type="button" onclick="setDsUrlPreset('https://jsonplaceholder.typicode.com/users', 'Users List')">👥 JSONPlaceholder Users</button>
               <button class="chip-preset" type="button" onclick="setDsUrlPreset('/api/mock/products/1', 'Local Product Detail')">📱 Local Product Mock</button>
               <button class="chip-preset" type="button" onclick="setDsUrlPreset('/api/mock/users', 'Local Paginated Users')">👥 Local Paginated Users</button>
+              <button class="chip-preset" type="button" onclick="setDsUrlPreset('/api/mock/secure-data', 'Secure Project Mock', true)" title="Test Authorization Header (Returns 401 without auth, 200 with Bearer/API Key)">🔒 Secure Mock API (Auth Required)</button>
             </div>
             <p class="field-hint api-prod-tip">
               💡 <strong>Zero Hardcoded Code:</strong> The Flutter mobile app automatically extracts properties and renders repeating <code>list_view</code> components based on this configuration.
             </p>
           </div>
 
-          <!-- Section 2: Pagination & Repeating Collections -->
+          <!-- Section 2: Authorization & Request Headers -->
           <div class="api-config-section" style="margin-top: 12px;">
             <div class="flex-between">
-              <label class="section-badge">2. DYNAMIC PAGINATION &amp; INFINITE SCROLL</label>
+              <label class="section-badge">2. AUTHORIZATION &amp; REQUEST HEADERS</label>
+              <span class="auth-status-chip" id="dsAuthStatusBadge">🔓 No Auth (Public)</span>
+            </div>
+            <p class="field-hint" style="margin: 2px 0 8px 0;">Configure Bearer Token, API Key, or custom request headers to authenticate and fetch real project APIs in the web console:</p>
+
+            <!-- Auth Mode Switcher -->
+            <div class="api-auth-type-nav" id="dsAuthTypeSelector">
+              <button type="button" class="btn btn-xs ds-auth-type-btn active" data-auth="none" onclick="setDsAuthType('none')">🔓 No Auth</button>
+              <button type="button" class="btn btn-xs ds-auth-type-btn" data-auth="bearer" onclick="setDsAuthType('bearer')">🔑 Bearer Token</button>
+              <button type="button" class="btn btn-xs ds-auth-type-btn" data-auth="apikey" onclick="setDsAuthType('apikey')">🛡️ API Key</button>
+              <button type="button" class="btn btn-xs ds-auth-type-btn" data-auth="custom" onclick="setDsAuthType('custom')">⚙️ Custom Headers</button>
+            </div>
+
+            <!-- Panel: Bearer Token -->
+            <div id="dsAuthPanelBearer" class="ds-auth-panel" style="display: none;">
+              <div class="field">
+                <div class="flex-between">
+                  <label style="color: #38BDF8; font-weight: 600;">Bearer Token (JWT / OAuth)</label>
+                  <button class="chip-preset" type="button" onclick="setMockBearerToken()" style="font-size: 10px; padding: 1px 6px;">Use Demo Token</button>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                  <span class="auth-prefix-badge">Bearer</span>
+                  <input type="password" id="dsBearerTokenInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." style="flex: 1;" oninput="onDsBearerTokenChange()">
+                  <button class="btn btn-xs btn-outline btn-toggle-pw" type="button" id="btnToggleBearerVisibility" onclick="toggleBearerVisibility()" title="Show/Hide Token">👁</button>
+                </div>
+                <p class="field-hint" style="margin: 4px 0 0 0; font-size: 11px;">
+                  Sent as <code>Authorization: Bearer &lt;token&gt;</code> on API fetch and mobile runtime.
+                </p>
+              </div>
+            </div>
+
+            <!-- Panel: API Key -->
+            <div id="dsAuthPanelApiKey" class="ds-auth-panel" style="display: none;">
+              <div class="input-row">
+                <div class="field flex-1" style="max-width: 190px;">
+                  <label style="color: #10B981; font-weight: 600;">Header Name</label>
+                  <input type="text" id="dsApiKeyHeaderNameInput" value="X-API-Key" placeholder="e.g. X-API-Key or api-key" list="dsApiKeyHeaderSuggestions" oninput="onDsApiKeyChange()">
+                  <datalist id="dsApiKeyHeaderSuggestions">
+                    <option value="X-API-Key">
+                    <option value="api-key">
+                    <option value="Authorization">
+                    <option value="x-auth-token">
+                    <option value="apikey">
+                  </datalist>
+                </div>
+                <div class="field flex-2">
+                  <div class="flex-between">
+                    <label style="color: #10B981; font-weight: 600;">API Key Value</label>
+                    <button class="chip-preset" type="button" onclick="setMockApiKey()" style="font-size: 10px; padding: 1px 6px;">Use Demo Key</button>
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <input type="password" id="dsApiKeyValueInput" placeholder="e.g. sk_live_... or project_api_key_9918" style="flex: 1;" oninput="onDsApiKeyChange()">
+                    <button class="btn btn-xs btn-outline btn-toggle-pw" type="button" id="btnToggleApiKeyVisibility" onclick="toggleApiKeyVisibility()" title="Show/Hide API Key">👁</button>
+                  </div>
+                </div>
+              </div>
+              <p class="field-hint" style="margin: 4px 0 0 0; font-size: 11px;">
+                Sent as custom header (e.g. <code>X-API-Key: &lt;key&gt;</code>) during inspection and on the mobile device.
+              </p>
+            </div>
+
+            <!-- Active Request Headers Table -->
+            <div id="dsHeadersContainer">
+              <div class="flex-between" style="margin-bottom: 6px;">
+                <label style="font-size: 11px; font-weight: 600; color: var(--text-muted);">ALL REQUEST HEADERS (<span id="dsHeadersCount">0</span> active)</label>
+                <button class="btn btn-xs btn-outline" type="button" id="btnAddDsHeaderRow" onclick="addDsHeaderRow('', '')">+ Add Header</button>
+              </div>
+              <div class="api-table-wrapper">
+                <table class="api-table" id="dsHeadersTable">
+                  <thead>
+                    <tr>
+                      <th style="width: 42%;">Header Key</th>
+                      <th style="width: 48%;">Header Value</th>
+                      <th style="width: 10%; text-align: center;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dsHeadersTbody">
+                    <!-- Injected via JS -->
+                  </tbody>
+                </table>
+              </div>
+              <div class="api-quick-headers" style="margin-top: 6px;">
+                <span class="preset-label">Quick:</span>
+                <button class="chip-preset" type="button" onclick="addDsHeaderPreset('Authorization', 'Bearer YOUR_TOKEN')">+ Bearer Token</button>
+                <button class="chip-preset" type="button" onclick="addDsHeaderPreset('X-API-Key', 'your_api_key_here')">+ X-Api-Key</button>
+                <button class="chip-preset" type="button" onclick="addDsHeaderPreset('Content-Type', 'application/json')">+ Content-Type: JSON</button>
+                <button class="chip-preset" type="button" onclick="addDsHeaderPreset('X-Tenant-ID', 'tenant_default')">+ X-Tenant-ID</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Pagination & Repeating Collections -->
+          <div class="api-config-section" style="margin-top: 12px;">
+            <div class="flex-between">
+              <label class="section-badge">3. DYNAMIC PAGINATION &amp; INFINITE SCROLL</label>
               <label class="checkbox-inline">
                 <input type="checkbox" id="dsPaginationCheckbox" onchange="toggleDsPaginationFields()">
                 <span style="font-size: 12px; font-weight: 600; color: #38BDF8;">Enable Infinite Scroll / Pagination</span>
@@ -634,10 +729,10 @@
             </div>
           </div>
 
-          <!-- Section 2b: Error State & Widget Configuration (Configurable by Admin) -->
+          <!-- Section 4: Error State & Widget Configuration -->
           <div class="api-config-section" style="margin-top: 12px;">
             <div class="flex-between">
-              <label class="section-badge">ERROR STATE &amp; WIDGET CONFIGURATION</label>
+              <label class="section-badge">4. ERROR STATE &amp; WIDGET CONFIGURATION</label>
               <label class="checkbox-inline">
                 <input type="checkbox" id="dsShowErrorWidgetCheckbox" checked>
                 <span style="font-size: 12px; font-weight: 600; color: #F87171;">Display Error Widget on Failure</span>
@@ -658,15 +753,16 @@
             </div>
           </div>
 
-          <!-- Section 3: Live Test, Condensed JSON & Suggested UI Component Builder -->
+          <!-- Section 5: Live Test, Condensed JSON & Suggested UI Component Builder -->
           <div class="api-config-section" style="margin-top: 12px;">
             <div class="flex-between">
               <div>
-                <label class="section-badge">3. INSPECT API RESPONSE &amp; SUGGESTED UI BUILDER</label>
+                <label class="section-badge">5. INSPECT API RESPONSE &amp; SUGGESTED UI BUILDER</label>
                 <p class="field-hint" style="margin:0;">Inspect JSON response and customize suggested UI components before creating the screen:</p>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span id="dsFetchStatusBadge" class="badge" style="display: none; font-size: 11px;"></span>
+                <button class="btn btn-sm btn-outline-primary" type="button" id="btnToggleManualJson" onclick="openManualJsonEditor()">📝 Add / Edit Manual JSON</button>
                 <button class="btn btn-sm btn-outline-success" type="button" id="btnFetchDsPreview" onclick="fetchDsPreview()">⚡ Fetch &amp; Inspect API Data</button>
               </div>
             </div>
@@ -679,22 +775,50 @@
               </div>
               <div class="token-chips-grid" id="dsTokenChipsContainer" style="max-height: 85px; overflow-y: auto; margin-bottom: 12px;"></div>
 
-              <!-- Side-by-side Split View: Left = Condensed JSON (1 item per array), Right = Suggested UI Components -->
-              <div class="ds-split-container" style="display: flex; gap: 14px; margin-top: 10px;">
-                <!-- Left Column: JSON Response Structure (compact: 1 item for arrays) -->
-                <div class="ds-split-col" style="flex: 1; min-width: 0; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px;">
-                  <div class="flex-between" style="margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
+              <!-- Side-by-side Split View: Left = Condensed JSON (1 item per array) / Manual JSON, Right = Suggested UI Components -->
+              <div class="ds-split-container">
+                <!-- Left Column: JSON Response Structure (compact: 1 item for arrays) / Manual Editor -->
+                <div class="ds-split-col ds-col-response">
+                  <div class="flex-between" style="margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
                       <span style="font-size: 13px;">📄</span>
-                      <strong style="font-size: 12px; color: #94A3B8;">JSON RESPONSE (1 ITEM PER ARRAY)</strong>
+                      <strong style="font-size: 12px; color: #94A3B8;">JSON RESPONSE</strong>
+                      <!-- Pill View Switcher -->
+                      <div class="btn-group-pill">
+                        <button class="btn-pill active" type="button" id="btnDsViewFormatted" onclick="switchDsResponseView('formatted')" title="View formatted, condensed JSON tree">👁️ Preview</button>
+                        <button class="btn-pill" type="button" id="btnDsViewManual" onclick="switchDsResponseView('manual')" title="Manually paste or edit JSON payload">✏️ Edit Manual JSON</button>
+                      </div>
                     </div>
                     <span id="dsResponseMetaLabel" style="font-size: 10px; color: #38BDF8; font-weight: 600;"></span>
                   </div>
-                  <pre class="json-preview-code" id="dsResponsePreviewJson" style="max-height: 380px; overflow-y: auto; margin: 0; font-size: 11px; line-height: 1.4; border-radius: 6px;">{}</pre>
+
+                  <!-- Formatted JSON View -->
+                  <div id="dsFormattedJsonView" style="display: block;">
+                    <pre class="json-preview-code" id="dsResponsePreviewJson" style="max-height: 380px; overflow-y: auto; margin: 0; font-size: 11px; line-height: 1.4; border-radius: 6px;">{}</pre>
+                  </div>
+
+                  <!-- Manual JSON View -->
+                  <div id="dsManualJsonView" style="display: none;">
+                    <div class="manual-json-toolbar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                      <div style="display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 10px; color: var(--text-muted); font-weight: 600;">Presets:</span>
+                        <button class="btn btn-xs btn-outline" type="button" onclick="loadSampleManualJson('product')" title="Load sample product JSON">📱 Product</button>
+                        <button class="btn btn-xs btn-outline" type="button" onclick="loadSampleManualJson('users')" title="Load sample users array JSON">👥 Users</button>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 4px;">
+                        <button class="btn btn-xs btn-outline" type="button" onclick="formatManualJson()" title="Format JSON">✨ Format</button>
+                        <button class="btn btn-xs btn-outline-danger" type="button" onclick="clearManualJson()" title="Clear textarea">🗑 Clear</button>
+                      </div>
+                    </div>
+                    <textarea id="dsManualJsonTextarea" class="code-textarea" placeholder="Paste or type backend JSON response here (Object { ... } or List [ ... ])..." style="width: 100%; min-height: 290px; max-height: 350px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 11px; line-height: 1.4; background: #0f172a; color: #38bdf8; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 8px; box-sizing: border-box; resize: vertical;"></textarea>
+                    <button class="btn btn-sm btn-success" type="button" id="btnApplyManualJson" onclick="applyManualJsonResponse()" style="width: 100%; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600;">
+                      <span>⚡</span> Parse &amp; Build UI from Manual JSON
+                    </button>
+                  </div>
                 </div>
 
-                <!-- Right Column: Suggested UI Components (Near by) -->
-                <div class="ds-split-col" style="flex: 1.25; min-width: 0; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; display: flex; flex-direction: column;">
+                <!-- Right Column: Suggested UI Components -->
+                <div class="ds-split-col ds-col-suggestions">
                   <div class="flex-between" style="margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                       <span style="font-size: 13px;">🎨</span>
@@ -923,7 +1047,7 @@
   <!-- Notification Toast -->
   <div class="toast" id="appToast">Changes Applied Instantly!</div>
 
-  <script src="app.js?v=20260918b"></script>
-  <script src="templates.js?v=20260918b"></script>
+  <script src="app.js?v=20260923_manualjson"></script>
+  <script src="templates.js?v=20260923_manualjson"></script>
 </body>
 </html>

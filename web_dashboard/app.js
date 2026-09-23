@@ -1315,18 +1315,363 @@ function switchApiModalTab(tab) {
 }
 window.switchApiModalTab = switchApiModalTab;
 
-window.setDsUrlPreset = function(url, name) {
+// =============================================================================
+// Screen Data Source (GET API) Authorization & Request Headers Controller
+// =============================================================================
+
+let modalDsHeaders = [];
+let modalDsAuthType = "none"; // 'none' | 'bearer' | 'apikey' | 'custom'
+
+function setDsAuthType(type, skipHeaderUpdate = false) {
+  modalDsAuthType = type;
+
+  // 1. Update button states
+  const buttons = document.querySelectorAll(".ds-auth-type-btn");
+  buttons.forEach(btn => {
+    if (btn.getAttribute("data-auth") === type) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+
+  // 2. Show/hide panels
+  const panelBearer = document.getElementById("dsAuthPanelBearer");
+  const panelApiKey = document.getElementById("dsAuthPanelApiKey");
+  if (panelBearer) panelBearer.style.display = type === "bearer" ? "block" : "none";
+  if (panelApiKey) panelApiKey.style.display = type === "apikey" ? "block" : "none";
+
+  // 3. Update status badge
+  updateDsAuthStatusBadge();
+
+  // 4. If user explicitly switched to bearer or apikey, trigger input change to sync header
+  if (!skipHeaderUpdate) {
+    if (type === "bearer") {
+      onDsBearerTokenChange();
+    } else if (type === "apikey") {
+      onDsApiKeyChange();
+    } else if (type === "none") {
+      // Remove Authorization and API key headers if present
+      modalDsHeaders = modalDsHeaders.filter(h => {
+        const k = (h.key || "").trim().toLowerCase();
+        return k !== "authorization" && k !== "x-api-key" && k !== "api-key" && k !== "apikey" && k !== "x-auth-token";
+      });
+      renderDsHeadersTable();
+      updateDsAuthStatusBadge();
+    }
+  }
+}
+window.setDsAuthType = setDsAuthType;
+
+function updateDsAuthStatusBadge() {
+  const badge = document.getElementById("dsAuthStatusBadge");
+  if (!badge) return;
+
+  const bearerRow = modalDsHeaders.find(h => (h.key || "").trim().toLowerCase() === "authorization" && (h.value || "").startsWith("Bearer "));
+  const apiKeyRow = modalDsHeaders.find(h => {
+    const k = (h.key || "").trim().toLowerCase();
+    return k === "x-api-key" || k === "api-key" || k === "apikey" || k === "x-auth-token";
+  });
+
+  if (modalDsAuthType === "bearer" || bearerRow) {
+    badge.textContent = "🔑 Bearer Token Active";
+    badge.className = "auth-status-chip auth-bearer";
+  } else if (modalDsAuthType === "apikey" || apiKeyRow) {
+    const keyName = apiKeyRow ? apiKeyRow.key : "API Key";
+    badge.textContent = `🛡️ ${keyName} Active`;
+    badge.className = "auth-status-chip auth-apikey";
+  } else if (modalDsHeaders.length > 0) {
+    badge.textContent = `⚙️ ${modalDsHeaders.length} Header${modalDsHeaders.length > 1 ? 's' : ''}`;
+    badge.className = "auth-status-chip auth-custom";
+  } else {
+    badge.textContent = "🔓 No Auth (Public)";
+    badge.className = "auth-status-chip";
+  }
+}
+
+function onDsBearerTokenChange() {
+  const tokenInput = document.getElementById("dsBearerTokenInput");
+  const token = (tokenInput?.value || "").trim();
+
+  const idx = modalDsHeaders.findIndex(h => (h.key || "").trim().toLowerCase() === "authorization");
+  if (token) {
+    if (idx >= 0) {
+      modalDsHeaders[idx].key = "Authorization";
+      modalDsHeaders[idx].value = `Bearer ${token}`;
+    } else {
+      modalDsHeaders.unshift({ key: "Authorization", value: `Bearer ${token}` });
+    }
+  } else {
+    if (idx >= 0 && modalDsHeaders[idx].value.startsWith("Bearer ")) {
+      modalDsHeaders.splice(idx, 1);
+    }
+  }
+  renderDsHeadersTable();
+  updateDsAuthStatusBadge();
+}
+window.onDsBearerTokenChange = onDsBearerTokenChange;
+
+function onDsApiKeyChange() {
+  const nameInput = document.getElementById("dsApiKeyHeaderNameInput");
+  const valInput = document.getElementById("dsApiKeyValueInput");
+  const keyName = (nameInput?.value || "X-API-Key").trim();
+  const keyVal = (valInput?.value || "").trim();
+
+  const idx = modalDsHeaders.findIndex(h => {
+    const k = (h.key || "").trim().toLowerCase();
+    return k === keyName.toLowerCase() || k === "x-api-key" || k === "api-key" || k === "apikey" || k === "x-auth-token";
+  });
+
+  if (keyVal) {
+    if (idx >= 0) {
+      modalDsHeaders[idx].key = keyName;
+      modalDsHeaders[idx].value = keyVal;
+    } else {
+      modalDsHeaders.unshift({ key: keyName, value: keyVal });
+    }
+  } else {
+    if (idx >= 0) {
+      modalDsHeaders.splice(idx, 1);
+    }
+  }
+  renderDsHeadersTable();
+  updateDsAuthStatusBadge();
+}
+window.onDsApiKeyChange = onDsApiKeyChange;
+
+function renderDsHeadersTable() {
+  const tbody = document.getElementById("dsHeadersTbody");
+  const countSpan = document.getElementById("dsHeadersCount");
+  if (countSpan) countSpan.textContent = modalDsHeaders.filter(h => h.key && h.key.trim()).length;
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+  if (modalDsHeaders.length === 0) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="3" style="text-align:center; color: var(--text-muted); padding: 12px; font-size: 11px;">No custom headers configured. Add Bearer Token, API Key, or custom headers above.</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  modalDsHeaders.forEach((h, idx) => {
+    const tr = document.createElement("tr");
+    const isAuth = (h.key || "").trim().toLowerCase() === "authorization";
+    const isApiKey = ["x-api-key", "api-key", "apikey", "x-auth-token"].includes((h.key || "").trim().toLowerCase());
+    const badgeHtml = isAuth ? `<span style="font-size:9px;color:#38BDF8;display:block;margin-top:2px;">🔑 Auth Header</span>` : (isApiKey ? `<span style="font-size:9px;color:#10B981;display:block;margin-top:2px;">🛡️ API Key</span>` : ``);
+
+    tr.innerHTML = `
+      <td>
+        <input type="text" value="${escapeHtml(h.key)}" placeholder="e.g. Authorization or X-API-Key" oninput="onDsHeaderTableInput(${idx}, 'key', this.value)">
+        ${badgeHtml}
+      </td>
+      <td>
+        <input type="text" value="${escapeHtml(h.value)}" placeholder="e.g. Bearer token_xyz or key_123" oninput="onDsHeaderTableInput(${idx}, 'value', this.value)">
+      </td>
+      <td style="text-align: center;">
+        <button class="api-btn-del" type="button" onclick="removeDsHeaderRow(${idx})" title="Remove header">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+window.renderDsHeadersTable = renderDsHeadersTable;
+
+function onDsHeaderTableInput(idx, field, val) {
+  if (modalDsHeaders[idx]) {
+    modalDsHeaders[idx][field] = val;
+  }
+  const h = modalDsHeaders[idx];
+  if (h) {
+    const k = (h.key || "").trim().toLowerCase();
+    if (k === "authorization" && (h.value || "").startsWith("Bearer ")) {
+      const tokenInput = document.getElementById("dsBearerTokenInput");
+      if (tokenInput) tokenInput.value = h.value.substring(7).trim();
+      if (modalDsAuthType !== "bearer") setDsAuthType("bearer", true);
+    } else if (["x-api-key", "api-key", "apikey", "x-auth-token"].includes(k)) {
+      const nameInput = document.getElementById("dsApiKeyHeaderNameInput");
+      const valInput = document.getElementById("dsApiKeyValueInput");
+      if (nameInput) nameInput.value = h.key;
+      if (valInput) valInput.value = h.value;
+      if (modalDsAuthType !== "apikey") setDsAuthType("apikey", true);
+    }
+  }
+  const countSpan = document.getElementById("dsHeadersCount");
+  if (countSpan) countSpan.textContent = modalDsHeaders.filter(item => item.key && item.key.trim()).length;
+  updateDsAuthStatusBadge();
+}
+window.onDsHeaderTableInput = onDsHeaderTableInput;
+
+function addDsHeaderRow(key = "", value = "") {
+  modalDsHeaders.push({ key, value });
+  if (key || value) {
+    if (key.toLowerCase() === "authorization") {
+      setDsAuthType("bearer", true);
+    } else if (["x-api-key", "api-key", "apikey", "x-auth-token"].includes(key.toLowerCase())) {
+      setDsAuthType("apikey", true);
+    } else if (modalDsAuthType === "none") {
+      setDsAuthType("custom", true);
+    }
+  }
+  renderDsHeadersTable();
+  updateDsAuthStatusBadge();
+}
+window.addDsHeaderRow = addDsHeaderRow;
+
+function removeDsHeaderRow(idx) {
+  const removed = modalDsHeaders[idx];
+  modalDsHeaders.splice(idx, 1);
+  if (removed) {
+    const k = (removed.key || "").trim().toLowerCase();
+    if (k === "authorization") {
+      const tokenInput = document.getElementById("dsBearerTokenInput");
+      if (tokenInput) tokenInput.value = "";
+    } else if (["x-api-key", "api-key", "apikey", "x-auth-token"].includes(k)) {
+      const valInput = document.getElementById("dsApiKeyValueInput");
+      if (valInput) valInput.value = "";
+    }
+  }
+  renderDsHeadersTable();
+  updateDsAuthStatusBadge();
+}
+window.removeDsHeaderRow = removeDsHeaderRow;
+
+function addDsHeaderPreset(key, value) {
+  const existing = modalDsHeaders.find(h => (h.key || "").trim().toLowerCase() === key.toLowerCase());
+  if (existing) {
+    existing.value = value;
+  } else {
+    modalDsHeaders.push({ key, value });
+  }
+
+  if (key.toLowerCase() === "authorization") {
+    setDsAuthType("bearer", true);
+    const tokenInput = document.getElementById("dsBearerTokenInput");
+    if (tokenInput) tokenInput.value = value.startsWith("Bearer ") ? value.substring(7) : value;
+  } else if (["x-api-key", "api-key", "apikey", "x-auth-token"].includes(key.toLowerCase())) {
+    setDsAuthType("apikey", true);
+    const nameInput = document.getElementById("dsApiKeyHeaderNameInput");
+    const valInput = document.getElementById("dsApiKeyValueInput");
+    if (nameInput) nameInput.value = key;
+    if (valInput) valInput.value = value;
+  } else {
+    if (modalDsAuthType === "none") setDsAuthType("custom", true);
+  }
+
+  renderDsHeadersTable();
+  updateDsAuthStatusBadge();
+  showToast(`Header '${key}' added!`);
+}
+window.addDsHeaderPreset = addDsHeaderPreset;
+
+function getDsHeadersObject() {
+  const obj = {};
+  modalDsHeaders.forEach(h => {
+    if (h.key && h.key.trim()) {
+      obj[h.key.trim()] = h.value;
+    }
+  });
+  return obj;
+}
+window.getDsHeadersObject = getDsHeadersObject;
+
+function syncAuthInputsFromHeaders(headersObj = {}) {
+  const hKeys = Object.keys(headersObj);
+  let detectedType = "none";
+  let bearerVal = "";
+  let apiKeyName = "X-API-Key";
+  let apiKeyValue = "";
+
+  for (const [k, v] of Object.entries(headersObj)) {
+    const kLow = k.toLowerCase().trim();
+    if (kLow === "authorization") {
+      detectedType = "bearer";
+      bearerVal = String(v).startsWith("Bearer ") ? String(v).substring(7).trim() : String(v).trim();
+    } else if (["x-api-key", "api-key", "apikey", "x-auth-token"].includes(kLow)) {
+      if (detectedType !== "bearer") detectedType = "apikey";
+      apiKeyName = k;
+      apiKeyValue = String(v).trim();
+    }
+  }
+
+  if (detectedType === "none" && hKeys.length > 0) {
+    detectedType = "custom";
+  }
+
+  const tokenInput = document.getElementById("dsBearerTokenInput");
+  if (tokenInput) tokenInput.value = bearerVal;
+
+  const keyNameInput = document.getElementById("dsApiKeyHeaderNameInput");
+  if (keyNameInput) keyNameInput.value = apiKeyName;
+
+  const keyValInput = document.getElementById("dsApiKeyValueInput");
+  if (keyValInput) keyValInput.value = apiKeyValue;
+
+  setDsAuthType(detectedType, true);
+}
+
+function toggleBearerVisibility() {
+  const inp = document.getElementById("dsBearerTokenInput");
+  const btn = document.getElementById("btnToggleBearerVisibility");
+  if (!inp) return;
+  if (inp.type === "password") {
+    inp.type = "text";
+    if (btn) btn.textContent = "🙈";
+  } else {
+    inp.type = "password";
+    if (btn) btn.textContent = "👁";
+  }
+}
+window.toggleBearerVisibility = toggleBearerVisibility;
+
+function toggleApiKeyVisibility() {
+  const inp = document.getElementById("dsApiKeyValueInput");
+  const btn = document.getElementById("btnToggleApiKeyVisibility");
+  if (!inp) return;
+  if (inp.type === "password") {
+    inp.type = "text";
+    if (btn) btn.textContent = "🙈";
+  } else {
+    inp.type = "password";
+    if (btn) btn.textContent = "👁";
+  }
+}
+window.toggleApiKeyVisibility = toggleApiKeyVisibility;
+
+function setMockBearerToken() {
+  const tokenInput = document.getElementById("dsBearerTokenInput");
+  if (tokenInput) {
+    tokenInput.value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c3Jfc2VjXzk5MTgiLCJyb2xlIjoiU3VwZXIgQWRtaW4ifQ.demo_token_sig_772";
+  }
+  onDsBearerTokenChange();
+  showToast("🔑 Demo Bearer Token Applied!");
+}
+window.setMockBearerToken = setMockBearerToken;
+
+function setMockApiKey() {
+  const nameInput = document.getElementById("dsApiKeyHeaderNameInput");
+  const valInput = document.getElementById("dsApiKeyValueInput");
+  if (nameInput) nameInput.value = "X-API-Key";
+  if (valInput) valInput.value = "sk_live_enterprise_demo_key_9918";
+  onDsApiKeyChange();
+  showToast("🛡️ Demo API Key Applied!");
+}
+window.setMockApiKey = setMockApiKey;
+
+window.setDsUrlPreset = function(url, name, withAuthHint) {
   const input = document.getElementById("dsUrlInput");
   if (input) input.value = url;
-  const isList = url.includes("users") || url.includes("records");
+  const isList = url.includes("users") || url.includes("records") || url.includes("items");
   const chk = document.getElementById("dsPaginationCheckbox");
   if (chk) {
-    chk.checked = isList;
+    chk.checked = isList && !url.includes("secure-data");
     toggleDsPaginationFields();
   }
   const dataPathInput = document.getElementById("dsDataPath");
   if (dataPathInput) {
-    dataPathInput.value = url.includes("mock/users") ? "users" : "";
+    dataPathInput.value = url.includes("mock/users") ? "users" : (url.includes("secure-data") ? "items" : "");
+  }
+  if (url.includes("secure-data") && withAuthHint && modalDsAuthType === "none" && modalDsHeaders.length === 0) {
+    showToast("🔒 Protected API: Notice that fetching with No Auth returns 401 Unauthorized!");
   }
   fetchDsPreview();
 };
@@ -1363,7 +1708,7 @@ document.addEventListener("focusin", (e) => {
 
 async function fetchSimulatorScreenData(ds) {
   if (!ds || !ds.url) {
-    simulatorScreenData = null;
+    simulatorScreenData = (ds && (ds.fallback_data || ds.mock_data)) || null;
     currentLoadedDsUrl = null;
     updateSimulator();
     return;
@@ -1374,21 +1719,39 @@ async function fetchSimulatorScreenData(ds) {
   isSimulatorDataLoading = true;
   updateSimulator();
 
+  const dsHeaders = ds.headers && typeof ds.headers === "object" ? ds.headers : {};
+
   try {
     let resp = null;
     try {
-      resp = await fetch(fullUrl, { headers: { "Accept": "application/json, text/plain, */*" } });
+      resp = await fetch(fullUrl, {
+        headers: {
+          "Accept": "application/json, text/plain, */*",
+          ...dsHeaders
+        }
+      });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     } catch (_) {
-      // Fallback via server CORS proxy
-      resp = await fetch(`/api/proxy?url=${encodeURIComponent(fullUrl)}`);
+      // Fallback via server CORS proxy with headers forwarded
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullUrl)}&headers=${encodeURIComponent(JSON.stringify(dsHeaders))}`;
+      resp = await fetch(proxyUrl, {
+        headers: {
+          "Accept": "application/json, text/plain, */*",
+          ...dsHeaders
+        }
+      });
     }
     if (resp && resp.ok) {
       simulatorScreenData = await resp.json();
       currentLoadedDsUrl = rawUrl;
+    } else if (ds.fallback_data || ds.mock_data) {
+      simulatorScreenData = ds.fallback_data || ds.mock_data;
     }
   } catch (e) {
     console.warn("fetchSimulatorScreenData error:", e);
+    if (ds.fallback_data || ds.mock_data) {
+      simulatorScreenData = ds.fallback_data || ds.mock_data;
+    }
   } finally {
     isSimulatorDataLoading = false;
     updateSimulator();
@@ -1488,6 +1851,7 @@ const COMPONENT_STUDIO_OPTIONS = [
 ];
 
 let dsSuggestedMappings = [];
+let manualResponseData = null;
 
 // Helper to detect if API response encapsulates payload in a single root wrapper object
 // (e.g. { "data": { ... } }, { "result": { ... } }, or { "status": 200, "data": { ... } })
@@ -1770,12 +2134,12 @@ window.resetSuggestedComponents = function() {
 
 window.createFullScreenFromSuggestions = function() {
   const url = (document.getElementById("dsUrlInput")?.value || "").trim();
-  if (!url) {
-    alert("Please enter a Data Source API URL first!");
+  if (!url && !manualResponseData) {
+    alert("Please enter a Data Source API URL or paste a Manual JSON response first!");
     return;
   }
   if (!dsSuggestedMappings || dsSuggestedMappings.length === 0) {
-    alert("No suggested components available. Please fetch and inspect an API endpoint first!");
+    alert("No suggested components available. Please fetch an API or apply Manual JSON first!");
     return;
   }
 
@@ -2030,11 +2394,16 @@ window.createFullScreenFromSuggestions = function() {
 
   const paginationChk = document.getElementById("dsPaginationCheckbox");
   activeSchema.data_source = {
-    url: url,
+    url: url || "",
     method: (document.getElementById("dsMethodSelect")?.value || "GET").toUpperCase(),
+    headers: getDsHeadersObject(),
     show_error_widget: document.getElementById("dsShowErrorWidgetCheckbox") ? document.getElementById("dsShowErrorWidgetCheckbox").checked : true,
     error_message: (document.getElementById("dsErrorMessageInput")?.value || "").trim(),
     error_widget_type: document.getElementById("dsErrorWidgetTypeSelect")?.value || "banner",
+    ...(manualResponseData ? {
+      fallback_data: manualResponseData,
+      mock_data: manualResponseData
+    } : {}),
     ...(paginationChk && paginationChk.checked ? {
       pagination: {
         mode: document.getElementById("dsPaginationMode")?.value || "page",
@@ -2053,6 +2422,45 @@ window.createFullScreenFromSuggestions = function() {
   showToast(`🎉 Full Screen UI Created with ${components.length} components! Live on Mobile.`);
 };
 
+function processDataSourceResponseData(data, sourceLabel = "Direct", metaExtra = "") {
+  if (!data) return;
+
+  simulatorScreenData = data;
+
+  // Display formatted JSON preview (condensed to 1 item per array for clean schema inspection)
+  const previewEl = document.getElementById("dsResponsePreviewJson");
+  if (previewEl) previewEl.textContent = JSON.stringify(condenseJsonForPreview(data), null, 2);
+
+  const metaLabel = document.getElementById("dsResponseMetaLabel");
+  if (metaLabel) {
+    const isArray = Array.isArray(data);
+    const sizeStr = isArray ? `${data.length} records (List)` : `${Object.keys(data).length} top-level fields (Object)`;
+    metaLabel.textContent = `${sourceLabel}${metaExtra ? " • " + metaExtra : ""} • ${sizeStr}`;
+  }
+
+  // Auto-detect array path for pagination / listview
+  autoDetectDataPath(data);
+
+  // Extract available dynamic tokens
+  const tokens = extractBindingTokens(data);
+  renderTokenChips(tokens);
+
+  // Auto-generate smart component suggestions in right panel
+  suggestUiComponents(data);
+  renderSuggestedComponentsList();
+
+  const countLabel = document.getElementById("dsTokensCountLabel");
+  if (countLabel) {
+    countLabel.textContent = `${tokens.length} dynamic tokens available`;
+  }
+
+  const box = document.getElementById("dsTokensBox");
+  if (box) box.style.display = "block";
+
+  updateSimulator();
+}
+window.processDataSourceResponseData = processDataSourceResponseData;
+
 async function fetchDsPreview() {
   const urlInput = document.getElementById("dsUrlInput");
   const url = (urlInput?.value || "").trim();
@@ -2066,7 +2474,6 @@ async function fetchDsPreview() {
 
   const btn = document.getElementById("btnFetchDsPreview");
   const statusBadge = document.getElementById("dsFetchStatusBadge");
-  const metaLabel = document.getElementById("dsResponseMetaLabel");
 
   if (btn) {
     btn.disabled = true;
@@ -2082,87 +2489,109 @@ async function fetchDsPreview() {
 
   let data = null;
   let fetchMethodUsed = "Direct";
+  const dsHeaders = getDsHeadersObject();
+  const dsMethod = (document.getElementById("dsMethodSelect")?.value || "GET").toUpperCase();
 
   try {
     const cleanUrl = url.startsWith("http") ? url : `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
 
-    // Attempt 1: Direct fetch
+    // Attempt 1: Direct fetch with configured headers
     try {
       const resp = await fetch(cleanUrl, {
-        headers: { "Accept": "application/json, text/plain, */*" }
+        method: dsMethod,
+        headers: {
+          "Accept": "application/json, text/plain, */*",
+          ...dsHeaders
+        }
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+      if (!resp.ok) {
+        let errJson = null;
+        let errText = "";
+        try {
+          errJson = await resp.json();
+        } catch (_) {
+          try { errText = await resp.text(); } catch (_) {}
+        }
+        const errDetail = errJson ? (errJson.message || errJson.error || JSON.stringify(errJson)) : errText.substring(0, 200);
+        throw new Error(`HTTP ${resp.status} ${resp.statusText}${errDetail ? ': ' + errDetail : ''}`);
+      }
       data = await resp.json();
     } catch (directErr) {
-      // Attempt 2: CORS / Network Fallback through Sync Server Proxy
       console.info("Direct fetch failed, falling back to server CORS proxy:", directErr.message);
       fetchMethodUsed = "Proxy";
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(cleanUrl)}`;
-      const proxyResp = await fetch(proxyUrl);
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(cleanUrl)}&headers=${encodeURIComponent(JSON.stringify(dsHeaders))}`;
+      const proxyResp = await fetch(proxyUrl, {
+        headers: {
+          "Accept": "application/json, text/plain, */*",
+          ...dsHeaders
+        }
+      });
       if (!proxyResp.ok) {
         let errJson = null;
-        try { errJson = await proxyResp.json(); } catch (_) {}
-        throw new Error(errJson?.error || `HTTP ${proxyResp.status} via Proxy`);
+        let errText = "";
+        try {
+          errJson = await proxyResp.json();
+        } catch (_) {
+          try { errText = await proxyResp.text(); } catch (_) {}
+        }
+        const errDetail = errJson ? (errJson.message || errJson.error || JSON.stringify(errJson)) : errText.substring(0, 200);
+        throw new Error(errDetail || `HTTP ${proxyResp.status} via Proxy`);
       }
       data = await proxyResp.json();
     }
 
     if (!data) throw new Error("API returned an empty response body.");
 
-    simulatorScreenData = data;
     currentLoadedDsUrl = url;
+    const headerKeys = Object.keys(dsHeaders);
+    const authInfo = headerKeys.length > 0 ? `Authenticated (${headerKeys.join(', ')})` : "";
+    processDataSourceResponseData(data, fetchMethodUsed, authInfo);
 
-    // Display formatted JSON preview (condensed to 1 item per array for clean schema inspection)
-    const previewEl = document.getElementById("dsResponsePreviewJson");
-    if (previewEl) previewEl.textContent = JSON.stringify(condenseJsonForPreview(data), null, 2);
-
-    if (metaLabel) {
-      const isArray = Array.isArray(data);
-      const sizeStr = isArray ? `${data.length} records (List)` : `${Object.keys(data).length} top-level fields (Object)`;
-      metaLabel.textContent = `${fetchMethodUsed} • ${sizeStr}`;
+    // Sync to manual JSON textarea as convenience if empty
+    const manualTa = document.getElementById("dsManualJsonTextarea");
+    if (manualTa && !manualTa.value.trim()) {
+      manualTa.value = JSON.stringify(data, null, 2);
     }
-
-    // Auto-detect array path for pagination / listview
-    autoDetectDataPath(data);
-
-    // Extract available dynamic tokens
-    const tokens = extractBindingTokens(data);
-    renderTokenChips(tokens);
-
-    // Auto-generate smart component suggestions in right panel
-    suggestUiComponents(data);
-    renderSuggestedComponentsList();
-
-    const countLabel = document.getElementById("dsTokensCountLabel");
-    if (countLabel) {
-      countLabel.textContent = `${tokens.length} dynamic tokens available`;
-    }
-
-    const box = document.getElementById("dsTokensBox");
-    if (box) box.style.display = "block";
 
     if (statusBadge) {
       statusBadge.style.display = "inline-block";
       statusBadge.style.background = "rgba(16, 185, 129, 0.2)";
       statusBadge.style.color = "#10B981";
-      statusBadge.textContent = "✓ 200 OK";
+      const hasAuth = Object.keys(dsHeaders).length > 0;
+      statusBadge.textContent = hasAuth ? "✓ 200 OK (Auth)" : "✓ 200 OK";
     }
 
     showToast("✅ Live API Data Retrieved & Inspected!");
-    updateSimulator();
   } catch (err) {
     console.error("fetchDsPreview error:", err);
+    const is401 = err.message.includes("401") || err.message.toLowerCase().includes("unauthorized");
+    const is403 = err.message.includes("403") || err.message.toLowerCase().includes("forbidden");
+
     if (statusBadge) {
       statusBadge.style.display = "inline-block";
       statusBadge.style.background = "rgba(239, 68, 68, 0.2)";
       statusBadge.style.color = "#EF4444";
-      statusBadge.textContent = "✕ Fetch Error";
+      if (is401) {
+        statusBadge.textContent = "✕ 401 Unauthorized";
+      } else if (is403) {
+        statusBadge.textContent = "✕ 403 Forbidden";
+      } else {
+        statusBadge.textContent = "✕ Fetch Error";
+      }
     }
     const previewEl = document.getElementById("dsResponsePreviewJson");
-    if (previewEl) previewEl.textContent = `// Error fetching data:\n${err.message}\n\nEndpoint: ${url}`;
+    let hint = "";
+    if (is401) {
+      hint = "\n\n💡 [401 Unauthorized] Authentication failed: Please configure a valid Bearer Token or API Key in Section 2 (AUTHORIZATION & REQUEST HEADERS) above.";
+    } else if (is403) {
+      hint = "\n\n💡 [403 Forbidden] Access denied: Your token or API key does not have permission for this endpoint.";
+    }
+    if (previewEl) {
+      previewEl.textContent = `// Error fetching data:\n${err.message}\n\nEndpoint: ${url}${hint}\n\n💡 Tip: Can't reach the backend API? Click "Add / Edit Manual JSON" above to paste your JSON payload manually and generate the screen UI.`;
+    }
     const box = document.getElementById("dsTokensBox");
     if (box) box.style.display = "block";
-    showToast(`⚠️ Fetch Error: ${err.message}`, true);
+    showToast(`⚠️ ${is401 ? "Unauthorized: Missing or invalid token" : "Fetch Error: " + err.message}`, true);
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -2171,6 +2600,155 @@ async function fetchDsPreview() {
   }
 }
 window.fetchDsPreview = fetchDsPreview;
+
+function switchDsResponseView(view) {
+  const formattedView = document.getElementById("dsFormattedJsonView");
+  const manualView = document.getElementById("dsManualJsonView");
+  const btnFormatted = document.getElementById("btnDsViewFormatted");
+  const btnManual = document.getElementById("btnDsViewManual");
+
+  if (view === "manual") {
+    if (formattedView) formattedView.style.display = "none";
+    if (manualView) manualView.style.display = "block";
+    if (btnFormatted) btnFormatted.classList.remove("active");
+    if (btnManual) btnManual.classList.add("active");
+    const ta = document.getElementById("dsManualJsonTextarea");
+    if (ta) ta.focus();
+  } else {
+    if (formattedView) formattedView.style.display = "block";
+    if (manualView) manualView.style.display = "none";
+    if (btnFormatted) btnFormatted.classList.add("active");
+    if (btnManual) btnManual.classList.remove("active");
+  }
+}
+window.switchDsResponseView = switchDsResponseView;
+
+function openManualJsonEditor() {
+  const box = document.getElementById("dsTokensBox");
+  if (box) box.style.display = "block";
+  switchDsResponseView("manual");
+  const ta = document.getElementById("dsManualJsonTextarea");
+  if (ta) {
+    if (!ta.value.trim() && simulatorScreenData) {
+      ta.value = JSON.stringify(simulatorScreenData, null, 2);
+    }
+    ta.focus();
+  }
+}
+window.openManualJsonEditor = openManualJsonEditor;
+
+function formatManualJson() {
+  const ta = document.getElementById("dsManualJsonTextarea");
+  if (!ta || !ta.value.trim()) {
+    showToast("⚠️ Textarea is empty, nothing to format.", true);
+    return;
+  }
+  try {
+    const parsed = JSON.parse(ta.value.trim());
+    ta.value = JSON.stringify(parsed, null, 2);
+    showToast("✨ JSON formatted successfully!");
+  } catch (err) {
+    alert("Invalid JSON: " + err.message);
+  }
+}
+window.formatManualJson = formatManualJson;
+
+const SAMPLE_PAYLOADS = {
+  product: {
+    id: 101,
+    title: "AirMax Pro Wireless Headphones",
+    description: "Premium noise-cancelling over-ear headphones with 40-hour battery life, active ANC, and immersive spatial audio.",
+    price: 199.99,
+    discount_percentage: 15,
+    rating: 4.8,
+    brand: "AcousticSound",
+    category: "Audio & Electronics",
+    thumbnail: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
+    in_stock: true,
+    stock_count: 42
+  },
+  users: [
+    {
+      id: 1,
+      name: "Jane Doe",
+      email: "jane.doe@enterprise.io",
+      role: "Lead Cloud Architect",
+      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80",
+      department: "Core Engineering",
+      status: "Active"
+    },
+    {
+      id: 2,
+      name: "Alex Smith",
+      email: "alex.smith@enterprise.io",
+      role: "Principal Product Manager",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80",
+      department: "Product Design",
+      status: "Active"
+    },
+    {
+      id: 3,
+      name: "Maria Garcia",
+      email: "maria.g@enterprise.io",
+      role: "Senior Security Specialist",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80",
+      department: "SecOps",
+      status: "Active"
+    }
+  ]
+};
+
+function loadSampleManualJson(type) {
+  const sample = SAMPLE_PAYLOADS[type] || SAMPLE_PAYLOADS.product;
+  const ta = document.getElementById("dsManualJsonTextarea");
+  if (ta) {
+    ta.value = JSON.stringify(sample, null, 2);
+  }
+  applyManualJsonResponse();
+}
+window.loadSampleManualJson = loadSampleManualJson;
+
+function clearManualJson() {
+  const ta = document.getElementById("dsManualJsonTextarea");
+  if (ta) ta.value = "";
+  manualResponseData = null;
+  showToast("Cleared manual JSON text");
+}
+window.clearManualJson = clearManualJson;
+
+function applyManualJsonResponse() {
+  const ta = document.getElementById("dsManualJsonTextarea");
+  const raw = ta ? ta.value.trim() : "";
+  if (!raw) {
+    alert("Please paste or type a valid JSON response (Object { ... } or List [ ... ]) first.");
+    return;
+  }
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    alert("JSON Syntax Error:\n\n" + err.message + "\n\nPlease ensure your JSON is properly formatted with double quotes around keys and strings.");
+    return;
+  }
+
+  manualResponseData = parsed;
+  processDataSourceResponseData(parsed, "Manual JSON", "Custom Payload");
+
+  const statusBadge = document.getElementById("dsFetchStatusBadge");
+  if (statusBadge) {
+    statusBadge.style.display = "inline-block";
+    statusBadge.className = "badge";
+    statusBadge.style.background = "rgba(16, 185, 129, 0.2)";
+    statusBadge.style.color = "#10B981";
+    statusBadge.textContent = "✓ Manual JSON (Parsed)";
+  }
+
+  // Switch to formatted view so user can view the condensed tree alongside suggested UI components
+  switchDsResponseView("formatted");
+  showToast("⚡ Manual JSON parsed & dynamic UI components generated!");
+}
+window.applyManualJsonResponse = applyManualJsonResponse;
 
 function checkIsSingleEntity(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return false;
@@ -2487,6 +3065,7 @@ window.generateUniversalApiLayout = function() {
   activeSchema.data_source = {
     url: url,
     method: (document.getElementById("dsMethodSelect")?.value || "GET").toUpperCase(),
+    headers: getDsHeadersObject(),
     ...(isPaginating ? {
       pagination: {
         mode: document.getElementById("dsPaginationMode")?.value || "page",
@@ -3049,6 +3628,10 @@ window.generatePresetFromApi = function(type) {
       }
     ];
   }
+  if (manualResponseData && activeSchema.data_source) {
+    activeSchema.data_source.fallback_data = manualResponseData;
+    activeSchema.data_source.mock_data = manualResponseData;
+  }
   closeApiConfigModal();
   renderAll();
   fetchSimulatorScreenData(activeSchema.data_source);
@@ -3115,11 +3698,42 @@ function openApiConfigModal(target = "screen") {
   if (dsErrorMessage) dsErrorMessage.value = ds.error_message || "";
   if (dsErrorWidgetType) dsErrorWidgetType.value = ds.error_widget_type || "banner";
 
+  // Populate Data Source Authorization & Headers
+  modalDsHeaders = [];
+  const dsRawHeaders = ds.headers || {};
+  for (const [k, v] of Object.entries(dsRawHeaders)) {
+    if (k && k.trim()) {
+      modalDsHeaders.push({ key: k.trim(), value: String(v) });
+    }
+  }
+  syncAuthInputsFromHeaders(dsRawHeaders);
+  renderDsHeadersTable();
+
+  // Populate Manual JSON if present in schema
+  manualResponseData = ds.fallback_data || ds.mock_data || null;
+  const manualTa = document.getElementById("dsManualJsonTextarea");
+  if (manualTa) {
+    manualTa.value = manualResponseData ? JSON.stringify(manualResponseData, null, 2) : "";
+  }
+  switchDsResponseView("formatted");
+
   // Switch to appropriate tab
   if (target === "screen") {
     switchApiModalTab("datasource");
     if (ds.url) {
       setTimeout(() => fetchDsPreview(), 60);
+    } else if (manualResponseData) {
+      setTimeout(() => {
+        processDataSourceResponseData(manualResponseData, "Manual JSON (Saved)", "Stored Fallback");
+        const badge = document.getElementById("dsFetchStatusBadge");
+        if (badge) {
+          badge.style.display = "inline-block";
+          badge.className = "badge";
+          badge.style.background = "rgba(16, 185, 129, 0.2)";
+          badge.style.color = "#10B981";
+          badge.textContent = "✓ Stored JSON";
+        }
+      }, 60);
     }
   } else {
     switchApiModalTab("submission");
@@ -3405,15 +4019,26 @@ function saveApiConfig() {
   // 1. If screen level or on datasource tab, save data_source configuration
   if (currentApiTarget === "screen" || activeApiModalTab === "datasource") {
     const dsUrl = (document.getElementById("dsUrlInput")?.value || "").trim();
-    if (dsUrl) {
+    const manualText = (document.getElementById("dsManualJsonTextarea")?.value || "").trim();
+    if (manualText) {
+      try {
+        manualResponseData = JSON.parse(manualText);
+      } catch (_) {}
+    }
+
+    if (dsUrl || manualResponseData) {
       const ds = {
-        url: dsUrl,
+        url: dsUrl || "/api/local_data",
         method: document.getElementById("dsMethodSelect")?.value || "GET",
-        headers: {},
+        headers: getDsHeadersObject(),
         params: {},
         show_error_widget: document.getElementById("dsShowErrorWidgetCheckbox") ? document.getElementById("dsShowErrorWidgetCheckbox").checked : true,
         error_message: (document.getElementById("dsErrorMessageInput")?.value || "").trim(),
-        error_widget_type: document.getElementById("dsErrorWidgetTypeSelect")?.value || "banner"
+        error_widget_type: document.getElementById("dsErrorWidgetTypeSelect")?.value || "banner",
+        ...(manualResponseData ? {
+          fallback_data: manualResponseData,
+          mock_data: manualResponseData
+        } : {})
       };
       if (document.getElementById("dsPaginationCheckbox")?.checked) {
         ds.pagination = {
@@ -5787,8 +6412,12 @@ function updateSimulator() {
   simComponentsList.innerHTML = "";
 
   // Auto-fetch data source if screen has one configured and not yet fetched
-  if (activeSchema.data_source?.url && !simulatorScreenData && currentLoadedDsUrl !== activeSchema.data_source.url && !isSimulatorDataLoading) {
-    fetchSimulatorScreenData(activeSchema.data_source);
+  if (activeSchema.data_source && !simulatorScreenData) {
+    if (activeSchema.data_source.url && currentLoadedDsUrl !== activeSchema.data_source.url && !isSimulatorDataLoading) {
+      fetchSimulatorScreenData(activeSchema.data_source);
+    } else if (activeSchema.data_source.fallback_data || activeSchema.data_source.mock_data) {
+      simulatorScreenData = activeSchema.data_source.fallback_data || activeSchema.data_source.mock_data;
+    }
   }
 
   if (isSimulatorDataLoading) {

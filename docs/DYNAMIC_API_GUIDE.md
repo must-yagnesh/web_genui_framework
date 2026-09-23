@@ -169,6 +169,22 @@ Before deploying changes to mobile users, test your cloud API directly from the 
 
 ---
 
+### Step 10: Screen Data Source (GET API) Authorization & Real Project API Inspection
+When binding a dynamic screen to a live **Data Source (GET / Fetch)** that requires authentication (e.g. JWT Bearer token or API key):
+1. In the **Screen Data Source (GET / Fetch & Binding)** tab, open **Section 2: AUTHORIZATION & REQUEST HEADERS**.
+2. Select your authentication mode:
+   - **`🔑 Bearer Token`**: Enter your JWT / OAuth token. It is automatically formatted and transmitted as `Authorization: Bearer <token>`.
+   - **`🛡️ API Key`**: Specify the header name (defaults to `X-API-Key`, or choose `api-key`, `Authorization`, etc.) and enter your secret key.
+   - **`⚙️ Custom Headers`**: Add any arbitrary headers (`X-Tenant-ID`, `Client-Secret`, etc.) in the All Request Headers table.
+3. Click **`⚡ Fetch & Inspect API Data`**:
+   - The web console issues an authenticated request directly to your project API.
+   - If direct browser fetch is blocked by CORS, it automatically falls back through the Sync Server CORS proxy with all authentication headers safely forwarded.
+   - If unauthorized (HTTP 401/403), the console displays an actionable error message and explanation.
+   - On HTTP 200 OK, the console shows the response structure and dynamic binding tokens.
+4. Click **`💾 Save & Bind API`**: All configured headers are saved into `activeSchema.data_source.headers` and dispatched to the mobile app for dynamic data loading.
+
+---
+
 ## 3. Flutter Mobile Integration: Base URL, Auth Token, & User ID
 
 The Flutter app uses `GenUiApiClient` to govern all API communications.
