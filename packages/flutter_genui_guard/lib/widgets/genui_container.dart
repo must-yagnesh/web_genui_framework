@@ -9,6 +9,7 @@ import '../registry/widget_registry.dart';
 import '../sync/api_client.dart';
 import '../sync/screen_registry.dart';
 import '../sync/sync_client.dart';
+import '../state/data_binding.dart';
 import '../widgets/success_dialog.dart';
 
 /// GenUiContainer
@@ -54,9 +55,13 @@ class _GenUiContainerState extends State<GenUiContainer> {
   GenUiSyncClient? _syncClient;
   StreamSubscription? _screenRegistrySub;
   StreamSubscription? _schemaSub;
+  StreamSubscription? _globalUrlSub;
   UiSchema _currentSchema = UiSchema.empty();
   String _activeServerUrl = '';
   final List<String> _isolatedErrors = [];
+  dynamic _screenData;
+  bool _isDataLoading = false;
+  String? _fetchError;
 
   @override
   void initState() {
@@ -67,6 +72,11 @@ class _GenUiContainerState extends State<GenUiContainer> {
     final cached = GenUiScreenRegistry.instance.getSchemaForRoute(widget.screenId);
     if (cached != null && cached.components.isNotEmpty) {
       _currentSchema = cached;
+      if (_currentSchema.dataSource != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fetchScreenData();
+        });
+      }
     }
 
     // 2. Start Live Sync Client
@@ -76,12 +86,75 @@ class _GenUiContainerState extends State<GenUiContainer> {
     _screenRegistrySub = GenUiScreenRegistry.instance.screensStream.listen((_) {
       final updated = GenUiScreenRegistry.instance.getSchemaForRoute(widget.screenId);
       if (updated != null && mounted) {
+        final dataSourceChanged = updated.dataSource != null &&
+            (_currentSchema.dataSource?.url != updated.dataSource?.url || _screenData == null);
+
         setState(() {
           _currentSchema = updated;
           _isolatedErrors.clear();
         });
+
+        if (dataSourceChanged) {
+          _fetchScreenData();
+        }
       }
     });
+
+    // 4. Listen to global server URL changes from any screen connection dialog
+    _globalUrlSub = GenUiSyncClient.onServerUrlChanged.listen((newUrl) {
+      if (mounted && _activeServerUrl != newUrl) {
+        setState(() {
+          _activeServerUrl = newUrl;
+        });
+        _schemaSub?.cancel();
+        _syncClient?.dispose();
+        _startSyncClient();
+        if (_currentSchema.dataSource != null) {
+          _fetchScreenData();
+        }
+      }
+    });
+  }
+
+  Future<void> _fetchScreenData() async {
+    final ds = _currentSchema.dataSource;
+    if (ds == null || _isDataLoading) return;
+
+    setState(() {
+      _isDataLoading = true;
+      _screenData = null;
+    });
+
+    try {
+      final result = await GenUiApiClient.fetchDataSource(
+        dataSource: ds,
+        serverBaseUrl: _syncClient?.activeUrl ?? _activeServerUrl,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isDataLoading = false;
+          _screenData = result;
+          if (result == null) {
+            _fetchError = ds.errorMessage.isNotEmpty
+                ? ds.errorMessage
+                : 'Unable to load data from ${ds.url}';
+          } else {
+            _fetchError = null;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[GenUiContainer] Failed to fetch data source: $e');
+      if (mounted) {
+        setState(() {
+          _isDataLoading = false;
+          _fetchError = ds.errorMessage.isNotEmpty
+              ? ds.errorMessage
+              : 'Unable to load data: $e';
+        });
+      }
+    }
   }
 
   void _initServerUrl() {
@@ -102,10 +175,17 @@ class _GenUiContainerState extends State<GenUiContainer> {
             (widget.screenId == 'super_save_dashboard' && (newSchema.screenId == 'home' || newSchema.route == '/'));
 
         if (matches && mounted) {
+          final dataSourceChanged = newSchema.dataSource != null &&
+              (_currentSchema.dataSource?.url != newSchema.dataSource?.url || _screenData == null);
+
           setState(() {
             _currentSchema = newSchema;
             _isolatedErrors.clear();
           });
+
+          if (dataSourceChanged) {
+            _fetchScreenData();
+          }
         }
       });
       _syncClient!.start();
@@ -129,6 +209,7 @@ class _GenUiContainerState extends State<GenUiContainer> {
   void dispose() {
     _schemaSub?.cancel();
     _screenRegistrySub?.cancel();
+    _globalUrlSub?.cancel();
     _syncClient?.dispose();
     super.dispose();
   }
@@ -217,6 +298,13 @@ class _GenUiContainerState extends State<GenUiContainer> {
 
     final theme = _currentSchema.theme;
 
+    if (_isDataLoading && _screenData == null) {
+      return Padding(
+        padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+        child: _buildLoadingSkeleton(theme),
+      );
+    }
+
     return GenUiErrorBoundary(
       node: ComponentNode(
         id: 'genui_container_${widget.screenId}',
@@ -258,7 +346,29 @@ class _GenUiContainerState extends State<GenUiContainer> {
                   ],
                 ),
               ),
-            ..._currentSchema.components.map((node) {
+            if (_fetchError != null && _screenData == null && (_currentSchema.dataSource?.showErrorWidget ?? true))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _buildConfiguredErrorWidget(_currentSchema.dataSource!, theme),
+              ),
+            ..._currentSchema.components.map((rawNode) {
+              // Interpolate dynamic API response data into tokens
+              Map<String, dynamic> interpolationContext = {};
+              if (_screenData is Map<String, dynamic>) {
+                interpolationContext = Map<String, dynamic>.from(_screenData as Map<String, dynamic>);
+              } else if (_screenData is Map) {
+                (_screenData as Map).forEach((k, v) => interpolationContext[k.toString()] = v);
+              } else if (_screenData is List) {
+                interpolationContext = {
+                  'items': _screenData,
+                  'data': _screenData,
+                  'results': _screenData,
+                  'list': _screenData,
+                };
+              }
+
+              final node = GenUiDataBinding.interpolateNode(rawNode, interpolationContext);
+
               return SafeWidgetRegistry.buildNode(
                 node: node,
                 theme: theme,
@@ -276,6 +386,95 @@ class _GenUiContainerState extends State<GenUiContainer> {
         ),
       );
       },
+    );
+  }
+
+  Widget _buildLoadingSkeleton(ThemeConfig theme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        3,
+        (i) => Container(
+          margin: const EdgeInsets.symmetric(vertical: 6.0),
+          height: 60.0,
+          decoration: BoxDecoration(
+            color: theme.surfaceColor.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(10.0),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.0,
+                color: theme.primaryColor,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfiguredErrorWidget(ApiDataSource ds, ThemeConfig theme) {
+    final msg = ds.errorMessage.isNotEmpty
+        ? ds.errorMessage
+        : (_fetchError ?? 'Unable to load dynamic data');
+
+    if (ds.errorWidgetType == 'card') {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4.0),
+        padding: const EdgeInsets.all(14.0),
+        decoration: BoxDecoration(
+          color: theme.surfaceColor,
+          borderRadius: BorderRadius.circular(10.0),
+          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 20.0),
+            const SizedBox(width: 10.0),
+            Expanded(
+              child: Text(
+                msg,
+                style: TextStyle(
+                  color: theme.textPrimary,
+                  fontSize: 13.0,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Default 'banner'
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: Color(0xFFEF4444), size: 16.0),
+          const SizedBox(width: 8.0),
+          Expanded(
+            child: Text(
+              msg,
+              style: const TextStyle(
+                color: Color(0xFFFCA5A5),
+                fontSize: 11.0,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

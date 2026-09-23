@@ -127,13 +127,13 @@ class GenUiApiClient {
 
     // 4. Localhost dev fallbacks
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      add('http://192.168.1.4:8080');
       add('http://10.0.2.2:8080');
+      add('http://192.168.1.11:8080');
       add('http://localhost:8080');
     } else {
-      add('http://192.168.1.4:8080');
-      add('http://localhost:8080');
       add('http://127.0.0.1:8080');
+      add('http://localhost:8080');
+      add('http://192.168.1.11:8080');
     }
     return urls;
   }
@@ -169,10 +169,63 @@ class GenUiApiClient {
     return payload;
   }
 
-  static bool _isBooleanOrSpecial(String fieldId) {
-    return fieldId.toLowerCase().contains('terms') ||
-        fieldId.toLowerCase().contains('check') ||
-        fieldId.toLowerCase().contains('switch');
+  /// Resolves an API URL dynamically:
+  /// - If the URL contains http:// or https://, base URL is completely ignored / forgotten for that specific call.
+  ///   On Android, localhost / 127.0.0.1 is translated to emulator loopback (10.0.2.2).
+  /// - If the URL is relative, joins with candidate base URLs, de-duplicating /api and prioritizing sync server mock.
+  static List<String> resolveCandidateEndpoints(String rawUrl, {String? serverBaseUrl}) {
+    final List<String> candidates = [];
+    var clean = rawUrl.trim();
+    if (clean.isEmpty) return candidates;
+
+    // If URL doesn't start with http:// or https://, but looks like a full domain (e.g. jsonplaceholder.typicode.com/users)
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      final firstSlash = clean.indexOf('/');
+      final hostPart = firstSlash != -1 ? clean.substring(0, firstSlash) : clean;
+      if (hostPart.contains('.') && !hostPart.startsWith('localhost') && !hostPart.startsWith('10.') && !hostPart.startsWith('192.168.')) {
+        clean = 'https://$clean';
+      }
+    }
+
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      // 1. Absolute URL: Base URL is forgotten for this specific API
+      String effectiveUrl = clean;
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        if (effectiveUrl.contains('localhost') || effectiveUrl.contains('127.0.0.1')) {
+          effectiveUrl = effectiveUrl
+              .replaceAll('http://localhost', 'http://10.0.2.2')
+              .replaceAll('http://127.0.0.1', 'http://10.0.2.2');
+        }
+      }
+      candidates.add(effectiveUrl);
+    } else {
+      // 2. Relative URL path
+      final cleanPath = clean.startsWith('/') ? clean : '/$clean';
+
+      // If it is a built-in sync server mock endpoint (e.g. /api/mock/products/1 or /api/mock/users)
+      // prioritize the active sync server host directly
+      if (cleanPath.startsWith('/api/mock')) {
+        for (final syncHost in [serverBaseUrl, GenUiSyncClient.defaultServerUrl, GenUiSyncClient.lastDiscoveredUrl]) {
+          if (syncHost != null && syncHost.isNotEmpty) {
+            final cleanHost = syncHost.endsWith('/') ? syncHost.substring(0, syncHost.length - 1) : syncHost;
+            final full = '$cleanHost$cleanPath';
+            if (!candidates.contains(full)) candidates.add(full);
+          }
+        }
+      }
+
+      // Resolve against configured candidate base URLs (baseUrl, discoveredUrl, fallbacks)
+      for (final base in _candidateUrls(serverBaseUrl)) {
+        String joined;
+        if (base.endsWith('/api') && cleanPath.startsWith('/api/')) {
+          joined = '${base.substring(0, base.length - 4)}$cleanPath';
+        } else {
+          joined = '$base$cleanPath';
+        }
+        if (!candidates.contains(joined)) candidates.add(joined);
+      }
+    }
+    return candidates;
   }
 
   /// Execute a dynamic API call from a configured [ApiConfig]
@@ -259,16 +312,7 @@ class GenUiApiClient {
       }
     });
 
-    List<String> candidateEndpoints = [];
-    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-      candidateEndpoints.add(rawUrl);
-    } else {
-      // Relative URL: resolve against base URL candidates (baseUrl has highest priority)
-      final cleanPath = rawUrl.startsWith('/') ? rawUrl : '/$rawUrl';
-      for (final base in _candidateUrls(serverBaseUrl)) {
-        candidateEndpoints.add('$base$cleanPath');
-      }
-    }
+    List<String> candidateEndpoints = resolveCandidateEndpoints(rawUrl, serverBaseUrl: serverBaseUrl);
 
     // -------------------------------------------------------------
     // Step 4: Headers (Default headers + Auto Token + Schema headers)
@@ -276,6 +320,7 @@ class GenUiApiClient {
     final Map<String, String> requestHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Mobile; Android; Flutter; GenUI-Guard) AppleWebKit/537.36 (KHTML, like Gecko)',
     };
 
     // Inject default Flutter headers if set
@@ -300,6 +345,7 @@ class GenUiApiClient {
     // -------------------------------------------------------------
     http.Response? response;
     String? lastError;
+    int? lastStatusCode;
 
     for (final targetUrl in candidateEndpoints) {
       try {
@@ -326,6 +372,7 @@ class GenUiApiClient {
           response = await client.post(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
         }
 
+        lastStatusCode = response.statusCode;
         if (response.statusCode >= 200 && response.statusCode < 500) {
           // Successful connection established
           break;
@@ -346,7 +393,8 @@ class GenUiApiClient {
       }
       return GenUiApiResult(
         success: false,
-        errorMessage: lastError ?? 'Connection error',
+        statusCode: lastStatusCode ?? 0,
+        errorMessage: lastError ?? 'Failed to reach API endpoint. Check network or server status.',
       );
     }
 
@@ -385,6 +433,184 @@ class GenUiApiClient {
         data: responseBody,
         errorMessage: errorMsg,
       );
+    }
+  }
+
+  /// Fetch screen data from an [ApiDataSource] configuration with optional pagination parameters.
+  /// Returns parsed response (Map or List), or null if failed.
+  static Future<dynamic> fetchDataSource({
+    required ApiDataSource dataSource,
+    int? page,
+    int? pageSize,
+    Map<String, dynamic>? extraParams,
+    String? serverBaseUrl,
+    http.Client? httpClient,
+  }) async {
+    final client = httpClient ?? http.Client();
+    final bool shouldCloseClient = httpClient == null;
+
+    try {
+      // 1. Build URL and inject path variables / userContext
+      String rawUrl = dataSource.url.trim();
+      if (rawUrl.isEmpty) return null;
+
+      _userContext.forEach((key, val) {
+        if (rawUrl.contains('{$key}')) {
+          rawUrl = rawUrl.replaceAll('{$key}', Uri.encodeComponent(val?.toString() ?? ''));
+        }
+      });
+
+      // 2. Query parameters & pagination
+      final Map<String, String> queryParams = {};
+      if (dataSource.params.isNotEmpty) {
+        dataSource.params.forEach((k, v) {
+          if (v != null) queryParams[k] = v.toString();
+        });
+      }
+
+      if (page != null && dataSource.pagination.enabled) {
+        final pag = dataSource.pagination;
+        final pageKey = pag.pageParam.isNotEmpty ? pag.pageParam : 'page';
+        final limitKey = pag.limitParam.isNotEmpty ? pag.limitParam : 'limit';
+        final limitVal = pageSize ?? pag.defaultLimit;
+
+        if (pag.mode == 'offset') {
+          // offset based: offset = (page - 1) * limit
+          final offset = (page - 1) * limitVal;
+          queryParams[pageKey] = offset.toString();
+        } else {
+          // page based
+          queryParams[pageKey] = page.toString();
+        }
+        queryParams[limitKey] = limitVal.toString();
+      }
+
+      if (extraParams != null) {
+        extraParams.forEach((k, v) {
+          if (v != null) queryParams[k] = v.toString();
+        });
+      }
+
+      // Resolve candidate endpoints
+      List<String> candidateEndpoints = resolveCandidateEndpoints(rawUrl, serverBaseUrl: serverBaseUrl);
+
+      // Base headers
+      final Map<String, String> requestHeaders = {
+        'Accept': 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (Mobile; Android; Flutter; GenUI-Guard) AppleWebKit/537.36 (KHTML, like Gecko)',
+      };
+      if (_defaultHeaders.isNotEmpty) requestHeaders.addAll(_defaultHeaders);
+      if (dataSource.headers.isNotEmpty) {
+        requestHeaders.addAll(dataSource.headers);
+      }
+
+      // Collect sync hosts for potential proxy fallback if direct fetch fails on Android emulator
+      final List<String> syncHosts = [];
+      void addHost(String? h) {
+        if (h == null || h.trim().isEmpty) return;
+        final clean = h.trim().endsWith('/') ? h.trim().substring(0, h.trim().length - 1) : h.trim();
+        if (!syncHosts.contains(clean)) syncHosts.add(clean);
+      }
+      addHost(serverBaseUrl);
+      addHost(GenUiSyncClient.lastDiscoveredUrl);
+      addHost(GenUiSyncClient.defaultServerUrl);
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        addHost('http://10.0.2.2:8080');
+        addHost('http://192.168.1.11:8080');
+      } else {
+        addHost('http://127.0.0.1:8080');
+        addHost('http://localhost:8080');
+      }
+
+      for (final baseEndpoint in candidateEndpoints) {
+        try {
+          final uri = Uri.parse(baseEndpoint);
+          final finalUri = queryParams.isEmpty
+              ? uri
+              : uri.replace(queryParameters: {
+                  ...uri.queryParameters,
+                  ...queryParams,
+                });
+
+          // Only attach default mock auth token if the target is our own server/localhost or if already in requestHeaders
+          final endpointHeaders = Map<String, String>.from(requestHeaders);
+          final isLocalOrOwnBackend = baseEndpoint.contains('10.0.2.2') ||
+              baseEndpoint.contains('127.0.0.1') ||
+              baseEndpoint.contains('localhost') ||
+              (_baseUrl != null && baseEndpoint.startsWith(_baseUrl!));
+          final activeToken = authToken;
+          if (isLocalOrOwnBackend && activeToken != null && activeToken.isNotEmpty && !endpointHeaders.containsKey('Authorization')) {
+            final authValue = activeToken.startsWith('Bearer ') ? activeToken : 'Bearer $activeToken';
+            endpointHeaders['Authorization'] = authValue;
+          }
+
+          http.Response? response;
+          final method = dataSource.method.toUpperCase();
+          try {
+            if (method == 'POST') {
+              response = await client
+                  .post(finalUri, headers: endpointHeaders)
+                  .timeout(_defaultTimeout);
+            } else {
+              response = await client
+                  .get(finalUri, headers: endpointHeaders)
+                  .timeout(_defaultTimeout);
+            }
+          } catch (directErr) {
+            debugPrint('[GenUiApiClient] Direct fetch error for $finalUri: $directErr');
+          }
+
+          debugPrint('[GenUiApiClient] fetchDataSource HTTP ${response?.statusCode} from $finalUri');
+          if (response != null && response.statusCode >= 200 && response.statusCode < 300) {
+            dynamic decoded = json.decode(utf8.decode(response.bodyBytes));
+            if (dataSource.resultsPath.isNotEmpty && decoded is Map && decoded.containsKey(dataSource.resultsPath)) {
+              decoded = decoded[dataSource.resultsPath];
+            }
+            return decoded;
+          }
+
+          // If direct fetch threw or returned non-200, attempt Sync Bridge Server Proxy fallback
+          final isExternal = !baseEndpoint.contains('10.0.2.2') &&
+              !baseEndpoint.contains('127.0.0.1') &&
+              !baseEndpoint.contains('localhost');
+          if (isExternal) {
+            for (final syncHost in syncHosts) {
+              try {
+                final proxyUri = Uri.parse('$syncHost/api/proxy?url=${Uri.encodeComponent(finalUri.toString())}');
+                debugPrint('[GenUiApiClient] Trying proxy fallback via: $proxyUri');
+                final proxyResp = await client.get(proxyUri, headers: {
+                  'Accept': 'application/json, text/plain, */*',
+                  'User-Agent': 'Mozilla/5.0 (Mobile; Android; Flutter; GenUI-Guard) AppleWebKit/537.36',
+                }).timeout(_defaultTimeout);
+                if (proxyResp.statusCode >= 200 && proxyResp.statusCode < 300) {
+                  dynamic decoded = json.decode(utf8.decode(proxyResp.bodyBytes));
+                  if (dataSource.resultsPath.isNotEmpty && decoded is Map && decoded.containsKey(dataSource.resultsPath)) {
+                    decoded = decoded[dataSource.resultsPath];
+                  }
+                  debugPrint('[GenUiApiClient] Proxy fallback succeeded for $finalUri!');
+                  return decoded;
+                }
+              } catch (proxyErr) {
+                debugPrint('[GenUiApiClient] Proxy fallback failed on $syncHost: $proxyErr');
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('[GenUiApiClient] fetchDataSource failed for $baseEndpoint: $e');
+        }
+      }
+
+      // If all candidates failed, use configured fallbackData if available
+      if (dataSource.fallbackData.isNotEmpty) {
+        debugPrint('[GenUiApiClient] Returning fallbackData for ${dataSource.url}');
+        return dataSource.fallbackData;
+      }
+
+      return null;
+    } finally {
+      if (shouldCloseClient) {
+        client.close();
+      }
     }
   }
 

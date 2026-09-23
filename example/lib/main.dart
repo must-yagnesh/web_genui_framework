@@ -129,6 +129,11 @@ class EmbeddedContainerDemoScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.wifi, color: Colors.white),
+            tooltip: 'Configure Sync Host',
+            onPressed: () => GenUiSyncClient.showConnectionDialog(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.person, color: Colors.white),
             onPressed: () => Navigator.pushNamed(context, '/profile'),
           ),
@@ -138,15 +143,15 @@ class EmbeddedContainerDemoScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         children: [
           // 1. Regular Native Static Flutter Widget
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
             child: Card(
-              color: const Color(0xFF1E293B),
+              color: Color(0xFF1E293B),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       '📱 Native Flutter Section',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
@@ -183,8 +188,8 @@ class EmbeddedContainerDemoScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFF334155)),
               ),
-              child: Row(
-                children: const [
+              child: const Row(
+                children: [
                   Icon(Icons.sync, color: Color(0xFF818CF8)),
                   SizedBox(width: 12),
                   Expanded(

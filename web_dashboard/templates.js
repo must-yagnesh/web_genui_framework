@@ -183,6 +183,151 @@ const DESIGN_TEMPLATES = [
 
   // ======================= DETAIL SCREENS =======================
   {
+    key: "product_detail_api",
+    kind: "detail",
+    name: "📱 Product Detail Screen (Live Dynamic GET API)",
+    description: "Dynamic product screen driven by live API. Maps thumbnail, title, price, description, feature listview and submit button.",
+    screen_id: "product_detail",
+    route: "/product-detail",
+    preview: { emoji: "📱", tag: "DYNAMIC API", title: "Product Detail", subtitle: "Live REST GET + Bound ListView", themeLabel: "Dark theme" },
+    theme: {
+      primary_color: "#4F46E5",
+      background_color: "#0F172A",
+      surface_color: "#1E293B",
+      text_primary: "#F8FAFC",
+      text_secondary: "#94A3B8",
+      accent_color: "#10B981"
+    },
+    header: { title: "Product Detail", subtitle: "Live Cloud Synchronized View", show_back_button: true, action_icon: "shopping_cart" },
+    data_source: {
+      url: "https://dummyjson.com/products/1",
+      method: "GET"
+    },
+    components: [
+      {
+        id: "p_img",
+        type: "image",
+        height: 190,
+        image_url: "{{thumbnail}}",
+        border_radius: 14
+      },
+      {
+        id: "p_title",
+        type: "text",
+        text: "{{title}}",
+        font_size: 20,
+        is_bold: true,
+        padding: 4
+      },
+      {
+        id: "p_price",
+        type: "text",
+        text: "${{price}} USD • Rating: {{rating}} ⭐",
+        font_size: 15,
+        color: "#10B981",
+        is_bold: true,
+        padding: 2
+      },
+      {
+        id: "p_desc",
+        type: "text",
+        text: "{{description}}",
+        font_size: 13,
+        color: "#94A3B8",
+        padding: 4
+      },
+      {
+        id: "p_features",
+        type: "list_view",
+        data_path: "features",
+        item_template: {
+          id: "p_item_feat",
+          type: "listtile",
+          title: "{{item.name}}",
+          subtitle: "{{item.detail}}",
+          leading_icon: "check"
+        }
+      },
+      {
+        id: "p_buy_btn",
+        type: "button",
+        text: "Add to Cart (${{price}})",
+        action_type: "api_call",
+        api_config: {
+          url: "/api/submissions",
+          method: "POST",
+          body_mapping: { "product": "title", "amount": "price" },
+          on_success: {
+            action: "dialog",
+            title: "Added to Cart!",
+            message: "Item was dynamically added via Cloud API."
+          }
+        }
+      }
+    ]
+  },
+  {
+    key: "user_directory_api",
+    kind: "detail",
+    name: "👥 User Listing Screen (Live Paginated List API)",
+    description: "Dynamic user listing screen driven by paginated REST API. Features infinite scroll, pull-to-refresh, avatar tiles, and submit action.",
+    screen_id: "user_directory",
+    route: "/users",
+    preview: { emoji: "👥", tag: "PAGINATED API", title: "User Directory", subtitle: "Live List API + Dynamic ListView", themeLabel: "Dark theme" },
+    theme: {
+      primary_color: "#4F46E5",
+      background_color: "#0F172A",
+      surface_color: "#1E293B",
+      text_primary: "#F8FAFC",
+      text_secondary: "#94A3B8",
+      accent_color: "#10B981"
+    },
+    header: { title: "Team & User Directory", subtitle: "Real-Time Cloud Feed", show_back_button: true, action_icon: "search" },
+    data_source: {
+      url: "https://jsonplaceholder.typicode.com/users",
+      method: "GET",
+      pagination: {
+        mode: "page",
+        page_param: "page",
+        limit_param: "limit",
+        default_limit: 5,
+        data_path: ""
+      }
+    },
+    components: [
+      {
+        id: "u_banner",
+        type: "banner",
+        title: "Live User Directory",
+        message: "Loaded dynamically from Cloud API with infinite scroll pagination.",
+        badge: "PAGINATED",
+        color: "#4F46E5"
+      },
+      {
+        id: "u_list",
+        type: "list_view",
+        data_path: "",
+        item_template: {
+          id: "u_tile",
+          type: "listtile",
+          title: "{{item.name}}",
+          subtitle: "{{item.email}}",
+          leading_image: "{{item.avatar}}",
+          leading_icon: "person",
+          trailing_text: "Profile",
+          action_id: "user_click"
+        }
+      },
+      {
+        id: "u_add_btn",
+        type: "button",
+        text: "Submit Form / Action",
+        variant: "secondary",
+        action_id: "open_user_form"
+      }
+    ]
+  },
+  {
     key: "must_mate_detail",
     kind: "detail",
     name: "MUST Mate — Product Detail",

@@ -3,6 +3,12 @@
 let activeSchema = {
   version: 1,
   timestamp: Date.now(),
+};
+window._getActiveSchema = () => activeSchema;
+window._setActiveSchema = (s) => { activeSchema = s; };
+activeSchema = {
+  version: 1,
+  timestamp: Date.now(),
   screen_id: "home",
   screen_name: "Crypto & Multi-Asset Hub",
   route: "/",
@@ -1286,6 +1292,1769 @@ function toggleOutcomeFields(successAction) {
   }
 }
 
+let activeApiModalTab = "datasource";
+
+function switchApiModalTab(tab) {
+  activeApiModalTab = tab;
+  const btnDs = document.getElementById("tabBtnDataSource");
+  const btnSub = document.getElementById("tabBtnSubmission");
+  const panelDs = document.getElementById("panelTabDataSource");
+  const panelSub = document.getElementById("panelTabSubmission");
+
+  if (tab === "datasource") {
+    if (btnDs) btnDs.classList.add("active");
+    if (btnSub) btnSub.classList.remove("active");
+    if (panelDs) panelDs.style.display = "block";
+    if (panelSub) panelSub.style.display = "none";
+  } else {
+    if (btnDs) btnDs.classList.remove("active");
+    if (btnSub) btnSub.classList.add("active");
+    if (panelDs) panelDs.style.display = "none";
+    if (panelSub) panelSub.style.display = "block";
+  }
+}
+window.switchApiModalTab = switchApiModalTab;
+
+window.setDsUrlPreset = function(url, name) {
+  const input = document.getElementById("dsUrlInput");
+  if (input) input.value = url;
+  const isList = url.includes("users") || url.includes("records");
+  const chk = document.getElementById("dsPaginationCheckbox");
+  if (chk) {
+    chk.checked = isList;
+    toggleDsPaginationFields();
+  }
+  const dataPathInput = document.getElementById("dsDataPath");
+  if (dataPathInput) {
+    dataPathInput.value = url.includes("mock/users") ? "users" : "";
+  }
+  fetchDsPreview();
+};
+
+window.toggleDsPaginationFields = function() {
+  const chk = document.getElementById("dsPaginationCheckbox");
+  const row = document.getElementById("dsPaginationFieldsRow");
+  if (row) {
+    row.style.display = chk && chk.checked ? "flex" : "none";
+  }
+};
+
+let dsUrlDebounceTimer = null;
+function onDsUrlInputChange() {
+  clearTimeout(dsUrlDebounceTimer);
+  dsUrlDebounceTimer = setTimeout(() => {
+    fetchDsPreview();
+  }, 450);
+}
+window.onDsUrlInputChange = onDsUrlInputChange;
+
+let simulatorScreenData = null;
+window._getSimulatorScreenData = () => simulatorScreenData;
+window._setSimulatorScreenData = (d) => { simulatorScreenData = d; };
+let isSimulatorDataLoading = false;
+let currentLoadedDsUrl = null;
+let lastActiveFocusedInput = null;
+
+document.addEventListener("focusin", (e) => {
+  if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") && e.target.id !== "dsUrlInput") {
+    lastActiveFocusedInput = e.target;
+  }
+});
+
+async function fetchSimulatorScreenData(ds) {
+  if (!ds || !ds.url) {
+    simulatorScreenData = null;
+    currentLoadedDsUrl = null;
+    updateSimulator();
+    return;
+  }
+  const rawUrl = ds.url.trim();
+  const fullUrl = rawUrl.startsWith("http") ? rawUrl : `${window.location.origin}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+
+  isSimulatorDataLoading = true;
+  updateSimulator();
+
+  try {
+    let resp = null;
+    try {
+      resp = await fetch(fullUrl, { headers: { "Accept": "application/json, text/plain, */*" } });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    } catch (_) {
+      // Fallback via server CORS proxy
+      resp = await fetch(`/api/proxy?url=${encodeURIComponent(fullUrl)}`);
+    }
+    if (resp && resp.ok) {
+      simulatorScreenData = await resp.json();
+      currentLoadedDsUrl = rawUrl;
+    }
+  } catch (e) {
+    console.warn("fetchSimulatorScreenData error:", e);
+  } finally {
+    isSimulatorDataLoading = false;
+    updateSimulator();
+  }
+}
+
+// Condenses JSON response for preview: truncates arrays to 1 representative item
+function condenseJsonForPreview(data, depth = 0) {
+  if (data == null) return data;
+  if (depth > 4) return "...";
+
+  if (Array.isArray(data)) {
+    if (data.length === 0) return [];
+    return [ condenseJsonForPreview(data[0], depth + 1) ];
+  }
+
+  if (typeof data === "object") {
+    const res = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (Array.isArray(v)) {
+        res[k] = v.length > 0 ? [ condenseJsonForPreview(v[0], depth + 1) ] : [];
+      } else if (typeof v === "object" && v !== null) {
+        res[k] = condenseJsonForPreview(v, depth + 1);
+      } else if (typeof v === "string" && v.length > 120) {
+        res[k] = v.substring(0, 117) + "...";
+      } else {
+        res[k] = v;
+      }
+    }
+    return res;
+  }
+
+  return data;
+}
+window.condenseJsonForPreview = condenseJsonForPreview;
+
+function pickIconForKey(key) {
+  const k = String(key).toLowerCase();
+  if (/email|mail/.test(k)) return 'email';
+  if (/phone|tel|mobile|cell/.test(k)) return 'phone';
+  if (/website|url|web|domain|site|link/.test(k)) return 'language';
+  if (/address|street|city|zip|location|geo|lat|lng|country|state|place/.test(k)) return 'location_on';
+  if (/company|corp|org|business|employer|work/.test(k)) return 'business';
+  if (/user|name|profile|author|creator|person|handle/.test(k)) return 'person';
+  if (/id|code|sku|uuid|key|badge|tag/.test(k)) return 'badge';
+  if (/price|cost|amount|balance|salary|fee/.test(k)) return 'attach_money';
+  if (/date|time|created|updated|expires|birth/.test(k)) return 'info';
+  if (/status|state|active|is_/.test(k)) return 'check';
+  if (/star|score|rating|rank/.test(k)) return 'star';
+  if (/lock|password|secret|token|security/.test(k)) return 'lock';
+  if (/image|img|avatar|thumb|photo|picture/.test(k)) return 'image';
+  if (/shipping|delivery|truck/.test(k)) return 'local_shipping';
+  if (/return|policy|refund/.test(k)) return 'assignment_return';
+  if (/warranty|guarantee/.test(k)) return 'verified';
+  if (/weight|scale|dimension|size|measure/.test(k)) return 'straighten';
+  if (/stock|inventory|quantity|count/.test(k)) return 'inventory';
+  return 'info';
+}
+window.pickIconForKey = pickIconForKey;
+
+// All Flutter & Dart widgets supported in the Visual Screen Design Studio
+const COMPONENT_STUDIO_OPTIONS = [
+  { group: "✨ Smart Recommendations", items: [
+    { value: "image", label: "🖼️ Hero / Network Image" },
+    { value: "text_title", label: "🏷️ Heading Title Text" },
+    { value: "text_price", label: "💵 Price & Discount Badge" },
+    { value: "text_rating", label: "⭐ Star Rating Display" },
+    { value: "text_body", label: "📝 Body / Description Text" },
+    { value: "chip", label: "🔖 Category / Status Chip" },
+    { value: "listtile", label: "📋 ListTile Info Row" },
+    { value: "button", label: "🔘 Action Button" },
+    { value: "list_view", label: "📜 Repeating ListView" }
+  ]},
+  { group: "📱 Flutter & Dart Widgets", items: [
+    { value: "text", label: "📝 Text (Headline/Body)" },
+    { value: "image", label: "🖼️ Image (Network)" },
+    { value: "card", label: "💳 Feature Card" },
+    { value: "banner", label: "📢 Promo Banner" },
+    { value: "button", label: "🔘 Button" },
+    { value: "listtile", label: "📋 List Tile" },
+    { value: "chip", label: "🏷️ Chip Tag" },
+    { value: "metric_row", label: "📊 Metric Stats Row" },
+    { value: "textfield", label: "💬 Text Input Field" },
+    { value: "switch", label: "🎚️ Switch Toggle" },
+    { value: "checkbox", label: "☑️ Checkbox Tile" },
+    { value: "radio", label: "🔘 Radio Option" },
+    { value: "icon", label: "⭐ Material Icon" },
+    { value: "container", label: "📦 Decorated Container" },
+    { value: "column", label: "🏛️ Column Layout" },
+    { value: "row", label: "↔️ Row Layout" },
+    { value: "divider", label: "➖ Divider Line" },
+    { value: "spacer", label: "↕️ Spacer Box" }
+  ]},
+  { group: "Action", items: [
+    { value: "none", label: "❌ Don't Include (Skip)" }
+  ]}
+];
+
+let dsSuggestedMappings = [];
+
+// Helper to detect if API response encapsulates payload in a single root wrapper object
+// (e.g. { "data": { ... } }, { "result": { ... } }, or { "status": 200, "data": { ... } })
+function getRootWrapperInfo(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return { isWrapped: false, wrapperKey: "", targetObj: data, prefix: "" };
+  }
+
+  const wrapperKeys = ["data", "result", "payload", "response", "item", "record", "body", "entity", "output", "detail", "details"];
+  for (const wk of wrapperKeys) {
+    if (data[wk] && typeof data[wk] === "object" && !Array.isArray(data[wk]) && Object.keys(data[wk]).length > 0) {
+      return { isWrapped: true, wrapperKey: wk, targetObj: data[wk], prefix: `${wk}.` };
+    }
+  }
+
+  const keys = Object.keys(data);
+  const objKeys = keys.filter(k => typeof data[k] === "object" && data[k] !== null && !Array.isArray(data[k]));
+  const isMetadataKey = k => ["status", "code", "message", "msg", "success", "error", "errors", "timestamp", "time", "count", "version", "meta"].includes(k.toLowerCase());
+
+  if (objKeys.length === 1) {
+    const nonObjKeys = keys.filter(k => k !== objKeys[0]);
+    if (nonObjKeys.length === 0 || nonObjKeys.every(isMetadataKey)) {
+      return { isWrapped: true, wrapperKey: objKeys[0], targetObj: data[objKeys[0]], prefix: `${objKeys[0]}.` };
+    }
+  }
+
+  return { isWrapped: false, wrapperKey: "", targetObj: data, prefix: "" };
+}
+window.getRootWrapperInfo = getRootWrapperInfo;
+
+function suggestUiComponents(data) {
+  dsSuggestedMappings = [];
+  if (!data) return [];
+
+  const wrapperInfo = getRootWrapperInfo(data);
+  let targetObj = data;
+  let isArrayScope = false;
+  let rootPrefix = "";
+
+  if (Array.isArray(data)) {
+    isArrayScope = true;
+    rootPrefix = "item.";
+    targetObj = data.length > 0 && typeof data[0] === "object" ? data[0] : {};
+  } else if (typeof data === "object" && data !== null) {
+    const listKeys = ["products", "users", "items", "data", "results", "records", "list", "posts"];
+    let foundList = false;
+    for (const lk of listKeys) {
+      if (Array.isArray(data[lk]) && data[lk].length > 0 && typeof data[lk][0] === "object") {
+        if (!checkIsSingleEntity(data)) {
+          isArrayScope = true;
+          rootPrefix = "item.";
+          targetObj = data[lk][0];
+          foundList = true;
+          break;
+        }
+      }
+    }
+
+    if (!foundList && wrapperInfo.isWrapped) {
+      targetObj = wrapperInfo.targetObj;
+      rootPrefix = wrapperInfo.prefix;
+    }
+  }
+
+  function formatSampleVal(val) {
+    if (val == null) return "null";
+    if (typeof val === "object") {
+      if (Array.isArray(val)) {
+        if (val.length === 0) return "[]";
+        if (typeof val[0] === "object") return `[${val.length} items]`;
+        return val.slice(0, 3).join(", ");
+      }
+      return "{...}";
+    }
+    const s = String(val).trim();
+    return s.length > 30 ? s.substring(0, 27) + "..." : s;
+  }
+
+  function formatLabelKey(str) {
+    if (!str) return "";
+    return str.split(".").map(part => {
+      if (/^\d+$/.test(part)) return "";
+      return part
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/[-_]+/g, " ")
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .trim();
+    }).filter(Boolean).join(" ");
+  }
+
+  function detectSmartType(k, val) {
+    const lk = k.toLowerCase();
+    if (lk.includes("image") || lk.includes("thumbnail") || lk.includes("avatar") || lk.includes("photo") || lk.includes("poster") || (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://")) && (val.includes(".png") || val.includes(".jpg") || val.includes(".jpeg") || val.includes(".webp") || val.includes("unsplash")))) {
+      return "image";
+    }
+    if (lk === "title" || lk === "name" || lk === "header" || lk === "headline" || lk === "product_name" || lk.endsWith("_name")) {
+      return "text_title";
+    }
+    if (lk.includes("rating") || lk.includes("stars") || lk.includes("score")) {
+      return "text_rating";
+    }
+    if (lk.includes("price") || lk.includes("cost") || lk.includes("amount") || lk.includes("discount") || lk.includes("salary") || lk.includes("fee")) {
+      return "text_price";
+    }
+    if (lk.includes("description") || lk.includes("bio") || lk.includes("summary") || lk.includes("details") || lk.includes("about") || (typeof val === "string" && val.length > 60)) {
+      return "text_body";
+    }
+    if (lk === "category" || lk === "brand" || lk === "status" || lk === "availabilitystatus" || lk === "tags" || lk === "role" || lk === "department" || lk === "genre" || lk === "type") {
+      return "chip";
+    }
+    if (typeof val === "boolean" || lk.startsWith("is_") || lk.startsWith("has_")) {
+      return "switch";
+    }
+    if (Array.isArray(val) && val.length > 0 && typeof val[0] === "object") {
+      return "list_view";
+    }
+    if (Array.isArray(val)) {
+      return "chip";
+    }
+    if (typeof val === "object" && val !== null) {
+      return "listtile";
+    }
+    if (lk === "id" || lk.endsWith("_id") || lk === "sku" || lk === "uuid" || lk === "code") {
+      return "listtile";
+    }
+    return "text";
+  }
+
+  if (typeof targetObj === "object" && targetObj !== null) {
+    for (const [k, v] of Object.entries(targetObj)) {
+      const fullPath = isArrayScope ? `item.${k}` : `${rootPrefix}${k}`;
+      const rawToken = `{{${fullPath}}}`;
+
+      // If v is a nested object (e.g. details: { a: 1, b: 2 }), unpack subkeys
+      if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+        const subEntries = Object.entries(v);
+        if (subEntries.length > 0 && subEntries.length <= 15) {
+          let unpackedAny = false;
+          for (const [subK, subV] of subEntries) {
+            if (typeof subV !== "object" || subV == null) {
+              const subFullPath = `${fullPath}.${subK}`;
+              dsSuggestedMappings.push({
+                key: subFullPath,
+                token: `{{${subFullPath}}}`,
+                sample: formatSampleVal(subV),
+                type: detectSmartType(subK, subV),
+                label: formatLabelKey(`${k}.${subK}`),
+                rawValue: subV
+              });
+              unpackedAny = true;
+            }
+          }
+          if (unpackedAny) continue;
+        }
+      }
+
+      const smartType = detectSmartType(k, v);
+      dsSuggestedMappings.push({
+        key: fullPath,
+        token: rawToken,
+        sample: formatSampleVal(v),
+        type: smartType,
+        label: formatLabelKey(k),
+        rawValue: v
+      });
+    }
+
+    const hasPrice = dsSuggestedMappings.some(m => m.type === "text_price");
+    if (hasPrice) {
+      const priceItem = dsSuggestedMappings.find(m => m.type === "text_price");
+      dsSuggestedMappings.push({
+        key: "_action_buy",
+        token: priceItem ? `Buy Now • ${priceItem.token}` : "Buy Now",
+        sample: "Action Button",
+        type: "button",
+        label: "Primary Action",
+        rawValue: null
+      });
+    }
+  }
+
+  return dsSuggestedMappings;
+}
+window.suggestUiComponents = suggestUiComponents;
+
+function renderSuggestedComponentsList() {
+  const container = document.getElementById("dsSuggestedComponentsList");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!dsSuggestedMappings || dsSuggestedMappings.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:24px 10px;color:var(--text-muted);font-size:12px;">Fetch an API endpoint to auto-suggest UI components.</div>`;
+    return;
+  }
+
+  dsSuggestedMappings.forEach((mapping, idx) => {
+    const isNone = mapping.type === "none";
+    const row = document.createElement("div");
+    row.className = "suggested-comp-card";
+    row.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: ${isNone ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)'};
+      border: 1px solid ${isNone ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.1)'};
+      border-radius: 6px;
+      opacity: ${isNone ? 0.45 : 1};
+      transition: all 0.15s ease;
+    `;
+
+    let optionsHtml = "";
+    COMPONENT_STUDIO_OPTIONS.forEach(grp => {
+      optionsHtml += `<optgroup label="${grp.group}">`;
+      grp.items.forEach(opt => {
+        const isSel = mapping.type === opt.value;
+        optionsHtml += `<option value="${opt.value}" ${isSel ? 'selected' : ''}>${opt.label}</option>`;
+      });
+      optionsHtml += `</optgroup>`;
+    });
+
+    row.innerHTML = `
+      <div style="font-size: 11px; font-weight: 700; color: #64748B; width: 18px; text-align: center;">${idx + 1}</div>
+      <div style="flex: 1.1; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="font-family: monospace; font-size: 11px; color: #38BDF8; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(mapping.token)}">${escapeHtml(mapping.token)}</span>
+        </div>
+        <div style="font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(mapping.sample)}">${escapeHtml(mapping.sample)}</div>
+      </div>
+      <div style="flex: 1.35; min-width: 140px;">
+        <select class="form-select form-select-xs" style="width: 100%; font-size: 11px; padding: 4px 6px; background: #1E293B; color: #F8FAFC; border: 1px solid #334155; border-radius: 4px;" onchange="changeSuggestedComponentType(${idx}, this.value)">
+          ${optionsHtml}
+        </select>
+      </div>
+      <button class="api-btn-del" type="button" onclick="removeSuggestedComponent(${idx})" title="Remove this component" style="color: #EF4444; background: transparent; border: none; cursor: pointer; padding: 2px 6px; font-size: 13px;">✕</button>
+    `;
+
+    container.appendChild(row);
+  });
+}
+window.renderSuggestedComponentsList = renderSuggestedComponentsList;
+
+window.changeSuggestedComponentType = function(idx, newType) {
+  if (dsSuggestedMappings[idx]) {
+    dsSuggestedMappings[idx].type = newType;
+    renderSuggestedComponentsList();
+  }
+};
+
+window.removeSuggestedComponent = function(idx) {
+  if (dsSuggestedMappings[idx]) {
+    dsSuggestedMappings.splice(idx, 1);
+    renderSuggestedComponentsList();
+  }
+};
+
+window.addCustomSuggestedComponent = function() {
+  const token = prompt("Enter custom field key or token (e.g. subtitle, item.price, {{discount}}):");
+  if (!token) return;
+  const cleanTok = token.startsWith("{{") ? token : `{{${token}}}`;
+  const key = cleanTok.replace(/[\{\}]/g, "");
+  dsSuggestedMappings.push({
+    key: key,
+    token: cleanTok,
+    sample: "Custom Field",
+    type: "text",
+    label: key,
+    rawValue: null
+  });
+  renderSuggestedComponentsList();
+};
+
+window.resetSuggestedComponents = function() {
+  if (simulatorScreenData) {
+    suggestUiComponents(simulatorScreenData);
+    renderSuggestedComponentsList();
+    showToast("Reset to smart recommended components");
+  }
+};
+
+window.createFullScreenFromSuggestions = function() {
+  const url = (document.getElementById("dsUrlInput")?.value || "").trim();
+  if (!url) {
+    alert("Please enter a Data Source API URL first!");
+    return;
+  }
+  if (!dsSuggestedMappings || dsSuggestedMappings.length === 0) {
+    alert("No suggested components available. Please fetch and inspect an API endpoint first!");
+    return;
+  }
+
+  const activeItems = dsSuggestedMappings.filter(m => m.type !== "none");
+  if (activeItems.length === 0) {
+    alert("All components are set to 'Skip'. Please select at least one component to include.");
+    return;
+  }
+
+  const components = [];
+  const primaryBrandColor = activeSchema.theme?.primary_color || "#4F46E5";
+
+  // Check if there is a hero image
+  const imgItem = activeItems.find(m => m.type === "image");
+  if (imgItem) {
+    components.push({
+      id: `hero_img_${Date.now()}`,
+      type: "image",
+      image_url: imgItem.token,
+      height: 220,
+      border_radius: 14,
+      padding: 4
+    });
+  }
+
+  // Title
+  const titleItem = activeItems.find(m => m.type === "text_title") || activeItems.find(m => m.key.toLowerCase().includes("title") || m.key.toLowerCase().includes("name"));
+  if (titleItem && titleItem !== imgItem) {
+    components.push({
+      id: `title_${Date.now()}`,
+      type: "text",
+      text: titleItem.token,
+      font_size: 20,
+      is_bold: true,
+      align: "left",
+      padding: 4
+    });
+  }
+
+  // Star Rating & Price
+  const ratingItem = activeItems.find(m => m.type === "text_rating");
+  const priceItem = activeItems.find(m => m.type === "text_price");
+
+  if (ratingItem || priceItem) {
+    const rowChildren = [];
+    if (ratingItem) {
+      rowChildren.push({
+        id: `rating_${Date.now()}`,
+        type: "text",
+        text: `★ ${ratingItem.token}`,
+        font_size: 15,
+        is_bold: true,
+        color: "#F59E0B"
+      });
+    }
+    if (priceItem) {
+      rowChildren.push({
+        id: `price_${Date.now()}`,
+        type: "text",
+        text: priceItem.token.includes("$") ? priceItem.token : `$${priceItem.token}`,
+        font_size: 18,
+        is_bold: true,
+        color: "#10B981"
+      });
+    }
+    components.push({
+      id: `row_stat_${Date.now()}`,
+      type: "row",
+      main_axis_alignment: "spaceBetween",
+      cross_axis_alignment: "center",
+      children: rowChildren
+    });
+  }
+
+  // Chips
+  const chipItems = activeItems.filter(m => m.type === "chip");
+  if (chipItems.length > 0) {
+    const chipRow = {
+      id: `chips_${Date.now()}`,
+      type: "row",
+      main_axis_alignment: "start",
+      cross_axis_alignment: "center",
+      children: chipItems.map((c, i) => ({
+        id: `chip_${Date.now()}_${i}`,
+        type: "chip",
+        label: `${c.label}: ${c.token}`,
+        icon: "check",
+        is_selected: true
+      }))
+    };
+    components.push(chipRow);
+  }
+
+  // Body / Description text
+  const bodyItem = activeItems.find(m => m.type === "text_body");
+  if (bodyItem && bodyItem !== titleItem) {
+    components.push({
+      id: `desc_${Date.now()}`,
+      type: "text",
+      text: bodyItem.token,
+      font_size: 14,
+      is_bold: false,
+      color: "#94A3B8",
+      padding: 6
+    });
+  }
+
+  // Remaining items
+  const handledKeys = new Set([
+    imgItem?.key,
+    titleItem?.key,
+    ratingItem?.key,
+    priceItem?.key,
+    bodyItem?.key,
+    ...chipItems.map(c => c.key)
+  ].filter(Boolean));
+
+  let hasAttributes = false;
+  activeItems.forEach((m, idx) => {
+    if (handledKeys.has(m.key) && m.type !== "button") return;
+    if (m.type === "button") return;
+
+    if (!hasAttributes && components.length > 0) {
+      components.push({ id: `div_${Date.now()}`, type: "divider", thickness: 1, color: "#334155", padding: 8 });
+      hasAttributes = true;
+    }
+
+    const safeKey = String(m.key).replace(/[^a-zA-Z0-9_]/g, '_');
+    if (m.type === "listtile") {
+      components.push({
+        id: `tile_${safeKey}_${Date.now()}_${idx}`,
+        type: "listtile",
+        title: m.label,
+        subtitle: m.token,
+        leading_icon: pickIconForKey(m.key),
+        trailing_text: "›"
+      });
+    } else if (m.type === "list_view") {
+      components.push({
+        id: `list_${safeKey}_${Date.now()}_${idx}`,
+        type: "list_view",
+        data_path: m.key,
+        item_template: {
+          id: `item_${safeKey}_${Date.now()}`,
+          type: "listtile",
+          title: `{{item.name}}`,
+          subtitle: `{{item.description}}`,
+          trailing_text: "›"
+        }
+      });
+    } else if (m.type === "card") {
+      components.push({
+        id: `card_${safeKey}_${Date.now()}_${idx}`,
+        type: "card",
+        title: m.label,
+        description: m.token,
+        badge: "INFO",
+        action_text: "View Details"
+      });
+    } else if (m.type === "banner") {
+      components.push({
+        id: `banner_${safeKey}_${Date.now()}_${idx}`,
+        type: "banner",
+        title: m.label,
+        message: m.token,
+        badge: "NOTICE",
+        color: primaryBrandColor
+      });
+    } else if (m.type === "metric_row") {
+      components.push({
+        id: `metric_${safeKey}_${Date.now()}_${idx}`,
+        type: "metric_row",
+        metrics: [
+          { label: m.label, value: m.token, change: "+0%", is_positive: true }
+        ]
+      });
+    } else if (m.type === "textfield") {
+      components.push({
+        id: `input_${safeKey}_${Date.now()}_${idx}`,
+        type: "textfield",
+        label: m.label,
+        hint: m.token
+      });
+    } else if (m.type === "switch") {
+      components.push({
+        id: `switch_${safeKey}_${Date.now()}_${idx}`,
+        type: "switch",
+        label: m.label,
+        subtitle: m.token,
+        is_checked: true
+      });
+    } else if (m.type === "checkbox") {
+      components.push({
+        id: `check_${safeKey}_${Date.now()}_${idx}`,
+        type: "checkbox",
+        label: m.label,
+        subtitle: m.token,
+        is_checked: false
+      });
+    } else if (m.type === "radio") {
+      components.push({
+        id: `radio_${safeKey}_${Date.now()}_${idx}`,
+        type: "radio",
+        label: m.label,
+        subtitle: m.token,
+        is_selected: true
+      });
+    } else if (m.type === "icon") {
+      components.push({
+        id: `icon_${safeKey}_${Date.now()}_${idx}`,
+        type: "icon",
+        icon: pickIconForKey(m.key),
+        size: 28,
+        color: primaryBrandColor
+      });
+    } else if (m.type === "container") {
+      components.push({
+        id: `container_${safeKey}_${Date.now()}_${idx}`,
+        type: "container",
+        background_color: "#1E293B",
+        border_radius: 12,
+        padding: 12,
+        children: [
+          { id: `c_t1_${idx}`, type: "text", text: m.label, font_size: 14, is_bold: true },
+          { id: `c_t2_${idx}`, type: "text", text: m.token, font_size: 12, color: "#94A3B8" }
+        ]
+      });
+    } else {
+      components.push({
+        id: `text_${safeKey}_${Date.now()}_${idx}`,
+        type: "text",
+        text: `${m.label}: ${m.token}`,
+        font_size: 14,
+        is_bold: false
+      });
+    }
+  });
+
+  const btnItem = activeItems.find(m => m.type === "button");
+  if (btnItem) {
+    components.push({ id: `div_btn_${Date.now()}`, type: "spacer", height: 16 });
+    components.push({
+      id: `btn_action_${Date.now()}`,
+      type: "button",
+      text: btnItem.token.startsWith("{{") ? `Submit ${btnItem.token}` : btnItem.token,
+      variant: "primary",
+      action_id: "action_submit"
+    });
+  }
+
+  activeSchema.components = components;
+
+  const paginationChk = document.getElementById("dsPaginationCheckbox");
+  activeSchema.data_source = {
+    url: url,
+    method: (document.getElementById("dsMethodSelect")?.value || "GET").toUpperCase(),
+    show_error_widget: document.getElementById("dsShowErrorWidgetCheckbox") ? document.getElementById("dsShowErrorWidgetCheckbox").checked : true,
+    error_message: (document.getElementById("dsErrorMessageInput")?.value || "").trim(),
+    error_widget_type: document.getElementById("dsErrorWidgetTypeSelect")?.value || "banner",
+    ...(paginationChk && paginationChk.checked ? {
+      pagination: {
+        mode: document.getElementById("dsPaginationMode")?.value || "page",
+        page_param: document.getElementById("dsPageParam")?.value || "page",
+        limit_param: document.getElementById("dsLimitParam")?.value || "limit",
+        default_limit: parseInt(document.getElementById("dsDefaultLimit")?.value || "5", 10),
+        data_path: (document.getElementById("dsDataPath")?.value || "").trim()
+      }
+    } : {})
+  };
+
+  renderAll();
+  updateSimulator();
+  saveCurrentSchemaToServer();
+  closeApiConfigModal();
+  showToast(`🎉 Full Screen UI Created with ${components.length} components! Live on Mobile.`);
+};
+
+async function fetchDsPreview() {
+  const urlInput = document.getElementById("dsUrlInput");
+  const url = (urlInput?.value || "").trim();
+  if (!url) {
+    const box = document.getElementById("dsTokensBox");
+    if (box) box.style.display = "none";
+    const statusBadge = document.getElementById("dsFetchStatusBadge");
+    if (statusBadge) statusBadge.style.display = "none";
+    return;
+  }
+
+  const btn = document.getElementById("btnFetchDsPreview");
+  const statusBadge = document.getElementById("dsFetchStatusBadge");
+  const metaLabel = document.getElementById("dsResponseMetaLabel");
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="sim-spinner" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></span> Fetching...`;
+  }
+  if (statusBadge) {
+    statusBadge.style.display = "inline-block";
+    statusBadge.className = "badge";
+    statusBadge.style.background = "rgba(56, 189, 248, 0.2)";
+    statusBadge.style.color = "#38bdf8";
+    statusBadge.textContent = "⏳ Requesting...";
+  }
+
+  let data = null;
+  let fetchMethodUsed = "Direct";
+
+  try {
+    const cleanUrl = url.startsWith("http") ? url : `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+
+    // Attempt 1: Direct fetch
+    try {
+      const resp = await fetch(cleanUrl, {
+        headers: { "Accept": "application/json, text/plain, */*" }
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+      data = await resp.json();
+    } catch (directErr) {
+      // Attempt 2: CORS / Network Fallback through Sync Server Proxy
+      console.info("Direct fetch failed, falling back to server CORS proxy:", directErr.message);
+      fetchMethodUsed = "Proxy";
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(cleanUrl)}`;
+      const proxyResp = await fetch(proxyUrl);
+      if (!proxyResp.ok) {
+        let errJson = null;
+        try { errJson = await proxyResp.json(); } catch (_) {}
+        throw new Error(errJson?.error || `HTTP ${proxyResp.status} via Proxy`);
+      }
+      data = await proxyResp.json();
+    }
+
+    if (!data) throw new Error("API returned an empty response body.");
+
+    simulatorScreenData = data;
+    currentLoadedDsUrl = url;
+
+    // Display formatted JSON preview (condensed to 1 item per array for clean schema inspection)
+    const previewEl = document.getElementById("dsResponsePreviewJson");
+    if (previewEl) previewEl.textContent = JSON.stringify(condenseJsonForPreview(data), null, 2);
+
+    if (metaLabel) {
+      const isArray = Array.isArray(data);
+      const sizeStr = isArray ? `${data.length} records (List)` : `${Object.keys(data).length} top-level fields (Object)`;
+      metaLabel.textContent = `${fetchMethodUsed} • ${sizeStr}`;
+    }
+
+    // Auto-detect array path for pagination / listview
+    autoDetectDataPath(data);
+
+    // Extract available dynamic tokens
+    const tokens = extractBindingTokens(data);
+    renderTokenChips(tokens);
+
+    // Auto-generate smart component suggestions in right panel
+    suggestUiComponents(data);
+    renderSuggestedComponentsList();
+
+    const countLabel = document.getElementById("dsTokensCountLabel");
+    if (countLabel) {
+      countLabel.textContent = `${tokens.length} dynamic tokens available`;
+    }
+
+    const box = document.getElementById("dsTokensBox");
+    if (box) box.style.display = "block";
+
+    if (statusBadge) {
+      statusBadge.style.display = "inline-block";
+      statusBadge.style.background = "rgba(16, 185, 129, 0.2)";
+      statusBadge.style.color = "#10B981";
+      statusBadge.textContent = "✓ 200 OK";
+    }
+
+    showToast("✅ Live API Data Retrieved & Inspected!");
+    updateSimulator();
+  } catch (err) {
+    console.error("fetchDsPreview error:", err);
+    if (statusBadge) {
+      statusBadge.style.display = "inline-block";
+      statusBadge.style.background = "rgba(239, 68, 68, 0.2)";
+      statusBadge.style.color = "#EF4444";
+      statusBadge.textContent = "✕ Fetch Error";
+    }
+    const previewEl = document.getElementById("dsResponsePreviewJson");
+    if (previewEl) previewEl.textContent = `// Error fetching data:\n${err.message}\n\nEndpoint: ${url}`;
+    const box = document.getElementById("dsTokensBox");
+    if (box) box.style.display = "block";
+    showToast(`⚠️ Fetch Error: ${err.message}`, true);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `⚡ Fetch &amp; Inspect API Data`;
+    }
+  }
+}
+window.fetchDsPreview = fetchDsPreview;
+
+function checkIsSingleEntity(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  const wrapper = getRootWrapperInfo(data);
+  const target = wrapper.isWrapped ? wrapper.targetObj : data;
+  if (!target || typeof target !== "object" || Array.isArray(target)) return false;
+
+  const hasId = target.id !== undefined || target._id !== undefined || target.uuid !== undefined || target.sku !== undefined || target.artist_id !== undefined || target.product_id !== undefined || target.user_id !== undefined;
+  const hasName = target.title !== undefined || target.name !== undefined || target.username !== undefined || target.header !== undefined || target.label !== undefined || target.display_artist_name !== undefined || target.original_artist_name !== undefined || target.display_name !== undefined;
+  const hasAttrs = target.price !== undefined || target.category !== undefined || target.email !== undefined || target.brand !== undefined || target.description !== undefined || target.phone !== undefined || target.status !== undefined || target.role !== undefined || target.website !== undefined || target.genre !== undefined || target.uploaded_by_user_id !== undefined;
+  return (hasId && hasName) || (hasName && hasAttrs) || (hasId && hasAttrs) || (wrapper.isWrapped && Object.keys(target).length >= 2);
+}
+
+function autoDetectDataPath(data) {
+  const dataPathInput = document.getElementById("dsDataPath");
+  const paginationChk = document.getElementById("dsPaginationCheckbox");
+  if (!dataPathInput) return;
+
+  if (Array.isArray(data)) {
+    dataPathInput.value = "";
+    dataPathInput.placeholder = "Root array (leave blank)";
+    if (paginationChk && !paginationChk.checked) {
+      paginationChk.checked = true;
+      toggleDsPaginationFields();
+    }
+  } else if (typeof data === "object" && data !== null) {
+    if (checkIsSingleEntity(data)) {
+      dataPathInput.value = "";
+      dataPathInput.placeholder = "Single object (no data path needed)";
+      if (paginationChk && paginationChk.checked) {
+        paginationChk.checked = false;
+        toggleDsPaginationFields();
+      }
+      return;
+    }
+    const listKeys = ["users", "products", "items", "data", "results", "records", "list", "posts", "comments", "photos", "todos", "articles", "orders", "transactions"];
+    let foundList = false;
+    for (const k of listKeys) {
+      if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === "object") {
+        dataPathInput.value = k;
+        if (paginationChk && !paginationChk.checked) {
+          paginationChk.checked = true;
+          toggleDsPaginationFields();
+        }
+        foundList = true;
+        break;
+      }
+    }
+    if (!foundList) {
+      dataPathInput.value = "";
+      dataPathInput.placeholder = "Single object (no data path needed)";
+      if (paginationChk && paginationChk.checked) {
+        paginationChk.checked = false;
+        toggleDsPaginationFields();
+      }
+    }
+  }
+}
+
+function extractBindingTokens(data, prefix = "", depth = 0, isItemScope = false) {
+  if (depth > 4 || data == null) return [];
+  const tokens = [];
+
+  function formatSample(val) {
+    if (val == null) return "null";
+    if (typeof val === "object") return Array.isArray(val) ? `[${val.length} items]` : "{...}";
+    const s = String(val).trim();
+    return s.length > 25 ? s.substring(0, 22) + "..." : s;
+  }
+
+  function detectType(k, val) {
+    const lk = k.toLowerCase();
+    if (lk.includes("image") || lk.includes("img") || lk.includes("avatar") || lk.includes("thumb") || lk.includes("photo") || (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://")) && (val.includes(".png") || val.includes(".jpg") || val.includes(".jpeg") || val.includes(".webp") || val.includes("unsplash")))) {
+      return "image";
+    }
+    if (lk.includes("price") || lk.includes("amount") || lk.includes("cost") || lk.includes("rate") || lk.includes("rating") || typeof val === "number") {
+      return "number";
+    }
+    if (typeof val === "boolean") return "boolean";
+    return "text";
+  }
+
+  if (Array.isArray(data)) {
+    if (data.length > 0 && typeof data[0] === "object") {
+      const itemTokens = extractBindingTokens(data[0], "item.", depth + 1, true);
+      tokens.push(...itemTokens);
+    }
+  } else if (typeof data === "object") {
+    for (const [k, v] of Object.entries(data)) {
+      const rawKey = `${prefix}${k}`;
+      const tokenStr = `{{${rawKey}}}`;
+      const type = detectType(k, v);
+      const sample = formatSample(v);
+
+      if (!Array.isArray(v) && (typeof v !== "object" || v == null)) {
+        tokens.push({
+          token: tokenStr,
+          key: rawKey,
+          sample: sample,
+          type: type,
+          isItemScope: isItemScope
+        });
+      } else if (Array.isArray(v)) {
+        tokens.push({
+          token: `{{${rawKey}.length}}`,
+          key: `${rawKey}.length`,
+          sample: `${v.length} items`,
+          type: "number",
+          isItemScope: isItemScope
+        });
+        if (v.length > 0 && typeof v[0] === "object" && depth < 2) {
+          const subPrefix = isItemScope ? `${rawKey}.0.` : `${rawKey}.0.`;
+          const subTokens = extractBindingTokens(v[0], subPrefix, depth + 1, isItemScope);
+          tokens.push(...subTokens);
+        }
+      } else if (typeof v === "object" && depth < 2) {
+        tokens.push({
+          token: tokenStr,
+          key: rawKey,
+          sample: "{object}",
+          type: "object",
+          isItemScope: isItemScope
+        });
+        const sub = extractBindingTokens(v, `${rawKey}.`, depth + 1, isItemScope);
+        tokens.push(...sub);
+      }
+    }
+  }
+
+  const seen = new Set();
+  return tokens.filter(t => {
+    if (seen.has(t.token)) return false;
+    seen.add(t.token);
+    return true;
+  });
+}
+
+function renderTokenChips(tokens) {
+  const container = document.getElementById("dsTokenChipsContainer");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!tokens || tokens.length === 0) {
+    container.innerHTML = `<span style="font-size:12px;color:var(--text-muted);">No tokens found in response.</span>`;
+    return;
+  }
+
+  tokens.slice(0, 48).forEach(tok => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "token-chip";
+    const typeIcon = tok.type === "image" ? "🖼️" : (tok.type === "number" ? "🔢" : "📋");
+    chip.innerHTML = `
+      <span>${typeIcon}</span>
+      <span class="token-chip-name">${escapeHtml(tok.token)}</span>
+      <span class="token-chip-sample" title="${escapeHtml(tok.sample)}">${escapeHtml(tok.sample)}</span>
+    `;
+    chip.title = `Click to copy ${tok.token} or insert into active field`;
+    chip.onclick = () => {
+      // 1. Copy to clipboard
+      navigator.clipboard?.writeText(tok.token);
+
+      // 2. If a property input was recently focused, insert token directly
+      if (lastActiveFocusedInput && document.body.contains(lastActiveFocusedInput)) {
+        const start = lastActiveFocusedInput.selectionStart || 0;
+        const end = lastActiveFocusedInput.selectionEnd || 0;
+        const val = lastActiveFocusedInput.value || "";
+        lastActiveFocusedInput.value = val.substring(0, start) + tok.token + val.substring(end);
+        lastActiveFocusedInput.dispatchEvent(new Event("input", { bubbles: true }));
+        lastActiveFocusedInput.dispatchEvent(new Event("change", { bubbles: true }));
+        showToast(`Inserted ${tok.token} into "${lastActiveFocusedInput.dataset.label || lastActiveFocusedInput.id || 'field'}"!`);
+      } else {
+        showToast(`Copied ${tok.token} to clipboard!`);
+      }
+    };
+    container.appendChild(chip);
+  });
+}
+
+window.quickAddBoundComponent = function(type) {
+  if (!simulatorScreenData) {
+    alert("Please fetch an API endpoint first to inspect its tokens!");
+    return;
+  }
+  const tokens = extractBindingTokens(simulatorScreenData);
+
+  if (type === "text") {
+    const textTok = tokens.find(t => !t.isItemScope && t.type === "text" && !t.key.includes(".length")) || tokens[0];
+    const tokStr = textTok ? textTok.token : "{{title}}";
+    const newComp = {
+      id: `text_bound_${Date.now()}`,
+      type: "text",
+      text: tokStr,
+      font_size: 16,
+      is_bold: false,
+      padding: 6
+    };
+    activeSchema.components = activeSchema.components || [];
+    activeSchema.components.push(newComp);
+    renderComponentsList();
+    updateSimulator();
+    showToast(`Added Text widget bound to ${tokStr}`);
+  } else if (type === "image") {
+    const imgTok = tokens.find(t => t.type === "image" && !t.isItemScope) || tokens.find(t => t.type === "image") || tokens[0];
+    const tokStr = imgTok ? imgTok.token : "{{thumbnail}}";
+    const newComp = {
+      id: `img_bound_${Date.now()}`,
+      type: "image",
+      image_url: tokStr,
+      height: 180,
+      border_radius: 12
+    };
+    activeSchema.components = activeSchema.components || [];
+    activeSchema.components.push(newComp);
+    renderComponentsList();
+    updateSimulator();
+    showToast(`Added Image widget bound to ${tokStr}`);
+  } else if (type === "listview") {
+    const dataPathInput = document.getElementById("dsDataPath");
+    const dataPath = dataPathInput ? dataPathInput.value.trim() : "";
+    const itemTokens = tokens.filter(t => t.isItemScope);
+    const titleTok = itemTokens.find(t => t.key.includes("title") || t.key.includes("name"))?.token || "{{item.title}}";
+    const subTok = itemTokens.find(t => t.key.includes("sub") || t.key.includes("desc") || t.key.includes("email") || t.key.includes("detail"))?.token || "{{item.subtitle}}";
+    const imgTok = itemTokens.find(t => t.type === "image")?.token || "";
+
+    const newComp = {
+      id: `list_bound_${Date.now()}`,
+      type: "list_view",
+      data_path: dataPath,
+      item_template: {
+        id: `tile_${Date.now()}`,
+        type: "listtile",
+        title: titleTok,
+        subtitle: subTok,
+        leading_image: imgTok,
+        leading_icon: imgTok ? "" : "list",
+        trailing_text: "›"
+      }
+    };
+    activeSchema.components = activeSchema.components || [];
+    activeSchema.components.push(newComp);
+    renderComponentsList();
+    updateSimulator();
+    showToast(`Added ListView bound to "${dataPath || 'root array'}"!`);
+  }
+};
+
+function resolveTokens(val, context) {
+  if (typeof val !== "string" || !context) return val;
+  if (!val.includes("{{")) return val;
+
+  return val.replace(/\{\{\s*([a-zA-Z0-9_\-\.]+)\s*\}\}/g, (match, key) => {
+    const parts = key.split(".");
+    let curr = context;
+    for (const p of parts) {
+      if (curr == null) return "";
+      curr = curr[p];
+    }
+    if (curr == null) return "";
+    if (Array.isArray(curr)) return curr.join(", ");
+    if (typeof curr === "object") return JSON.stringify(curr);
+    return String(curr);
+  });
+}
+
+function resolveCompBindings(val, context) {
+  if (!context || val == null) return val;
+  if (typeof val === "string") {
+    return resolveTokens(val, context);
+  } else if (Array.isArray(val)) {
+    return val.map(item => resolveCompBindings(item, context));
+  } else if (typeof val === "object") {
+    const clone = {};
+    for (const [k, v] of Object.entries(val)) {
+      clone[k] = resolveCompBindings(v, context);
+    }
+    return clone;
+  }
+  return val;
+}
+
+window.generateUniversalApiLayout = function() {
+  const url = (document.getElementById("dsUrlInput")?.value || "").trim();
+  if (!url) {
+    alert("Please enter a Data Source API URL first!");
+    return;
+  }
+  if (!simulatorScreenData) {
+    alert("Please click '⚡ Fetch & Inspect API Data' first so the layout generator can analyze the actual response fields!");
+    return;
+  }
+
+  const data = simulatorScreenData;
+  const isSingleEntity = checkIsSingleEntity(data);
+  const isRootArray = Array.isArray(data) && data.length > 0 && typeof data[0] === "object";
+  let arrayData = isRootArray ? data : null;
+  let arrayKey = "";
+
+  if (!isSingleEntity && !arrayData && typeof data === "object" && data !== null) {
+    const listKeys = ["users", "products", "items", "data", "results", "records", "list", "posts", "comments", "photos", "todos", "articles", "orders", "transactions"];
+    for (const k of listKeys) {
+      if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === "object") {
+        arrayData = data[k];
+        arrayKey = k;
+        break;
+      }
+    }
+  }
+
+  const isListFeed = !isSingleEntity && arrayData != null && arrayData.length > 0;
+  const paginationChk = document.getElementById("dsPaginationCheckbox");
+  const isPaginating = isListFeed && paginationChk && paginationChk.checked;
+
+  activeSchema.data_source = {
+    url: url,
+    method: (document.getElementById("dsMethodSelect")?.value || "GET").toUpperCase(),
+    ...(isPaginating ? {
+      pagination: {
+        mode: document.getElementById("dsPaginationMode")?.value || "page",
+        page_param: document.getElementById("dsPageParam")?.value || "page",
+        limit_param: document.getElementById("dsLimitParam")?.value || "limit",
+        default_limit: parseInt(document.getElementById("dsDefaultLimit")?.value || "5", 10),
+        data_path: arrayKey
+      }
+    } : {})
+  };
+
+  const dataPathInput = document.getElementById("dsDataPath");
+  if (dataPathInput) dataPathInput.value = isListFeed ? arrayKey : "";
+
+  function formatLabel(str) {
+    if (!str) return '';
+    return str.split('.').map(part => {
+      if (/^\d+$/.test(part)) return '';
+      return part
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .trim();
+    }).filter(Boolean).join(' ');
+  }
+
+  function pickIconForKey(key) {
+    const k = String(key).toLowerCase();
+    if (/email|mail/.test(k)) return 'email';
+    if (/phone|tel|mobile|cell/.test(k)) return 'phone';
+    if (/website|url|web|domain|site|link/.test(k)) return 'language';
+    if (/address|street|city|zip|location|geo|lat|lng|country|state|place/.test(k)) return 'location_on';
+    if (/company|corp|org|business|employer|work/.test(k)) return 'business';
+    if (/user|name|profile|author|creator|person|handle/.test(k)) return 'person';
+    if (/id|code|sku|uuid|key|badge|tag/.test(k)) return 'badge';
+    if (/price|cost|amount|balance|salary|fee/.test(k)) return 'attach_money';
+    if (/date|time|created|updated|expires|birth/.test(k)) return 'info';
+    if (/status|state|active|is_/.test(k)) return 'check';
+    if (/star|score|rating|rank/.test(k)) return 'star';
+    if (/lock|password|secret|token|security/.test(k)) return 'lock';
+    if (/image|img|avatar|thumb|photo|picture/.test(k)) return 'image';
+    if (/shipping|delivery|truck/.test(k)) return 'local_shipping';
+    if (/return|policy|refund/.test(k)) return 'assignment_return';
+    if (/warranty|guarantee/.test(k)) return 'verified';
+    if (/weight|scale|dimension|size|measure/.test(k)) return 'straighten';
+    if (/stock|inventory|quantity|count/.test(k)) return 'inventory';
+    return 'info';
+  }
+
+  if (isListFeed) {
+    const sampleItem = arrayData[0] || {};
+    const itemKeys = Object.keys(sampleItem);
+
+    // Pick top primary fields for the single item row template
+    const titleKey = itemKeys.find(k => /^(title|name|header|label|username)$/i.test(k)) || itemKeys.find(k => /(name|title)/i.test(k)) || itemKeys[0] || "title";
+    const subKey = itemKeys.find(k => /^(email|subtitle|description|desc|detail|role|department|category)$/i.test(k)) || itemKeys.find(k => /(email|desc|sub|role)/i.test(k)) || "";
+    const imgKey = itemKeys.find(k => /(image|img|avatar|thumbnail|thumb|photo|picture)/i.test(k)) || "";
+    const badgeKey = itemKeys.find(k => /(price|status|role|type|category|currency|tag|id)/i.test(k)) || "";
+
+    const screenTitle = arrayKey ? (arrayKey.charAt(0).toUpperCase() + arrayKey.slice(1) + " Feed") : "Dynamic Listing";
+
+    activeSchema.header = {
+      title: screenTitle,
+      subtitle: `Live Cloud Feed (${arrayData.length}+ records)`,
+      show_back_button: true,
+      action_icon: "sync"
+    };
+
+    activeSchema.components = [
+      {
+        id: `list_${Date.now()}`,
+        type: "list_view",
+        data_path: arrayKey,
+        item_template: {
+          id: `item_row_${Date.now()}`,
+          type: "listtile",
+          title: `{{item.${titleKey}}}`,
+          ...(subKey ? { subtitle: `{{item.${subKey}}}` } : {}),
+          ...(imgKey ? { leading_image: `{{item.${imgKey}}}` } : { leading_icon: "person" }),
+          ...(badgeKey ? { trailing_text: `{{item.${badgeKey}}}` } : { trailing_text: "›" }),
+          action_id: "item_click"
+        }
+      },
+      {
+        id: `btn_action_${Date.now()}`,
+        type: "button",
+        text: "Submit Form / Action",
+        variant: "primary",
+        action_id: "action_submit"
+      }
+    ];
+  } else {
+    // Normal Data (Single Object): Generate high-fidelity realistic UI
+    // (Hero Image, Title Text, Rating Star, Price Text, Description, Chips, Specs ListTiles, Action Button)
+    const wrapper = getRootWrapperInfo(data);
+    const target = wrapper.isWrapped ? wrapper.targetObj : data;
+    const prefix = wrapper.prefix;
+    const comps = [];
+    const handledKeys = new Set();
+    const now = Date.now();
+
+    // 1. Primary Hero Image
+    const imgKey = ["thumbnail", "image", "avatar", "photo", "img", "picture"].find(k => typeof target[k] === "string" && (target[k].startsWith("http") || target[k].includes("/"))) ||
+      (Array.isArray(target.images) && typeof target.images[0] === "string" ? "images.0" : "");
+    if (imgKey) {
+      comps.push({
+        id: `img_hero_${now}`,
+        type: "image",
+        image_url: `{{${prefix}${imgKey}}}`,
+        height: 220,
+        border_radius: 14,
+        padding: 6
+      });
+      handledKeys.add(imgKey.split(".")[0]);
+    }
+
+    // 2. Title Text (Product Name / Entity Title)
+    const titleKey = ["title", "name", "header", "product_name", "display_artist_name", "original_artist_name", "display_name"].find(k => typeof target[k] === "string") ||
+      Object.keys(target).find(k => k.toLowerCase().endsWith("_name") && typeof target[k] === "string");
+    if (titleKey) {
+      comps.push({
+        id: `text_title_${now}`,
+        type: "text",
+        text: `{{${prefix}${titleKey}}}`,
+        font_size: 20,
+        is_bold: true,
+        padding: 4
+      });
+      handledKeys.add(titleKey);
+    }
+
+    // 3. Rating Star Text
+    const ratingKey = ["rating", "rate", "stars", "score"].find(k => target[k] !== undefined);
+    const categoryKey = ["category", "type", "department", "genre"].find(k => typeof target[k] === "string");
+    const brandKey = ["brand", "vendor", "manufacturer"].find(k => typeof target[k] === "string");
+    if (ratingKey) {
+      let ratingStr = `★ {{${prefix}${ratingKey}}}`;
+      if (target.reviews && Array.isArray(target.reviews)) {
+        ratingStr += ` (${target.reviews.length} reviews)`;
+      } else if (target.rating_count) {
+        ratingStr += ` ({{${prefix}rating_count}} ratings)`;
+      }
+      if (categoryKey) {
+        ratingStr += `  •  {{${prefix}${categoryKey}}}`;
+        handledKeys.add(categoryKey);
+      }
+      if (brandKey) {
+        ratingStr += `  •  {{${prefix}${brandKey}}}`;
+        handledKeys.add(brandKey);
+      }
+      comps.push({
+        id: `text_rating_${now}`,
+        type: "text",
+        text: ratingStr,
+        font_size: 14,
+        is_bold: true,
+        color: "#F59E0B",
+        padding: 2
+      });
+      handledKeys.add(ratingKey);
+    }
+
+    // 4. Price Text
+    const priceKey = ["price", "cost", "amount", "salary", "fee"].find(k => target[k] !== undefined);
+    const discountKey = ["discountPercentage", "discount", "discount_percentage", "off"].find(k => target[k] !== undefined);
+    if (priceKey) {
+      let priceStr = `\${{${prefix}${priceKey}}}`;
+      if (discountKey) {
+        priceStr += `  ({{${prefix}${discountKey}}}% OFF)`;
+        handledKeys.add(discountKey);
+      }
+      comps.push({
+        id: `text_price_${now}`,
+        type: "text",
+        text: priceStr,
+        font_size: 22,
+        is_bold: true,
+        color: "#10B981",
+        padding: 4
+      });
+      handledKeys.add(priceKey);
+    }
+
+    // 5. Description Text (Body)
+    const descKey = ["description", "desc", "summary", "body", "bio", "details"].find(k => typeof target[k] === "string");
+    if (descKey) {
+      comps.push({
+        id: `text_desc_${now}`,
+        type: "text",
+        text: `{{${prefix}${descKey}}}`,
+        font_size: 14,
+        color: "#94A3B8",
+        padding: 6
+      });
+      handledKeys.add(descKey);
+    }
+
+    // 6. Tags Chip
+    const tagsKey = ["tags", "categories", "labels", "badges"].find(k => Array.isArray(target[k]));
+    if (tagsKey) {
+      comps.push({
+        id: `chip_tags_${now}`,
+        type: "chip",
+        label: `🏷️ Tags: {{${prefix}${tagsKey}}}`,
+        is_selected: false
+      });
+      handledKeys.add(tagsKey);
+    }
+
+    // 7. Structured User fields (if user profile)
+    if (target.username) {
+      comps.push({
+        id: `tile_username_${now}`,
+        type: "listtile",
+        title: "Username & ID",
+        subtitle: target.id ? `@{{${prefix}username}} • ID: #{{${prefix}id}}` : `@{{${prefix}username}}`,
+        leading_icon: "person"
+      });
+      handledKeys.add("username");
+    }
+
+    if (target.email) {
+      comps.push({
+        id: `tile_email_${now}`,
+        type: "listtile",
+        title: "Email Address",
+        subtitle: `{{${prefix}email}}`,
+        leading_icon: "email"
+      });
+      handledKeys.add("email");
+    }
+
+    if (target.phone) {
+      comps.push({
+        id: `tile_phone_${now}`,
+        type: "listtile",
+        title: "Phone Number",
+        subtitle: `{{${prefix}phone}}`,
+        leading_icon: "phone"
+      });
+      handledKeys.add("phone");
+    }
+
+    if (target.website) {
+      comps.push({
+        id: `tile_website_${now}`,
+        type: "listtile",
+        title: "Website",
+        subtitle: `{{${prefix}website}}`,
+        leading_icon: "language"
+      });
+      handledKeys.add("website");
+    }
+
+    if (target.address && typeof target.address === "object") {
+      let addrStr = "";
+      if (target.address.street) {
+        addrStr = `{{${prefix}address.street}}` + (target.address.suite ? `, {{${prefix}address.suite}}` : "") + (target.address.city ? `, {{${prefix}address.city}}` : "") + (target.address.zipcode ? ` {{${prefix}address.zipcode}}` : "");
+      } else {
+        addrStr = Object.values(target.address).filter(v => typeof v === "string").join(", ");
+      }
+      comps.push({
+        id: `tile_address_${now}`,
+        type: "listtile",
+        title: "Address",
+        subtitle: addrStr,
+        leading_icon: "location_on"
+      });
+      handledKeys.add("address");
+    }
+
+    if (target.company && typeof target.company === "object") {
+      const compSubtitle = target.company.name
+        ? `{{${prefix}company.name}}` + (target.company.catchPhrase ? ` • \"{{${prefix}company.catchPhrase}}\"` : "")
+        : Object.values(target.company).filter(v => typeof v === "string").join(" • ");
+      comps.push({
+        id: `tile_company_${now}`,
+        type: "listtile",
+        title: "Company",
+        subtitle: compSubtitle,
+        leading_icon: "business"
+      });
+      handledKeys.add("company");
+    }
+
+    // 8. Structured Product Details (Availability, Shipping, Warranty, Return policy, Dimensions, Reviews, SKU)
+    if (target.availabilityStatus !== undefined || target.stock !== undefined) {
+      comps.push({
+        id: `tile_stock_${now}`,
+        type: "listtile",
+        title: "Availability",
+        subtitle: target.stock !== undefined && target.availabilityStatus
+          ? `{{${prefix}availabilityStatus}} ({{${prefix}stock}} in stock)`
+          : (target.stock !== undefined ? `{{${prefix}stock}} units in stock` : `{{${prefix}availabilityStatus}}`),
+        leading_icon: "inventory"
+      });
+      handledKeys.add("availabilityStatus");
+      handledKeys.add("stock");
+    }
+
+    if (target.shippingInformation) {
+      comps.push({
+        id: `tile_shipping_${now}`,
+        type: "listtile",
+        title: "Shipping & Delivery",
+        subtitle: `{{${prefix}shippingInformation}}`,
+        leading_icon: "local_shipping"
+      });
+      handledKeys.add("shippingInformation");
+    }
+
+    if (target.warrantyInformation || target.returnPolicy) {
+      const subtitle = [target.warrantyInformation ? `{{${prefix}warrantyInformation}}` : "", target.returnPolicy ? `{{${prefix}returnPolicy}}` : ""].filter(Boolean).join(" • ");
+      comps.push({
+        id: `tile_warranty_${now}`,
+        type: "listtile",
+        title: "Warranty & Return Policy",
+        subtitle: subtitle,
+        leading_icon: "verified"
+      });
+      handledKeys.add("warrantyInformation");
+      handledKeys.add("returnPolicy");
+    }
+
+    if (target.dimensions) {
+      let dimStr = `{{${prefix}dimensions.width}} × {{${prefix}dimensions.height}} × {{${prefix}dimensions.depth}} cm`;
+      if (target.weight) {
+        dimStr += ` ({{${prefix}weight}}kg)`;
+        handledKeys.add("weight");
+      }
+      comps.push({
+        id: `tile_dimensions_${now}`,
+        type: "listtile",
+        title: "Dimensions & Weight",
+        subtitle: dimStr,
+        leading_icon: "straighten"
+      });
+      handledKeys.add("dimensions");
+    }
+
+    if (Array.isArray(target.reviews) && target.reviews.length > 0) {
+      comps.push({
+        id: `tile_review_${now}`,
+        type: "listtile",
+        title: `Latest Customer Review • {{${prefix}reviews.0.reviewerName}}`,
+        subtitle: `★ {{${prefix}reviews.0.rating}} - "{{${prefix}reviews.0.comment}}"`,
+        leading_icon: "star"
+      });
+      handledKeys.add("reviews");
+    }
+
+    if (target.sku || (target.meta && target.meta.barcode)) {
+      const parts = [];
+      if (target.sku) parts.push(`SKU: {{${prefix}sku}}`);
+      if (target.meta && target.meta.barcode) parts.push(`Barcode: {{${prefix}meta.barcode}}`);
+      comps.push({
+        id: `tile_sku_${now}`,
+        type: "listtile",
+        title: "Product Identifiers",
+        subtitle: parts.join(" • "),
+        leading_icon: "badge"
+      });
+      handledKeys.add("sku");
+    }
+
+    if (target.meta && target.meta.qrCode) {
+      comps.push({
+        id: `tile_qrcode_${now}`,
+        type: "listtile",
+        title: "Product QR Code",
+        subtitle: "Scan to verify genuine product authenticity",
+        leading_image: `{{${prefix}meta.qrCode}}`
+      });
+    }
+    handledKeys.add("meta");
+    handledKeys.add("images");
+    handledKeys.add("id");
+
+    // 9. Remaining unhandled scalar properties (fallback)
+    for (const [k, v] of Object.entries(target)) {
+      if (handledKeys.has(k)) continue;
+      if (v == null) continue;
+      if (typeof v === "object") {
+        if (!Array.isArray(v)) {
+          for (const [subK, subV] of Object.entries(v)) {
+            if (subV != null && typeof subV !== "object") {
+              comps.push({
+                id: `tile_${k}_${subK}_${now}`,
+                type: "listtile",
+                title: formatLabel(`${k} ${subK}`),
+                subtitle: `{{${prefix}${k}.${subK}}}`,
+                leading_icon: pickIconForKey(subK)
+              });
+            }
+          }
+        }
+        continue;
+      }
+      comps.push({
+        id: `tile_${k}_${now}`,
+        type: "listtile",
+        title: formatLabel(k),
+        subtitle: `{{${prefix}${k}}}`,
+        leading_icon: pickIconForKey(k)
+      });
+    }
+
+    // 10. Primary Action Button
+    const btnText = priceKey
+      ? `Add to Cart • \${{${prefix}${priceKey}}}`
+      : (target.email ? "Contact / Message User" : "Submit Form / Action");
+    comps.push({
+      id: `btn_action_${now}`,
+      type: "button",
+      text: btnText,
+      variant: "primary",
+      action_id: "action_submit"
+    });
+
+    const displayTitle = target.title || target.name || target.username || target.display_artist_name || target.original_artist_name || "API Data View";
+    activeSchema.header = {
+      title: String(displayTitle).substring(0, 32),
+      subtitle: `${comps.length - 1} Custom UI Elements`,
+      show_back_button: true,
+      action_icon: "sync"
+    };
+
+    activeSchema.components = comps;
+  }
+
+  closeApiConfigModal();
+  renderAll();
+  fetchSimulatorScreenData(activeSchema.data_source);
+  markScreenDirty(activeScreenId);
+  showToast("✨ Auto-Generated & Bound UI from this API!");
+};
+
+window.generatePresetFromApi = function(type) {
+  if (type === "product") {
+    activeSchema.header = {
+      title: "Product Detail",
+      subtitle: "Live Cloud Synchronized View",
+      show_back_button: true,
+      action_icon: "shopping_cart"
+    };
+    activeSchema.data_source = {
+      url: document.getElementById("dsUrlInput")?.value || "https://dummyjson.com/products/1",
+      method: "GET"
+    };
+    activeSchema.components = [
+      {
+        id: "prod_img_1",
+        type: "image",
+        height: 190,
+        image_url: "{{thumbnail}}",
+        border_radius: 14
+      },
+      {
+        id: "prod_title_1",
+        type: "text",
+        text: "{{title}}",
+        font_size: 20,
+        is_bold: true,
+        padding: 4
+      },
+      {
+        id: "prod_price_1",
+        type: "text",
+        text: "${{price}} USD • Rating: {{rating}} ⭐",
+        font_size: 15,
+        color: "#10B981",
+        is_bold: true,
+        padding: 2
+      },
+      {
+        id: "prod_desc_1",
+        type: "text",
+        text: "{{description}}",
+        font_size: 13,
+        color: "#94A3B8",
+        padding: 4
+      },
+      {
+        id: "prod_features_list",
+        type: "list_view",
+        data_path: "features",
+        item_template: {
+          id: "item_feat",
+          type: "listtile",
+          title: "{{item.name}}",
+          subtitle: "{{item.detail}}",
+          leading_icon: "check"
+        }
+      },
+      {
+        id: "prod_btn_buy",
+        type: "button",
+        text: "Add to Cart (${{price}})",
+        action_type: "api_call",
+        api_config: {
+          url: "/api/submissions",
+          method: "POST",
+          body_mapping: { "product": "title", "amount": "price" },
+          on_success: {
+            action: "dialog",
+            title: "Added to Cart!",
+            message: "Item was dynamically added via Cloud API."
+          }
+        }
+      }
+    ];
+  } else if (type === "users") {
+    activeSchema.header = {
+      title: "Team & User Directory",
+      subtitle: "Real-Time Cloud Feed",
+      show_back_button: true,
+      action_icon: "search"
+    };
+    activeSchema.data_source = {
+      url: document.getElementById("dsUrlInput")?.value || "https://jsonplaceholder.typicode.com/users",
+      method: "GET",
+      pagination: {
+        mode: "page",
+        page_param: "page",
+        limit_param: "limit",
+        default_limit: 5,
+        data_path: (document.getElementById("dsDataPath")?.value || "").trim()
+      }
+    };
+    activeSchema.components = [
+      {
+        id: "users_banner",
+        type: "banner",
+        title: "Live User Directory",
+        message: "Loaded dynamically from Cloud API with infinite scroll pagination.",
+        badge: "PAGINATED",
+        color: "#4F46E5"
+      },
+      {
+        id: "users_list_view",
+        type: "list_view",
+        data_path: (document.getElementById("dsDataPath")?.value || "").trim(),
+        item_template: {
+          id: "user_tile_tpl",
+          type: "listtile",
+          title: "{{item.name}}",
+          subtitle: "{{item.email}}",
+          leading_image: "{{item.avatar}}",
+          leading_icon: "person",
+          trailing_text: "Profile",
+          action_id: "user_profile_click"
+        }
+      },
+      {
+        id: "btn_add_user",
+        type: "button",
+        text: "Submit Form / Action",
+        variant: "secondary",
+        action_id: "open_user_form"
+      }
+    ];
+  }
+  closeApiConfigModal();
+  renderAll();
+  fetchSimulatorScreenData(activeSchema.data_source);
+  showToast(`✨ Generated ${type === "product" ? "Product Detail" : "User Listing"} screen layout!`);
+};
+
 function openApiConfigModal(target = "screen") {
   if (!apiConfigModal) return;
   currentApiTarget = target;
@@ -1311,6 +3080,49 @@ function openApiConfigModal(target = "screen") {
     if (apiModalTargetSubtitle) {
       apiModalTargetSubtitle.innerText = `Configuring for Child Component: ${child?.type?.toUpperCase() || 'BUTTON'} "${child?.text || child?.id || ''}"`;
     }
+  }
+
+  // Populate Data Source Tab
+  const ds = activeSchema.data_source || {};
+  const dsUrlInput = document.getElementById("dsUrlInput");
+  const dsMethodSelect = document.getElementById("dsMethodSelect");
+  const dsPaginationCheckbox = document.getElementById("dsPaginationCheckbox");
+  const dsPaginationMode = document.getElementById("dsPaginationMode");
+  const dsPageParam = document.getElementById("dsPageParam");
+  const dsLimitParam = document.getElementById("dsLimitParam");
+  const dsDefaultLimit = document.getElementById("dsDefaultLimit");
+  const dsDataPath = document.getElementById("dsDataPath");
+
+  if (dsUrlInput) dsUrlInput.value = ds.url || "";
+  if (dsMethodSelect) dsMethodSelect.value = (ds.method || "GET").toUpperCase();
+  if (dsPaginationCheckbox) {
+    dsPaginationCheckbox.checked = ds.pagination != null;
+    toggleDsPaginationFields();
+  }
+  if (ds.pagination) {
+    if (dsPaginationMode) dsPaginationMode.value = ds.pagination.mode || "page";
+    if (dsPageParam) dsPageParam.value = ds.pagination.page_param || "page";
+    if (dsLimitParam) dsLimitParam.value = ds.pagination.limit_param || "limit";
+    if (dsDefaultLimit) dsDefaultLimit.value = ds.pagination.default_limit || 5;
+    if (dsDataPath) dsDataPath.value = ds.pagination.data_path || "";
+  }
+
+  // Populate Error Widget Configuration
+  const dsShowErrorWidget = document.getElementById("dsShowErrorWidgetCheckbox");
+  const dsErrorMessage = document.getElementById("dsErrorMessageInput");
+  const dsErrorWidgetType = document.getElementById("dsErrorWidgetTypeSelect");
+  if (dsShowErrorWidget) dsShowErrorWidget.checked = ds.show_error_widget !== false;
+  if (dsErrorMessage) dsErrorMessage.value = ds.error_message || "";
+  if (dsErrorWidgetType) dsErrorWidgetType.value = ds.error_widget_type || "banner";
+
+  // Switch to appropriate tab
+  if (target === "screen") {
+    switchApiModalTab("datasource");
+    if (ds.url) {
+      setTimeout(() => fetchDsPreview(), 60);
+    }
+  } else {
+    switchApiModalTab("submission");
   }
 
   // Populate Endpoint & Method
@@ -1590,57 +3402,88 @@ async function runApiTest() {
 }
 
 function saveApiConfig() {
-  const url = (apiUrlInput?.value || "").trim();
-  if (!url) {
-    alert("Please enter an API Endpoint URL!");
-    return;
+  // 1. If screen level or on datasource tab, save data_source configuration
+  if (currentApiTarget === "screen" || activeApiModalTab === "datasource") {
+    const dsUrl = (document.getElementById("dsUrlInput")?.value || "").trim();
+    if (dsUrl) {
+      const ds = {
+        url: dsUrl,
+        method: document.getElementById("dsMethodSelect")?.value || "GET",
+        headers: {},
+        params: {},
+        show_error_widget: document.getElementById("dsShowErrorWidgetCheckbox") ? document.getElementById("dsShowErrorWidgetCheckbox").checked : true,
+        error_message: (document.getElementById("dsErrorMessageInput")?.value || "").trim(),
+        error_widget_type: document.getElementById("dsErrorWidgetTypeSelect")?.value || "banner"
+      };
+      if (document.getElementById("dsPaginationCheckbox")?.checked) {
+        ds.pagination = {
+          mode: document.getElementById("dsPaginationMode")?.value || "page",
+          page_param: document.getElementById("dsPageParam")?.value || "page",
+          limit_param: document.getElementById("dsLimitParam")?.value || "limit",
+          default_limit: parseInt(document.getElementById("dsDefaultLimit")?.value, 10) || 5,
+          data_path: (document.getElementById("dsDataPath")?.value || "").trim()
+        };
+      }
+      activeSchema.data_source = ds;
+      fetchSimulatorScreenData(ds);
+    } else if (activeApiModalTab === "datasource") {
+      delete activeSchema.data_source;
+      simulatorScreenData = null;
+    }
   }
 
-  const headers = {};
-  modalHeaders.forEach(h => {
-    if (h.key && h.key.trim()) headers[h.key.trim()] = h.value;
-  });
+  // 2. Save submission / action API config if configured or if on submission tab
+  const subUrl = (apiUrlInput?.value || "").trim();
+  if (subUrl && (activeApiModalTab === "submission" || currentApiTarget !== "screen")) {
+    const headers = {};
+    modalHeaders.forEach(h => {
+      if (h.key && h.key.trim()) headers[h.key.trim()] = h.value;
+    });
 
-  const bodyMapping = {};
-  modalMappings.forEach(m => {
-    if (m.apiKey && m.apiKey.trim() && m.fieldId) {
-      bodyMapping[m.apiKey.trim()] = m.fieldId.trim();
-    }
-  });
+    const bodyMapping = {};
+    modalMappings.forEach(m => {
+      if (m.apiKey && m.apiKey.trim() && m.fieldId) {
+        bodyMapping[m.apiKey.trim()] = m.fieldId.trim();
+      }
+    });
 
-  const staticBody = {};
-  modalStaticParams.forEach(s => {
-    if (s.key && s.key.trim()) {
-      staticBody[s.key.trim()] = s.value;
-    }
-  });
+    const staticBody = {};
+    modalStaticParams.forEach(s => {
+      if (s.key && s.key.trim()) {
+        staticBody[s.key.trim()] = s.value;
+      }
+    });
 
-  const successAction = apiSuccessTypeSelect ? apiSuccessTypeSelect.value : "dialog";
-  const onSuccess = {
-    action: successAction,
-    title: apiSuccessTitleInput ? apiSuccessTitleInput.value.trim() : "Submitted Successfully!",
-    message: apiSuccessMsgInput ? apiSuccessMsgInput.value.trim() : "Your details have been submitted to cloud API.",
-    route: apiSuccessNavInput ? apiSuccessNavInput.value.trim() : "/"
-  };
+    const successAction = apiSuccessTypeSelect ? apiSuccessTypeSelect.value : "dialog";
+    const onSuccess = {
+      action: successAction,
+      title: apiSuccessTitleInput ? apiSuccessTitleInput.value.trim() : "Submitted Successfully!",
+      message: apiSuccessMsgInput ? apiSuccessMsgInput.value.trim() : "Your details have been submitted to cloud API.",
+      route: apiSuccessNavInput ? apiSuccessNavInput.value.trim() : "/"
+    };
 
-  const onError = {
-    message: apiErrorMsgInput ? apiErrorMsgInput.value.trim() : ""
-  };
+    const onError = {
+      message: apiErrorMsgInput ? apiErrorMsgInput.value.trim() : ""
+    };
 
-  const api_config = {
-    url: url,
-    method: apiMethodSelect ? apiMethodSelect.value : "POST",
-    headers: headers,
-    body_mapping: bodyMapping,
-    static_body: staticBody,
-    on_success: onSuccess,
-    on_error: onError,
-    reset_form: apiResetFormCheckbox ? apiResetFormCheckbox.checked : true
-  };
+    const api_config = {
+      url: subUrl,
+      method: apiMethodSelect ? apiMethodSelect.value : "POST",
+      headers: headers,
+      body_mapping: bodyMapping,
+      static_body: staticBody,
+      on_success: onSuccess,
+      on_error: onError,
+      reset_form: apiResetFormCheckbox ? apiResetFormCheckbox.checked : true
+    };
 
-  setTargetApiConfig(currentApiTarget, api_config);
+    setTargetApiConfig(currentApiTarget, api_config);
+  }
+
   closeApiConfigModal();
-  showToast("💾 Cloud API Configuration Saved & Bound!");
+  updateSimulator();
+  renderComponentList();
+  showToast("💾 API Configuration Saved & Bound!");
 }
 
 function removeApiConfig() {
@@ -1705,6 +3548,24 @@ if (apiSuccessTypeSelect) {
 if (btnRunApiTest) {
   btnRunApiTest.addEventListener("click", runApiTest);
 }
+
+const btnFetchDsPreview = document.getElementById("btnFetchDsPreview");
+if (btnFetchDsPreview) {
+  btnFetchDsPreview.addEventListener("click", fetchDsPreview);
+}
+
+const dsUrlInput = document.getElementById("dsUrlInput");
+if (dsUrlInput) {
+  dsUrlInput.addEventListener("input", onDsUrlInputChange);
+  dsUrlInput.addEventListener("change", fetchDsPreview);
+  dsUrlInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      fetchDsPreview();
+    }
+  });
+}
+
 if (apiConfigModal) {
   apiConfigModal.addEventListener("click", (e) => {
     if (e.target === apiConfigModal) closeApiConfigModal();
@@ -2010,6 +3871,335 @@ window.duplicateComponent = function(idx) {
   renderAll();
   highlightCard(idx + 1);
   showToast(`Duplicated ${original.type.toUpperCase()}`);
+};
+
+function renderConvertSelectOptions(currentType) {
+  const cur = (currentType || "").toLowerCase();
+  const groups = [
+    {
+      group: "Layout Containers",
+      items: [
+        { value: "row", label: "↔️ Row" },
+        { value: "column", label: "🏛️ Column" },
+        { value: "container", label: "📦 Container" },
+        { value: "stack", label: "🥞 Stack" }
+      ]
+    },
+    {
+      group: "Text & Actions",
+      items: [
+        { value: "text", label: "📝 Text" },
+        { value: "button", label: "🔘 Button" },
+        { value: "chip", label: "🏷️ Chip" },
+        { value: "textfield", label: "💬 Text Field" }
+      ]
+    },
+    {
+      group: "Toggles & Selection",
+      items: [
+        { value: "checkbox", label: "☑️ Checkbox" },
+        { value: "radio", label: "🔘 Radio" },
+        { value: "switch", label: "🎚️ Switch" }
+      ]
+    },
+    {
+      group: "Cards & Media",
+      items: [
+        { value: "listtile", label: "📋 List Tile" },
+        { value: "card", label: "💳 Feature Card" },
+        { value: "banner", label: "📢 Banner" },
+        { value: "image", label: "🖼️ Image" },
+        { value: "icon", label: "⭐ Material Icon" }
+      ]
+    },
+    {
+      group: "Display & Helpers",
+      items: [
+        { value: "metric_row", label: "📊 Metric Row" },
+        { value: "divider", label: "➖ Divider Line" },
+        { value: "spacer", label: "↕️ Spacer Box" }
+      ]
+    }
+  ];
+
+  let html = `<option value="" disabled selected>🔄 Convert ▾</option>`;
+  for (const g of groups) {
+    html += `<optgroup label="${g.group}">`;
+    for (const it of g.items) {
+      const isCur = it.value === cur;
+      html += `<option value="${it.value}" ${isCur ? 'disabled style="opacity:0.5;"' : ''}>${it.label}${isCur ? ' (Current)' : ''}</option>`;
+    }
+    html += `</optgroup>`;
+  }
+  return html;
+}
+window.renderConvertSelectOptions = renderConvertSelectOptions;
+
+window.convertComponentType = function(idx, targetType, childIdx = null) {
+  if (!activeSchema || !activeSchema.components) return;
+  const isChild = childIdx !== null && childIdx !== undefined;
+  let comp = null;
+  if (isChild) {
+    comp = activeSchema.components[idx]?.children?.[childIdx];
+  } else {
+    comp = activeSchema.components[idx];
+  }
+  if (!comp || !targetType) return;
+
+  const oldType = (comp.type || "").toLowerCase();
+  const newType = (targetType || "").toLowerCase();
+  if (oldType === newType) return;
+
+  // Extract compatible properties for cross-component mapping
+  const id = comp.id || `comp_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  const primaryText = comp.text || comp.label || comp.title || comp.hint || "";
+  const secondaryText = comp.subtitle || comp.description || comp.message || comp.hint || "";
+  const actionId = comp.action_id || "";
+  const isChecked = comp.is_checked !== undefined ? comp.is_checked : (comp.is_selected !== undefined ? comp.is_selected : true);
+  const color = comp.color || comp.text_color || "";
+  const existingChildren = Array.isArray(comp.children) && comp.children.length > 0 ? comp.children : null;
+  const primaryThemeColor = (activeSchema.theme && activeSchema.theme.primary_color) ? activeSchema.theme.primary_color : "#4F46E5";
+
+  let converted = { id, type: newType };
+
+  switch (newType) {
+    case "row":
+      converted = {
+        id,
+        type: "row",
+        main_axis_alignment: comp.main_axis_alignment || "spaceBetween",
+        cross_axis_alignment: comp.cross_axis_alignment || "center",
+        children: existingChildren || [
+          { id: `${id}_t1`, type: "text", text: primaryText || "Row Item", font_size: 14, is_bold: false, align: "left" },
+          { id: `${id}_chip`, type: "chip", label: secondaryText || "Status: Live", is_selected: true, icon: "check" }
+        ]
+      };
+      break;
+
+    case "column":
+      converted = {
+        id,
+        type: "column",
+        main_axis_alignment: comp.main_axis_alignment || "start",
+        cross_axis_alignment: comp.cross_axis_alignment || "stretch",
+        children: existingChildren || [
+          { id: `${id}_t1`, type: "text", text: primaryText || "Column Item", font_size: 14, is_bold: true, align: "left" },
+          { id: `${id}_btn`, type: "button", text: secondaryText || "Action", variant: "primary", action_id: actionId || "col_btn" }
+        ]
+      };
+      break;
+
+    case "container":
+      converted = {
+        id,
+        type: "container",
+        background_color: comp.background_color || "#1E293B",
+        border_color: comp.border_color || "#38BDF8",
+        border_width: comp.border_width !== undefined ? comp.border_width : 1,
+        border_radius: comp.border_radius || 12,
+        padding: comp.padding || 16,
+        margin: comp.margin || 8,
+        children: existingChildren || [
+          { id: `${id}_t1`, type: "text", text: primaryText || "Decorated Container", font_size: 15, is_bold: true, color: "#FFFFFF" },
+          { id: `${id}_t2`, type: "text", text: secondaryText || "Background & border styling", font_size: 12, color: "#94A3B8" }
+        ]
+      };
+      break;
+
+    case "stack":
+      converted = {
+        id,
+        type: "stack",
+        alignment: comp.alignment || "topLeft",
+        height: comp.height || 180,
+        clip: "hardEdge",
+        children: existingChildren || createDefaultWidget("stack", id).children
+      };
+      break;
+
+    case "text":
+      converted = {
+        id,
+        type: "text",
+        text: primaryText || "Dynamic Typography Headline",
+        font_size: comp.font_size || 16,
+        align: comp.align || "left",
+        is_bold: comp.is_bold !== undefined ? comp.is_bold : false,
+        padding: comp.padding || 4,
+        ...(color ? { color } : {})
+      };
+      break;
+
+    case "button":
+      converted = {
+        id,
+        type: "button",
+        text: primaryText || "Primary Action",
+        variant: comp.variant || "primary",
+        action_id: actionId || "action_submit",
+        ...(comp.api_config ? { api_config: comp.api_config } : {}),
+        ...(comp.on_click ? { on_click: comp.on_click } : {})
+      };
+      break;
+
+    case "chip":
+      converted = {
+        id,
+        type: "chip",
+        label: primaryText || "Verified Member",
+        icon: comp.icon || comp.leading_icon || "check",
+        is_selected: isChecked,
+        action_id: actionId || "chip_click"
+      };
+      break;
+
+    case "textfield":
+      converted = {
+        id,
+        type: "textfield",
+        label: primaryText || "Your Full Name",
+        hint: secondaryText || "e.g. John Doe",
+        max_lines: 1,
+        is_password: false,
+        padding: comp.padding || 4
+      };
+      break;
+
+    case "checkbox":
+      converted = {
+        id,
+        type: "checkbox",
+        label: primaryText || "Option Selected",
+        subtitle: secondaryText || "",
+        is_checked: isChecked,
+        padding: comp.padding || 4
+      };
+      break;
+
+    case "radio":
+      converted = {
+        id,
+        type: "radio",
+        label: primaryText || "Radio Option",
+        subtitle: secondaryText || "",
+        is_selected: isChecked,
+        padding: comp.padding || 4
+      };
+      break;
+
+    case "switch":
+      converted = {
+        id,
+        type: "switch",
+        label: primaryText || "Toggle Switch",
+        subtitle: secondaryText || "",
+        is_checked: isChecked,
+        padding: comp.padding || 4
+      };
+      break;
+
+    case "listtile":
+      converted = {
+        id,
+        type: "listtile",
+        title: primaryText || "List Tile Item",
+        subtitle: secondaryText || "Additional description",
+        leading_icon: comp.icon || comp.leading_icon || "info",
+        trailing_text: comp.trailing_text || "›",
+        action_id: actionId || "item_click"
+      };
+      break;
+
+    case "card":
+      converted = {
+        id,
+        type: "card",
+        title: primaryText || "Feature Card",
+        description: secondaryText || "Highlight an action or detail.",
+        badge: comp.badge || "FEATURE",
+        action_text: comp.action_text || "Learn More",
+        action_id: actionId || "action_card"
+      };
+      break;
+
+    case "banner":
+      converted = {
+        id,
+        type: "banner",
+        title: primaryText || "Dynamic Announcement",
+        message: secondaryText || "Enter custom text here.",
+        badge: comp.badge || "NEW",
+        color: color || primaryThemeColor
+      };
+      break;
+
+    case "image":
+      converted = {
+        id,
+        type: "image",
+        image_url: comp.image_url || (primaryText.startsWith("http") ? primaryText : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80"),
+        height: comp.height || 140,
+        border_radius: comp.border_radius || 12,
+        padding: comp.padding || 4
+      };
+      break;
+
+    case "icon":
+      converted = {
+        id,
+        type: "icon",
+        icon: comp.icon || comp.leading_icon || "star",
+        size: comp.size || 28,
+        color: color || primaryThemeColor,
+        align: comp.align || "center",
+        padding: comp.padding || 4
+      };
+      break;
+
+    case "metric_row":
+      converted = {
+        id,
+        type: "metric_row",
+        metrics: comp.metrics || [
+          { label: primaryText || "Metric A", value: "1,200", change: "+10%", is_positive: true },
+          { label: secondaryText || "Metric B", value: "98%", change: "+2%", is_positive: true }
+        ]
+      };
+      break;
+
+    case "divider":
+      converted = { id, type: "divider", thickness: 1, color: "#334155", padding: 6 };
+      break;
+
+    case "spacer":
+      converted = { id, type: "spacer", height: comp.height || 16, width: comp.width || 16 };
+      break;
+
+    default:
+      converted = createDefaultWidget(newType, id);
+      break;
+  }
+
+  // Preserve stack positioning if child was positioned
+  if (comp.is_positioned) {
+    converted.is_positioned = true;
+    if (comp.top !== undefined) converted.top = comp.top;
+    if (comp.bottom !== undefined) converted.bottom = comp.bottom;
+    if (comp.left !== undefined) converted.left = comp.left;
+    if (comp.right !== undefined) converted.right = comp.right;
+  }
+
+  if (isChild) {
+    activeSchema.components[idx].children[childIdx] = converted;
+    showToast(`Converted child #${childIdx + 1} to ${newType.toUpperCase()}`);
+  } else {
+    activeSchema.components[idx] = converted;
+    showToast(`Converted #${idx + 1} from ${oldType.toUpperCase()} to ${newType.toUpperCase()}`);
+  }
+
+  markActiveScreenDirty();
+  renderAll();
+  highlightCard(idx);
 };
 
 window.addChildToContainer = function(parentIdx, childType = 'text') {
@@ -2594,6 +4784,9 @@ function renderChildEditor(parentIdx, cIdx, child) {
           <span>#${cIdx + 1} <strong class="comp-tag">${type.toUpperCase()}</strong></span>
         </div>
         <div class="nested-child-header-actions">
+          <select class="comp-convert-select comp-convert-select-child" title="Convert child component" onchange="convertComponentType(${parentIdx}, this.value, ${cIdx})">
+            ${renderConvertSelectOptions(type)}
+          </select>
           <button class="comp-btn comp-btn-xs" title="Move Up" ${cIdx === 0 ? 'disabled' : ''} onclick="moveChildInContainer(${parentIdx}, ${cIdx}, -1)">▲</button>
           <button class="comp-btn comp-btn-xs" title="Move Down" ${cIdx === childCount - 1 ? 'disabled' : ''} onclick="moveChildInContainer(${parentIdx}, ${cIdx}, 1)">▼</button>
           <button class="comp-delete-btn" title="Remove Child" onclick="removeChildFromContainer(${parentIdx}, ${cIdx})">✕</button>
@@ -3233,6 +5426,9 @@ function renderComponentEditors() {
           <span class="comp-tag">${comp.type.toUpperCase()}</span>
         </div>
         <div class="comp-header-actions">
+          <select class="comp-convert-select" title="Convert component to another type" onchange="convertComponentType(${idx}, this.value)">
+            ${renderConvertSelectOptions(comp.type)}
+          </select>
           <button class="comp-btn comp-move-btn" title="Move Up" ${idx === 0 ? 'disabled' : ''} onclick="moveComponent(${idx}, -1)">▲</button>
           <button class="comp-btn comp-move-btn" title="Move Down" ${idx === comps.length - 1 ? 'disabled' : ''} onclick="moveComponent(${idx}, 1)">▼</button>
           <button class="comp-btn comp-insert-btn" title="Insert new component below this" onclick="openInsertMenu(${idx}, event)">+ Below</button>
@@ -3423,8 +5619,29 @@ function renderSimChildHtml(comp) {
       </div>
     `;
   }
+function getSimIconSymbol(iconName) {
+  const icon = String(iconName || '').toLowerCase().trim();
+  switch (icon) {
+    case 'lock': return '🔒';
+    case 'star': return '⭐';
+    case 'check': return '✓';
+    case 'bell': case 'notifications': return '🔔';
+    case 'person': case 'user': return '👤';
+    case 'email': case 'mail': return '✉️';
+    case 'phone': case 'tel': return '📞';
+    case 'language': case 'web': case 'globe': return '🌐';
+    case 'location_on': case 'location': case 'place': case 'map': return '📍';
+    case 'business': case 'company': case 'work': return '🏢';
+    case 'badge': case 'id': case 'tag': return '🪪';
+    case 'attach_money': case 'money': case 'dollar': return '💲';
+    case 'info': return 'ℹ️';
+    case 'sync': case 'refresh': return '🔄';
+    default: return '🔹';
+  }
+}
+
   if (type === "listtile") {
-    const iconSym = comp.leading_icon === 'lock' ? '🔒' : (comp.leading_icon === 'star' ? '⭐' : (comp.leading_icon === 'check' ? '✓' : (comp.leading_icon === 'bell' ? '🔔' : '🔹')));
+    const iconSym = getSimIconSymbol(comp.leading_icon);
     return `
       <div class="sim-listtile" style="padding:6px 8px; width:100%; margin:2px 0;">
         <div class="sim-listtile-leading" style="font-size:16px;">${iconSym}</div>
@@ -3569,6 +5786,30 @@ function updateSimulator() {
   
   simComponentsList.innerHTML = "";
 
+  // Auto-fetch data source if screen has one configured and not yet fetched
+  if (activeSchema.data_source?.url && !simulatorScreenData && currentLoadedDsUrl !== activeSchema.data_source.url && !isSimulatorDataLoading) {
+    fetchSimulatorScreenData(activeSchema.data_source);
+  }
+
+  if (isSimulatorDataLoading) {
+    simComponentsList.innerHTML = `
+      <div class="sim-pull-refresh-bar">
+        <span class="sim-spinner"></span>
+        <span>Fetching Dynamic Screen Data...</span>
+      </div>
+      <div class="sim-shimmer-card">
+        <div class="sim-shimmer-line title"></div>
+        <div class="sim-shimmer-line"></div>
+        <div class="sim-shimmer-line short"></div>
+      </div>
+      <div class="sim-shimmer-card">
+        <div class="sim-shimmer-line title"></div>
+        <div class="sim-shimmer-line"></div>
+      </div>
+    `;
+    return;
+  }
+
   // Detect if active schema has anomalies
   const hasAnomaly = (activeSchema.components || []).some(c => {
     const title = String(c.title || "");
@@ -3624,7 +5865,8 @@ function updateSimulator() {
     simComponentsList.appendChild(themeCrash);
   }
 
-  (activeSchema.components || []).forEach(comp => {
+  (activeSchema.components || []).forEach(rawComp => {
+    const comp = resolveCompBindings(rawComp, simulatorScreenData);
     const el = document.createElement("div");
     const title = String(comp.title || "");
     const msg = String(comp.message || "");
@@ -3792,17 +6034,95 @@ function updateSimulator() {
           <input type="${comp.is_password ? 'password' : 'text'}" id="sim_input_${comp.id}" data-label="${escapeHtml(comp.label || comp.hint || 'Field')}" placeholder="${escapeHtml(comp.hint || 'Enter value...')}" />
         `}
       `;
+    } else if (comp.type === "list_view" || comp.type === "listview") {
+      el.className = "sim-listview";
+      let items = [];
+      if (Array.isArray(comp.items)) {
+        items = comp.items;
+      } else if (simulatorScreenData) {
+        const path = comp.data_path || activeSchema.data_source?.pagination?.data_path || "";
+        if (path && Array.isArray(simulatorScreenData[path])) {
+          items = simulatorScreenData[path];
+        } else if (Array.isArray(simulatorScreenData)) {
+          items = simulatorScreenData;
+        } else if (Array.isArray(simulatorScreenData.items)) {
+          items = simulatorScreenData.items;
+        } else if (Array.isArray(simulatorScreenData.users)) {
+          items = simulatorScreenData.users;
+        } else if (Array.isArray(simulatorScreenData.products)) {
+          items = simulatorScreenData.products;
+        } else if (Array.isArray(simulatorScreenData.data)) {
+          items = simulatorScreenData.data;
+        }
+      }
+
+      if (!items || items.length === 0) {
+        el.innerHTML = `<div class="sim-listview-empty">📭 ${escapeHtml(comp.empty_text || "No items found")}</div>`;
+      } else {
+        const itemTemplate = comp.item_template || comp.template;
+        const itemsHtml = items.map((rawItem, idx) => {
+          const itemScope = typeof rawItem === "object" ? { ...rawItem, item: rawItem, index: idx } : { item: rawItem, value: rawItem, index: idx };
+          if (itemTemplate) {
+            const title = resolveTokens(itemTemplate.title || itemTemplate.label || "{{item.name}}", itemScope);
+            const sub = resolveTokens(itemTemplate.subtitle || itemTemplate.description || "{{item.email}}", itemScope);
+            const img = resolveTokens(itemTemplate.leading_image || itemTemplate.avatar || itemTemplate.thumbnail || "", itemScope);
+            const trailing = resolveTokens(itemTemplate.trailing_text || "›", itemScope);
+            return `
+              <div class="sim-listview-item">
+                ${img ? `<img src="${escapeHtml(img)}" class="sim-listview-avatar" onerror="this.style.display='none'" />` : `<div class="sim-listview-avatar">👤</div>`}
+                <div class="sim-listview-details">
+                  <div class="sim-listview-title">${escapeHtml(title)}</div>
+                  ${sub ? `<div class="sim-listview-sub">${escapeHtml(sub)}</div>` : ""}
+                </div>
+                <span style="color:var(--text-muted);font-size:12px;">${escapeHtml(trailing)}</span>
+              </div>
+            `;
+          } else {
+            const title = rawItem.title || rawItem.name || `Item #${idx + 1}`;
+            const sub = rawItem.description || rawItem.email || "";
+            const img = rawItem.thumbnail || rawItem.avatar || rawItem.image || "";
+            return `
+              <div class="sim-listview-item">
+                ${img ? `<img src="${escapeHtml(img)}" class="sim-listview-avatar" onerror="this.style.display='none'" />` : `<div class="sim-listview-avatar">🔹</div>`}
+                <div class="sim-listview-details">
+                  <div class="sim-listview-title">${escapeHtml(title)}</div>
+                  ${sub ? `<div class="sim-listview-sub">${escapeHtml(sub)}</div>` : ""}
+                </div>
+                <span style="color:var(--text-muted);font-size:12px;">›</span>
+              </div>
+            `;
+          }
+        }).join("");
+
+        const isPaginating = activeSchema.data_source?.pagination != null;
+        const paginationHtml = isPaginating ? `
+          <div class="sim-pagination-loader">
+            <span class="sim-spinner" style="border-top-color:var(--primary-color);"></span>
+            <span>Infinite Scroll Active • Page 1 of ${items.length} items</span>
+          </div>
+        ` : "";
+
+        el.innerHTML = itemsHtml + paginationHtml;
+      }
     } else if (comp.type === "listtile") {
       el.className = "sim-listtile";
-      const iconSym = comp.leading_icon === 'lock' ? '🔒' : (comp.leading_icon === 'star' ? '⭐' : (comp.leading_icon === 'check' ? '✓' : '🔹'));
+      const iconSym = getSimIconSymbol(comp.leading_icon);
+      const img = comp.leading_image || comp.avatar || comp.thumbnail;
+      const leadingHtml = img
+        ? `<img src="${escapeHtml(img)}" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'" />`
+        : `<div class="sim-listtile-leading">${iconSym}</div>`;
       el.innerHTML = `
-        <div class="sim-listtile-leading">${iconSym}</div>
+        ${leadingHtml}
         <div class="sim-listtile-content">
-          <div class="sim-listtile-title">${comp.title || comp.label || "List Item"}</div>
-          ${comp.subtitle ? `<div class="sim-listtile-sub">${comp.subtitle}</div>` : ""}
+          <div class="sim-listtile-title">${escapeHtml(comp.title || comp.label || "List Item")}</div>
+          ${comp.subtitle ? `<div class="sim-listtile-sub">${escapeHtml(comp.subtitle)}</div>` : ""}
         </div>
-        <div class="sim-listtile-trailing">${comp.trailing_text || '›'}</div>
+        <div class="sim-listtile-trailing" style="${comp.trailing_text ? 'color:var(--primary-color);font-weight:700;' : ''}">${escapeHtml(comp.trailing_text || '›')}</div>
       `;
+      if (comp.custom_dart_code || comp.onclick || comp.action_id) {
+        el.classList.add("sim-clickable");
+        el.onclick = (e) => handleSimulatorDartClick(comp.id, e);
+      }
     } else if (comp.type === "chip") {
       el.className = `sim-chip ${comp.is_selected ? 'selected' : ''}`;
       if (comp.is_selected) el.style.background = activeSchema.theme?.primary_color || "#4F46E5";
@@ -4740,6 +7060,17 @@ async function executeSimulatorDynamicApi(apiConfig, comp) {
 
   showToast(`⚡ Dispatching ${method} ${url}...`);
 
+  // Submit button loading spinner
+  const btnEl = document.querySelector(`button.sim-btn-primary[onclick*="${comp?.id}"]`) ||
+                document.querySelector(`[onclick*="${comp?.id}"]`);
+  let origBtnHtml = null;
+  if (btnEl) {
+    origBtnHtml = btnEl.innerHTML;
+    btnEl.innerHTML = `<span class="sim-spinner"></span> ${escapeHtml(comp?.submitting_text || "Submitting...")}`;
+    btnEl.style.pointerEvents = "none";
+    btnEl.style.opacity = "0.8";
+  }
+
   try {
     const fetchOptions = {
       method: method,
@@ -4789,6 +7120,12 @@ async function executeSimulatorDynamicApi(apiConfig, comp) {
     console.error("Dynamic API invocation error:", err);
     const errMsg = apiConfig.on_error?.message || `⚠️ Network Error: ${err.message}`;
     showToast(errMsg, true);
+  } finally {
+    if (btnEl && origBtnHtml) {
+      btnEl.innerHTML = origBtnHtml;
+      btnEl.style.pointerEvents = "auto";
+      btnEl.style.opacity = "1";
+    }
   }
 }
 

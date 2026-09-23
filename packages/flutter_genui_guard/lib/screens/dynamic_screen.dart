@@ -24,12 +24,24 @@ class DynamicScreen extends StatefulWidget {
 class _DynamicScreenState extends State<DynamicScreen> {
   GenUiSyncClient? _syncClient;
   StreamSubscription? _screenRegistrySub;
+  StreamSubscription? _globalUrlSub;
   UiSchema _currentSchema = UiSchema.empty();
   bool _isGuardedMode = true;
   String _serverUrl = '';
   int _lastRenderDurationMs = 0;
   final List<String> _isolatedErrors = [];
   String? _lastInterceptedAnomaly;
+
+  // Dynamic Data Source & API State
+  dynamic _screenData;
+  bool _isDataLoading = false;
+  bool _isPaginating = false;
+  bool _isSubmitting = false;
+  String? _submittingNodeId;
+  int _currentPage = 1;
+  bool _hasMore = true;
+  final ScrollController _scrollController = ScrollController();
+  String? _fetchError;
 
   bool get _shouldSync =>
       widget.enableLiveSync ??
@@ -39,11 +51,17 @@ class _DynamicScreenState extends State<DynamicScreen> {
   void initState() {
     super.initState();
     _initServerUrl();
+    _scrollController.addListener(_onScroll);
 
     // 1. Preload from local screen registry if cached
     final cached = GenUiScreenRegistry.instance.getSchemaForRoute(widget.route ?? widget.screenId);
     if (cached != null) {
       _currentSchema = cached;
+      if (_currentSchema.dataSource != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fetchScreenData();
+        });
+      }
     }
 
     // 2. Start sync client if this is the primary sync screen
@@ -66,6 +84,161 @@ class _DynamicScreenState extends State<DynamicScreen> {
         _onSchemaUpdated(updated);
       }
     });
+
+    // 4. Listen to global server URL changes from any screen connection dialog
+    _globalUrlSub = GenUiSyncClient.onServerUrlChanged.listen((newUrl) {
+      if (mounted && _serverUrl != newUrl) {
+        setState(() {
+          _serverUrl = newUrl;
+        });
+        if (_shouldSync) {
+          _syncClient?.dispose();
+          _syncClient = GenUiSyncClient(serverBaseUrl: _serverUrl);
+          _syncClient!.schemaStream.listen((newSchema) {
+            final isHome = widget.route == null || widget.route == '/' || widget.screenId == 'home';
+            final matchesRoute = newSchema.route == widget.route || newSchema.screenId == widget.screenId || newSchema.screenId == widget.route?.replaceAll('/', '');
+            if (matchesRoute || (isHome && (newSchema.route == '/' || newSchema.screenId == 'home'))) {
+              _onSchemaUpdated(newSchema);
+            }
+          });
+          _syncClient!.start();
+        }
+        if (_currentSchema.dataSource != null) {
+          _fetchScreenData(isRefresh: true);
+        }
+      }
+    });
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 200) {
+      if (_currentSchema.dataSource?.pagination != null &&
+          !_isDataLoading &&
+          !_isPaginating &&
+          _hasMore) {
+        _fetchScreenData(isNextPage: true);
+      }
+    }
+  }
+
+  Future<void> _fetchScreenData({bool isRefresh = false, bool isNextPage = false}) async {
+    final ds = _currentSchema.dataSource;
+    if (ds == null) return;
+    if (_isDataLoading || _isPaginating) return;
+    if (isNextPage && !_hasMore) return;
+
+    final targetPage = isNextPage ? (_currentPage + 1) : 1;
+
+    setState(() {
+      if (isNextPage) {
+        _isPaginating = true;
+      } else {
+        _isDataLoading = true;
+      }
+    });
+
+    try {
+      final result = await GenUiApiClient.fetchDataSource(
+        dataSource: ds,
+        page: targetPage,
+        pageSize: ds.pagination?.defaultLimit,
+        serverBaseUrl: _syncClient?.activeUrl ?? _serverUrl,
+      );
+
+      if (!mounted) return;
+
+      if (result == null) {
+        setState(() {
+          _isDataLoading = false;
+          _isPaginating = false;
+          if (isNextPage) {
+            _hasMore = false;
+          } else {
+            _fetchError = ds.errorMessage.isNotEmpty
+                ? ds.errorMessage
+                : 'Unable to load data from ${ds.url}';
+          }
+        });
+        return;
+      }
+
+      setState(() {
+        _isDataLoading = false;
+        _isPaginating = false;
+        _fetchError = null;
+
+        if (isNextPage) {
+          _currentPage = targetPage;
+          _mergeNextPageData(result);
+        } else {
+          _currentPage = 1;
+          _hasMore = true;
+          _screenData = result;
+        }
+      });
+    } catch (e) {
+      debugPrint('[DynamicScreen] Failed to fetch data source: $e');
+      if (mounted) {
+        setState(() {
+          _isDataLoading = false;
+          _isPaginating = false;
+          _fetchError = ds.errorMessage.isNotEmpty
+              ? ds.errorMessage
+              : 'Unable to load data: $e';
+        });
+      }
+    }
+  }
+
+  void _mergeNextPageData(dynamic newResult) {
+    if (newResult == null) return;
+
+    if (_screenData is List && newResult is List) {
+      final list = _screenData as List;
+      _screenData = [...list, ...newResult];
+      if (newResult.isEmpty || newResult.length < (_currentSchema.dataSource?.pagination?.defaultLimit ?? 10)) {
+        _hasMore = false;
+      }
+      return;
+    }
+
+    if (_screenData is Map && newResult is Map) {
+      final targetKey = _currentSchema.dataSource?.pagination?.dataPath ?? '';
+      String? arrayKey = targetKey.isNotEmpty ? targetKey : null;
+
+      if (arrayKey == null) {
+        for (final k in ['items', 'data', 'results', 'products', 'users', 'records']) {
+          if (newResult[k] is List) {
+            arrayKey = k;
+            break;
+          }
+        }
+      }
+
+      if (arrayKey != null && newResult[arrayKey] is List) {
+        final existingList = (_screenData as Map)[arrayKey];
+        final addedList = newResult[arrayKey] as List;
+        final mergedList = existingList is List ? [...existingList, ...addedList] : addedList;
+
+        final updatedMap = Map<String, dynamic>.from(_screenData as Map);
+        updatedMap[arrayKey] = mergedList;
+        if (newResult['total'] != null) updatedMap['total'] = newResult['total'];
+        if (newResult['skip'] != null) updatedMap['skip'] = newResult['skip'];
+        _screenData = updatedMap;
+
+        if (addedList.isEmpty || addedList.length < (_currentSchema.dataSource?.pagination?.defaultLimit ?? 10)) {
+          _hasMore = false;
+        }
+        if (newResult['total'] is num && mergedList.length >= (newResult['total'] as num)) {
+          _hasMore = false;
+        }
+      } else {
+        _screenData = newResult;
+      }
+    }
   }
 
   void _initServerUrl() {
@@ -108,90 +281,29 @@ class _DynamicScreenState extends State<DynamicScreen> {
       }
     }
 
+    final dataSourceChanged = newSchema.dataSource != null &&
+        (_currentSchema.dataSource?.url != newSchema.dataSource?.url || _screenData == null);
+
     setState(() {
       _currentSchema = newSchema;
       _isolatedErrors.clear();
       _lastInterceptedAnomaly = detected;
+      if (dataSourceChanged) {
+        _screenData = null;
+        _fetchError = null;
+        _isDataLoading = true;
+      }
     });
     stopwatch.stop();
     _lastRenderDurationMs = stopwatch.elapsedMilliseconds;
+
+    if (dataSourceChanged) {
+      _fetchScreenData(isRefresh: true);
+    }
   }
 
   void _showConnectionDialog() {
-    final controller = TextEditingController(text: _serverUrl);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Configure Sync Server URL', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Select host preset or enter custom URL:',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.0),
-            ),
-            const SizedBox(height: 8.0),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ActionChip(
-                  backgroundColor: const Color(0xFF0F172A),
-                  side: const BorderSide(color: Color(0xFF10B981)),
-                  label: const Text('192.168.1.4 (Real Device)', style: TextStyle(color: Color(0xFF34D399), fontSize: 11)),
-                  onPressed: () => controller.text = 'http://192.168.1.4:8080',
-                ),
-                ActionChip(
-                  backgroundColor: const Color(0xFF0F172A),
-                  side: const BorderSide(color: Color(0xFF4F46E5)),
-                  label: const Text('10.0.2.2 (Emulator)', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11)),
-                  onPressed: () => controller.text = 'http://10.0.2.2:8080',
-                ),
-                ActionChip(
-                  backgroundColor: const Color(0xFF0F172A),
-                  side: const BorderSide(color: Color(0xFF334155)),
-                  label: const Text('localhost (ADB)', style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 11)),
-                  onPressed: () => controller.text = 'http://localhost:8080',
-                ),
-              ],
-            ),
-            const SizedBox(height: 10.0),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF0F172A),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _serverUrl = controller.text.trim();
-              });
-              Navigator.pop(ctx);
-              if (_shouldSync) {
-                _syncClient?.dispose();
-                _syncClient = GenUiSyncClient(serverBaseUrl: _serverUrl);
-                _syncClient!.schemaStream.listen(_onSchemaUpdated);
-                _syncClient!.start();
-              }
-            },
-            child: const Text('Connect'),
-          ),
-        ],
-      ),
-    );
+    GenUiSyncClient.showConnectionDialog(context);
   }
 
   bool get _isPushedScreen =>
@@ -199,7 +311,10 @@ class _DynamicScreenState extends State<DynamicScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _screenRegistrySub?.cancel();
+    _globalUrlSub?.cancel();
     _syncClient?.dispose();
     // Pushed screens (Contact Us, Feedback & Review, ...) drop their form
     // values on close so the next visit starts clean and nothing leaks into
@@ -210,19 +325,32 @@ class _DynamicScreenState extends State<DynamicScreen> {
     super.dispose();
   }
 
-  void _handleExecute(ComponentNode node) {
+  void _handleExecute(ComponentNode node) async {
     // 1. If component or screen has a dynamic API configured, execute it dynamically
     final apiConfig = node.apiConfig ?? (node.properties['action_type'] == 'api_call' ? _currentSchema.apiConfig : null);
     if (apiConfig != null) {
-      GenUiApiClient.executeApi(
-        context: context,
-        config: apiConfig,
-        screenFieldIds: _screenFieldIds,
-        components: _currentSchema.components,
-        screenId: _currentSchema.screenId,
-        screenTitle: _currentSchema.header.title.isNotEmpty ? _currentSchema.header.title : _currentSchema.screenName,
-        serverBaseUrl: _syncClient?.activeUrl ?? _serverUrl,
-      );
+      setState(() {
+        _isSubmitting = true;
+        _submittingNodeId = node.id;
+      });
+      try {
+        await GenUiApiClient.executeApi(
+          context: context,
+          config: apiConfig,
+          screenFieldIds: _screenFieldIds,
+          components: _currentSchema.components,
+          screenId: _currentSchema.screenId,
+          screenTitle: _currentSchema.header.title.isNotEmpty ? _currentSchema.header.title : _currentSchema.screenName,
+          serverBaseUrl: _syncClient?.activeUrl ?? _serverUrl,
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+            _submittingNodeId = null;
+          });
+        }
+      }
       return;
     }
 
@@ -484,6 +612,10 @@ class _DynamicScreenState extends State<DynamicScreen> {
               ),
             ),
 
+          // Configured API Error Widget if GET fetch failed (set by admin in web console)
+          if (_fetchError != null && _screenData == null && (_currentSchema.dataSource?.showErrorWidget ?? true))
+            _buildConfiguredErrorWidget(_currentSchema.dataSource!, theme),
+
           // Dynamic Component Feed
           Expanded(
             child: _currentSchema.components.isEmpty
@@ -501,25 +633,254 @@ class _DynamicScreenState extends State<DynamicScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(14.0),
-                    itemCount: _currentSchema.components.length,
-                    itemBuilder: (context, index) {
-                      final node = _currentSchema.components[index];
-                      return SafeWidgetRegistry.buildNode(
-                        node: node,
-                        theme: theme,
-                        isGuarded: _isGuardedMode,
-                        onExecute: _handleExecute,
-                        onAction: _handleAction,
-                        onError: (compId, err) {
-                          if (!_isolatedErrors.contains(compId)) {
-                            _isolatedErrors.add(compId);
+                : _isDataLoading
+                    ? _buildLoadingSkeleton(theme)
+                    : RefreshIndicator(
+                        color: theme.primaryColor,
+                        backgroundColor: theme.surfaceColor,
+                        onRefresh: () async {
+                          if (_currentSchema.dataSource != null) {
+                            await _fetchScreenData(isRefresh: true);
                           }
                         },
-                      );
-                    },
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                          padding: const EdgeInsets.all(14.0),
+                          itemCount: _currentSchema.components.length,
+                          itemBuilder: (context, index) {
+                            final rawNode = _currentSchema.components[index];
+
+                            // Prepare interpolation context with dynamic API data
+                            Map<String, dynamic> interpolationContext = {};
+                            if (_screenData is Map<String, dynamic>) {
+                              interpolationContext = Map<String, dynamic>.from(_screenData as Map<String, dynamic>);
+                            } else if (_screenData is Map) {
+                              (_screenData as Map).forEach((k, v) => interpolationContext[k.toString()] = v);
+                            } else if (_screenData is List) {
+                              interpolationContext = {
+                                'items': _screenData,
+                                'data': _screenData,
+                                'results': _screenData,
+                                'list': _screenData,
+                              };
+                            }
+
+                            if (_isPaginating) {
+                              interpolationContext['is_paginating'] = true;
+                            }
+
+                            ComponentNode node = GenUiDataBinding.interpolateNode(rawNode, interpolationContext);
+
+                            // Inject submit loader status into button nodes
+                            if (_isSubmitting && (_submittingNodeId == null || node.id == _submittingNodeId || node.type == 'button')) {
+                              final props = Map<String, dynamic>.from(node.properties);
+                              props['is_submitting'] = true;
+                              node = ComponentNode(
+                                id: node.id,
+                                type: node.type,
+                                properties: props,
+                                children: node.children,
+                              );
+                            }
+
+                            return SafeWidgetRegistry.buildNode(
+                              node: node,
+                              theme: theme,
+                              isGuarded: _isGuardedMode,
+                              onExecute: _handleExecute,
+                              onAction: _handleAction,
+                              onError: (compId, err) {
+                                if (!_isolatedErrors.contains(compId)) {
+                                  _isolatedErrors.add(compId);
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shimmer loading skeleton displayed while screen data source is fetching
+  Widget _buildLoadingSkeleton(ThemeConfig theme) {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        // Header card skeleton
+        Container(
+          height: 110,
+          decoration: BoxDecoration(
+            color: theme.surfaceColor,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(color: theme.textSecondary.withOpacity(0.1)),
+          ),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 140,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: theme.textSecondary.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // List item skeleton rows
+        ...List.generate(4, (i) => Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          height: 72,
+          decoration: BoxDecoration(
+            color: theme.surfaceColor,
+            borderRadius: BorderRadius.circular(12.0),
+            border: Border.all(color: theme.textSecondary.withOpacity(0.08)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: theme.textSecondary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 160,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: theme.textSecondary.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 100,
+                      height: 11,
+                      decoration: BoxDecoration(
+                        color: theme.textSecondary.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        )),
+        const SizedBox(height: 16),
+        Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfiguredErrorWidget(ApiDataSource ds, ThemeConfig theme) {
+    final msg = ds.errorMessage.isNotEmpty
+        ? ds.errorMessage
+        : (_fetchError ?? 'Unable to load dynamic data from server');
+
+    if (ds.errorWidgetType == 'card') {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: theme.surfaceColor,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 24.0),
+            const SizedBox(width: 12.0),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    msg,
+                    style: TextStyle(
+                      color: theme.textPrimary,
+                      fontSize: 14.0,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                  if (ds.url.isNotEmpty) ...[
+                    const SizedBox(height: 4.0),
+                    Text(
+                      ds.url,
+                      style: TextStyle(
+                        color: theme.textSecondary,
+                        fontSize: 11.0,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Default 'banner'
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14.0, 8.0, 14.0, 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: Color(0xFFEF4444), size: 18.0),
+          const SizedBox(width: 8.0),
+          Expanded(
+            child: Text(
+              msg,
+              style: const TextStyle(
+                color: Color(0xFFFCA5A5),
+                fontSize: 12.0,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),

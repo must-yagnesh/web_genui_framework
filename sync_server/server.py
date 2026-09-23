@@ -17,6 +17,9 @@ import socket
 import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import urllib.request
+import urllib.error
+import ssl
 
 # Ensure emoji in log output never crashes the server on cp1252 consoles (Windows)
 for _stream in (sys.stdout, sys.stderr):
@@ -370,11 +373,169 @@ super_save_dashboard_schema = {
     ]
 }
 
+product_detail_schema = {
+    "version": schema_version,
+    "timestamp": int(time.time()),
+    "screen_id": "product_detail",
+    "screen_name": "Product Detail",
+    "route": "/product-detail",
+    "theme": {
+        "primary_color": "#4F46E5",
+        "background_color": "#0F172A",
+        "surface_color": "#1E293B",
+        "text_primary": "#F8FAFC",
+        "text_secondary": "#94A3B8",
+        "accent_color": "#10B981"
+    },
+    "header": {
+        "title": "Product Detail",
+        "subtitle": "Live Cloud Synchronized View",
+        "show_back_button": True,
+        "action_icon": "shopping_cart"
+    },
+    "data_source": {
+        "url": "/api/mock/products/1",
+        "method": "GET"
+    },
+    "components": [
+        {
+            "id": "p_img",
+            "type": "image",
+            "height": 190,
+            "image_url": "{{thumbnail}}",
+            "border_radius": 14
+        },
+        {
+            "id": "p_title",
+            "type": "text",
+            "text": "{{title}}",
+            "font_size": 20,
+            "is_bold": True,
+            "padding": 4
+        },
+        {
+            "id": "p_price",
+            "type": "text",
+            "text": "${{price}} USD • Rating: {{rating}} ⭐",
+            "font_size": 15,
+            "color": "#10B981",
+            "is_bold": True,
+            "padding": 2
+        },
+        {
+            "id": "p_desc",
+            "type": "text",
+            "text": "{{description}}",
+            "font_size": 13,
+            "color": "#94A3B8",
+            "padding": 4
+        },
+        {
+            "id": "p_features",
+            "type": "list_view",
+            "data_path": "features",
+            "item_template": {
+                "id": "p_item_feat",
+                "type": "listtile",
+                "title": "{{item.name}}",
+                "subtitle": "{{item.detail}}",
+                "leading_icon": "check"
+            }
+        },
+        {
+            "id": "p_buy_btn",
+            "type": "button",
+            "text": "Add to Cart (${{price}})",
+            "action_type": "api_call",
+            "api_config": {
+                "url": "/api/submissions",
+                "method": "POST",
+                "body_mapping": {
+                    "product": "title",
+                    "amount": "price"
+                },
+                "on_success": {
+                    "action": "dialog",
+                    "title": "Added to Cart!",
+                    "message": "Item was dynamically added via Cloud API."
+                }
+            }
+        }
+    ]
+}
+
+user_directory_schema = {
+    "version": schema_version,
+    "timestamp": int(time.time()),
+    "screen_id": "user_directory",
+    "screen_name": "User Listing",
+    "route": "/users",
+    "theme": {
+        "primary_color": "#4F46E5",
+        "background_color": "#0F172A",
+        "surface_color": "#1E293B",
+        "text_primary": "#F8FAFC",
+        "text_secondary": "#94A3B8",
+        "accent_color": "#10B981"
+    },
+    "header": {
+        "title": "Team & User Directory",
+        "subtitle": "Real-Time Cloud Feed",
+        "show_back_button": True,
+        "action_icon": "search"
+    },
+    "data_source": {
+        "url": "/api/mock/users",
+        "method": "GET",
+        "pagination": {
+            "mode": "page",
+            "page_param": "page",
+            "limit_param": "limit",
+            "default_limit": 5,
+            "data_path": "users"
+        }
+    },
+    "components": [
+        {
+            "id": "u_banner",
+            "type": "banner",
+            "title": "Live User Directory",
+            "message": "Loaded dynamically from Cloud API with infinite scroll pagination.",
+            "badge": "PAGINATED",
+            "color": "#4F46E5"
+        },
+        {
+            "id": "u_list",
+            "type": "list_view",
+            "data_path": "users",
+            "item_template": {
+                "id": "u_tile",
+                "type": "listtile",
+                "title": "{{item.name}}",
+                "subtitle": "{{item.email}}",
+                "leading_image": "{{item.avatar}}",
+                "leading_icon": "person",
+                "trailing_text": "{{item.role}}",
+                "action_id": "user_click"
+            }
+        },
+        {
+            "id": "u_add_btn",
+            "type": "button",
+            "text": "Submit Form / Action",
+            "variant": "secondary",
+            "action_id": "open_user_form"
+        }
+    ]
+}
+
 screens = {
     "home": home_schema,
     "super_save_dashboard": super_save_dashboard_schema,
     "contact": contact_schema,
-    "feedback": feedback_schema
+    "feedback": feedback_schema,
+    "product_detail": product_detail_schema,
+    "user_directory": user_directory_schema
 }
 active_schema = home_schema
 
@@ -533,6 +694,60 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(status).encode("utf-8"))
             return
 
+        elif path == "/api/proxy":
+            query = parse_qs(parsed.query)
+            target_url = query.get("url", [None])[0]
+            if not target_url:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Missing 'url' query parameter"}).encode("utf-8"))
+                return
+
+            try:
+                clean_url = target_url.strip()
+                if clean_url.startswith("/"):
+                    clean_url = f"http://127.0.0.1:{SERVER_PORT}{clean_url}"
+
+                req = urllib.request.Request(
+                    clean_url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Accept": "application/json, text/plain, */*"
+                    }
+                )
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+                with urllib.request.urlopen(req, timeout=15, context=ssl_ctx) as response:
+                    content_type = response.headers.get("Content-Type", "application/json")
+                    body = response.read()
+                    self.send_response(response.status)
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+            except urllib.error.HTTPError as he:
+                err_body = he.read() if hasattr(he, "read") else b""
+                self.send_response(he.code)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                if err_body:
+                    self.wfile.write(err_body)
+                else:
+                    self.wfile.write(json.dumps({"error": f"HTTP {he.code}: {he.reason}"}).encode("utf-8"))
+                return
+            except Exception as e:
+                self.send_response(502)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": f"Proxy request failed: {str(e)}"}).encode("utf-8"))
+                return
+
         elif path == "/api/screens":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -660,6 +875,73 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
             # Friendly route for the "Shows Submission" page
             self.path = "/submissions.html"
             return super().do_GET()
+
+        elif path == "/api/mock/products/1" or path == "/api/mock/product":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            product = {
+                "id": 1,
+                "title": "iPhone 15 Pro Max",
+                "description": "Titanium design, A17 Pro chip, customizable Action button, and 48MP main camera with 5x optical zoom.",
+                "price": 1199.00,
+                "currency": "USD",
+                "rating": 4.9,
+                "stock": 34,
+                "brand": "Apple",
+                "category": "Smartphones",
+                "thumbnail": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80",
+                "features": [
+                    {"name": "Display", "detail": "6.7\" Super Retina XDR OLED 120Hz"},
+                    {"name": "Processor", "detail": "Apple A17 Pro (3nm)"},
+                    {"name": "Camera", "detail": "48MP Main + 12MP Ultra-wide + 12MP 5x Telephoto"},
+                    {"name": "Battery", "detail": "4,422 mAh with 29W fast charging"}
+                ]
+            }
+            self.wfile.write(json.dumps(product).encode("utf-8"))
+            return
+
+        elif path == "/api/mock/users":
+            query = parse_qs(parsed.query)
+            try:
+                page = int(query.get("page", [1])[0])
+            except Exception:
+                page = 1
+            try:
+                limit = int(query.get("limit", [5])[0])
+            except Exception:
+                limit = 5
+
+            all_users = [
+                {"id": 1, "name": "Sarah Connor", "email": "sarah.connor@sky.net", "role": "Lead Security Engineer", "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80", "department": "Cyber Defense"},
+                {"id": 2, "name": "Alex Mercer", "email": "alex.m@biotech.org", "role": "Principal Architect", "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80", "department": "Core Infrastructure"},
+                {"id": 3, "name": "Elena Rostova", "email": "elena.r@quantum.ai", "role": "AI Research Scientist", "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80", "department": "GenAI Systems"},
+                {"id": 4, "name": "Marcus Vance", "email": "m.vance@fintech.io", "role": "VP of Mobile Engineering", "avatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80", "department": "Product Delivery"},
+                {"id": 5, "name": "Aria Chen", "email": "aria.chen@cloudpulse.dev", "role": "Staff Flutter Engineer", "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80", "department": "Frontend Platform"},
+                {"id": 6, "name": "David Kim", "email": "david.k@matrix.net", "role": "Site Reliability Engineer", "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80", "department": "Cloud Operations"},
+                {"id": 7, "name": "Maya Patel", "email": "maya.p@designlabs.co", "role": "Senior UI/UX Designer", "avatar": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80", "department": "Design Systems"},
+                {"id": 8, "name": "James Wilson", "email": "j.wilson@devops.org", "role": "Security Compliance Officer", "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80", "department": "Governance"},
+                {"id": 9, "name": "Chloe Bennett", "email": "chloe.b@solis.tech", "role": "Data Platform Architect", "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80", "department": "Big Data"},
+                {"id": 10, "name": "Lucas Wright", "email": "lucas.w@apex.io", "role": "Lead Mobile QA Engineer", "avatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80", "department": "Quality Assurance"},
+            ]
+            start_idx = max(0, (page - 1) * limit)
+            end_idx = start_idx + limit
+            sliced = all_users[start_idx:end_idx]
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            resp = {
+                "page": page,
+                "limit": limit,
+                "total": len(all_users),
+                "has_more": end_idx < len(all_users),
+                "users": sliced
+            }
+            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            return
 
         # Serve Web Control Dashboard files by default
         return super().do_GET()

@@ -85,7 +85,7 @@
 
     <div class="screens-nav-right">
       <span class="active-route-pill" id="currentScreenRouteBadge">Route: <code>/</code></span>
-      <button class="btn btn-xs btn-outline" id="btnOpenScreenApiModal" title="Configure Cloud API for this screen">🔌 Screen API</button>
+      <button class="btn btn-xs btn-outline" id="btnOpenScreenApiModal" title="Configure Cloud API & Data Binding for this screen">🔌 Cloud API &amp; Data Binding</button>
       <button class="btn btn-xs btn-outline-danger" id="btnDeleteCurrentScreen" style="display: none;" title="Delete this custom screen">🗑 Delete Screen</button>
     </div>
   </nav>
@@ -518,6 +518,10 @@
             <option value="card">💳 Feature Action Cards & Banners</option>
             <option value="checkout">🛒 Checkout / Payment Summary</option>
             <option value="blank">📄 Blank Dynamic Canvas</option>
+            <optgroup label="⚡ Live Dynamic API &amp; Data Binding">
+              <option value="tpl:product_detail_api">📱 Product Detail Screen (Live GET API + Bound ListView)</option>
+              <option value="tpl:user_directory_api">👥 User Listing Screen (Live Paginated List API + Bound ListView)</option>
+            </optgroup>
             <optgroup label="🎨 MUST Design Templates (applied instantly)">
               <option value="tpl:must_mate_detail">🗂️ MUST Mate — Product Detail (light)</option>
               <option value="tpl:must_break_detail">🎙️ MustBreak — Product Detail (dark)</option>
@@ -545,14 +549,189 @@
       </div>
       <div class="modal-body api-modal-body">
         
-        <!-- Info Banner -->
-        <div class="api-info-banner">
-          <span class="api-info-icon">⚡</span>
-          <div class="api-info-text">
-            <strong>Flutter Dynamic Cloud Connector</strong>
-            <span>Configure the API URL, HTTP Method, Headers, and map screen inputs to request body parameters. The Flutter app executes this call dynamically on click without any code changes or app store rebuilds.</span>
+        <!-- Tabs Navigation -->
+        <div class="api-tabs-nav" id="apiModalTabsNav">
+          <button type="button" class="api-tab-btn active" id="tabBtnDataSource" onclick="switchApiModalTab('datasource')">
+            <span>📥 Screen Data Source (GET / Fetch &amp; Binding)</span>
+          </button>
+          <button type="button" class="api-tab-btn" id="tabBtnSubmission" onclick="switchApiModalTab('submission')">
+            <span>📤 Button Action &amp; Form Submission (POST / Submit)</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: Screen Data Source (GET / Fetch) -->
+        <div id="panelTabDataSource" class="api-tab-panel">
+          <!-- Info Banner -->
+          <div class="api-info-banner">
+            <span class="api-info-icon">⚡</span>
+            <div class="api-info-text">
+              <strong>Dynamic Screen Data Source (GET / Fetch &amp; Component Binding)</strong>
+              <span>Connect this screen to any REST API. The Flutter mobile app fetches data dynamically on screen load, displays a loading shimmer, supports pull-to-refresh, handles pagination, and binds values via mustache tokens (e.g. <code>{{title}}</code>, <code>{{price}}</code>, <code>{{item.name}}</code>).</span>
+            </div>
+          </div>
+
+          <!-- Section 1: Data Source Endpoint -->
+          <div class="api-config-section" style="margin-top: 12px;">
+            <label class="section-badge">1. DATA SOURCE ENDPOINT &amp; METHOD</label>
+            <div class="input-row">
+              <div class="field flex-1" style="max-width: 140px;">
+                <label>HTTP Method</label>
+                <select id="dsMethodSelect">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                </select>
+              </div>
+              <div class="field flex-3">
+                <label>API Endpoint URL</label>
+                <input type="text" id="dsUrlInput" placeholder="e.g. https://dummyjson.com/products/1 or https://jsonplaceholder.typicode.com/users" oninput="onDsUrlInputChange()" onchange="fetchDsPreview()">
+              </div>
+            </div>
+            <div class="api-url-presets">
+              <span class="preset-label">Presets:</span>
+              <button class="chip-preset" type="button" onclick="setDsUrlPreset('https://dummyjson.com/products/1', 'Product Detail')">📱 DummyJSON Product</button>
+              <button class="chip-preset" type="button" onclick="setDsUrlPreset('https://jsonplaceholder.typicode.com/users', 'Users List')">👥 JSONPlaceholder Users</button>
+              <button class="chip-preset" type="button" onclick="setDsUrlPreset('/api/mock/products/1', 'Local Product Detail')">📱 Local Product Mock</button>
+              <button class="chip-preset" type="button" onclick="setDsUrlPreset('/api/mock/users', 'Local Paginated Users')">👥 Local Paginated Users</button>
+            </div>
+            <p class="field-hint api-prod-tip">
+              💡 <strong>Zero Hardcoded Code:</strong> The Flutter mobile app automatically extracts properties and renders repeating <code>list_view</code> components based on this configuration.
+            </p>
+          </div>
+
+          <!-- Section 2: Pagination & Repeating Collections -->
+          <div class="api-config-section" style="margin-top: 12px;">
+            <div class="flex-between">
+              <label class="section-badge">2. DYNAMIC PAGINATION &amp; INFINITE SCROLL</label>
+              <label class="checkbox-inline">
+                <input type="checkbox" id="dsPaginationCheckbox" onchange="toggleDsPaginationFields()">
+                <span style="font-size: 12px; font-weight: 600; color: #38BDF8;">Enable Infinite Scroll / Pagination</span>
+              </label>
+            </div>
+            <div id="dsPaginationFieldsRow" class="input-row" style="margin-top: 6px; display: none;">
+              <div class="field flex-1">
+                <label>Pagination Mode</label>
+                <select id="dsPaginationMode">
+                  <option value="page">Page Number (e.g. ?page=1&amp;limit=5)</option>
+                  <option value="offset">Offset / Skip (e.g. ?offset=0&amp;limit=5)</option>
+                </select>
+              </div>
+              <div class="field flex-1">
+                <label>Page/Offset Param Key</label>
+                <input type="text" id="dsPageParam" value="page" placeholder="page or offset">
+              </div>
+              <div class="field flex-1">
+                <label>Limit/Size Param Key</label>
+                <input type="text" id="dsLimitParam" value="limit" placeholder="limit or size">
+              </div>
+              <div class="field flex-1">
+                <label>Page Size (Items per fetch)</label>
+                <input type="number" id="dsDefaultLimit" value="5" min="1" max="100">
+              </div>
+              <div class="field flex-1">
+                <label>Response Array Key</label>
+                <input type="text" id="dsDataPath" placeholder="e.g. users, products (blank for root array)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2b: Error State & Widget Configuration (Configurable by Admin) -->
+          <div class="api-config-section" style="margin-top: 12px;">
+            <div class="flex-between">
+              <label class="section-badge">ERROR STATE &amp; WIDGET CONFIGURATION</label>
+              <label class="checkbox-inline">
+                <input type="checkbox" id="dsShowErrorWidgetCheckbox" checked>
+                <span style="font-size: 12px; font-weight: 600; color: #F87171;">Display Error Widget on Failure</span>
+              </label>
+            </div>
+            <div class="input-row" style="margin-top: 6px;">
+              <div class="field flex-2">
+                <label>Admin Custom Error Message</label>
+                <input type="text" id="dsErrorMessageInput" placeholder="e.g. Unable to load dynamic data. Please try again later.">
+              </div>
+              <div class="field flex-1" style="max-width: 170px;">
+                <label>Error Widget Style</label>
+                <select id="dsErrorWidgetTypeSelect">
+                  <option value="banner">📢 Banner Alert</option>
+                  <option value="card">💳 Warning Card</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Live Test, Condensed JSON & Suggested UI Component Builder -->
+          <div class="api-config-section" style="margin-top: 12px;">
+            <div class="flex-between">
+              <div>
+                <label class="section-badge">3. INSPECT API RESPONSE &amp; SUGGESTED UI BUILDER</label>
+                <p class="field-hint" style="margin:0;">Inspect JSON response and customize suggested UI components before creating the screen:</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="dsFetchStatusBadge" class="badge" style="display: none; font-size: 11px;"></span>
+                <button class="btn btn-sm btn-outline-success" type="button" id="btnFetchDsPreview" onclick="fetchDsPreview()">⚡ Fetch &amp; Inspect API Data</button>
+              </div>
+            </div>
+
+            <div id="dsTokensBox" style="display: none; margin-top: 10px;">
+              <!-- Quick Tokens Bar -->
+              <div class="flex-between" style="margin-bottom: 6px;">
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">AVAILABLE DYNAMIC DATA TOKENS (Click to Copy or Insert):</label>
+                <span style="font-size: 11px; color: #10B981; font-weight: 600;" id="dsTokensCountLabel">0 tokens found</span>
+              </div>
+              <div class="token-chips-grid" id="dsTokenChipsContainer" style="max-height: 85px; overflow-y: auto; margin-bottom: 12px;"></div>
+
+              <!-- Side-by-side Split View: Left = Condensed JSON (1 item per array), Right = Suggested UI Components -->
+              <div class="ds-split-container" style="display: flex; gap: 14px; margin-top: 10px;">
+                <!-- Left Column: JSON Response Structure (compact: 1 item for arrays) -->
+                <div class="ds-split-col" style="flex: 1; min-width: 0; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px;">
+                  <div class="flex-between" style="margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="font-size: 13px;">📄</span>
+                      <strong style="font-size: 12px; color: #94A3B8;">JSON RESPONSE (1 ITEM PER ARRAY)</strong>
+                    </div>
+                    <span id="dsResponseMetaLabel" style="font-size: 10px; color: #38BDF8; font-weight: 600;"></span>
+                  </div>
+                  <pre class="json-preview-code" id="dsResponsePreviewJson" style="max-height: 380px; overflow-y: auto; margin: 0; font-size: 11px; line-height: 1.4; border-radius: 6px;">{}</pre>
+                </div>
+
+                <!-- Right Column: Suggested UI Components (Near by) -->
+                <div class="ds-split-col" style="flex: 1.25; min-width: 0; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; display: flex; flex-direction: column;">
+                  <div class="flex-between" style="margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="font-size: 13px;">🎨</span>
+                      <strong style="font-size: 12px; color: #94A3B8;">SUGGESTED UI COMPONENTS</strong>
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                      <button class="btn btn-xs btn-outline" type="button" onclick="addCustomSuggestedComponent()" title="Add another field">+ Add Field</button>
+                      <button class="btn btn-xs btn-outline" type="button" onclick="resetSuggestedComponents()" title="Reset to auto recommendations">↺ Reset</button>
+                    </div>
+                  </div>
+                  <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 8px 0;">Admin can change component type, remove unwanted fields, and apply to full screen:</p>
+                  
+                  <!-- List of Suggested Components -->
+                  <div id="dsSuggestedComponentsList" style="flex: 1; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
+                    <!-- Injected by JavaScript -->
+                  </div>
+
+                  <!-- Create Full Screen UI Button -->
+                  <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 8px;">
+                    <button class="btn btn-sm btn-primary" type="button" id="btnCreateFullScreenFromSuggestions" onclick="createFullScreenFromSuggestions()" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; font-weight: 700; background: linear-gradient(135deg, #4F46E5, #06B6D4); border: none;">
+                      <span>🚀</span> Create Full Screen UI from Suggestions
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Presets -->
+              <div class="action-btn-group" style="margin-top: 12px; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-xs btn-outline-primary" type="button" id="btnGenProductLayout" onclick="generatePresetFromApi('product')">📱 Product Preset</button>
+                <button class="btn btn-xs btn-outline-primary" type="button" id="btnGenUsersLayout" onclick="generatePresetFromApi('users')">👥 User List Preset</button>
+              </div>
+            </div>
           </div>
         </div>
+
+        <!-- TAB 2: Button Action & Form Submission (POST / Submit) -->
+        <div id="panelTabSubmission" class="api-tab-panel" style="display: none;">
 
         <!-- Section 1: Endpoint & Method -->
         <div class="api-config-section">
@@ -729,6 +908,8 @@
             <pre class="test-result-body" id="apiTestResponseBody"></pre>
           </div>
         </div>
+
+        </div> <!-- end #panelTabSubmission -->
 
       </div>
       <div class="modal-footer">

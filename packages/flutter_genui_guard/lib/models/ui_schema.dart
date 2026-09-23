@@ -11,6 +11,7 @@ class UiSchema {
   final HeaderConfig header;
   final List<ComponentNode> components;
   final ApiConfig? apiConfig;
+  final ApiDataSource? dataSource;
 
   const UiSchema({
     required this.version,
@@ -22,6 +23,7 @@ class UiSchema {
     required this.header,
     required this.components,
     this.apiConfig,
+    this.dataSource,
   });
 
   /// IDs of every component in this screen, including nested children.
@@ -49,6 +51,7 @@ class UiSchema {
       theme: ThemeConfig.fallback(),
       header: HeaderConfig.fallback(),
       components: const [],
+      dataSource: null,
     );
   }
 
@@ -86,6 +89,7 @@ class UiSchema {
     final rawScreenName = map['screen_name']?.toString() ?? (map['header'] is Map ? map['header']['title']?.toString() : null) ?? rawScreenId;
     final rawRoute = map['route']?.toString() ?? (rawScreenId == 'home' ? '/' : '/$rawScreenId');
     final apiConfig = ApiConfig.fromProperties(map);
+    final dataSource = ApiDataSource.fromProperties(map);
 
     return UiSchema(
       version: _parseInt(map['version'], 1),
@@ -97,6 +101,7 @@ class UiSchema {
       header: header,
       components: components,
       apiConfig: apiConfig,
+      dataSource: dataSource,
     );
   }
 
@@ -228,6 +233,20 @@ class ComponentNode {
 
   /// Dynamic API configuration attached to this component (e.g. on click / submit)
   ApiConfig? get apiConfig => ApiConfig.fromProperties(properties);
+
+  /// Item template for dynamic repeating collection components (e.g. list_view)
+  ComponentNode? get itemTemplate {
+    final raw = properties['item_template'] ?? properties['template'];
+    if (raw is Map<String, dynamic>) return ComponentNode.fromMap(raw, fallbackId: '${id}_item');
+    if (raw is Map) return ComponentNode.fromMap(Map<String, dynamic>.from(raw), fallbackId: '${id}_item');
+    return null;
+  }
+
+  /// Data path for dynamic collections (e.g. 'users', 'products', or '' for root array)
+  String get dataPath => properties['data_path']?.toString() ?? properties['items_path']?.toString() ?? '';
+
+  /// Empty state message for collections
+  String get emptyText => properties['empty_text']?.toString() ?? 'No items found';
 }
 
 /// Dynamic API Call Configuration configured from the Web Console
@@ -306,6 +325,149 @@ class ApiConfig {
     return null;
   }
 }
+
+/// Dynamic Pagination Configuration for Screen Data Sources
+class ApiPaginationConfig {
+  final bool enabled;
+  final String pageParam; // e.g. 'page' or '_page'
+  final String limitParam; // e.g. 'limit' or '_limit'
+  final int pageSize;
+  final int initialPage;
+  final String mode; // 'page_number' or 'offset'
+  final String dataPath;
+
+  const ApiPaginationConfig({
+    this.enabled = false,
+    this.pageParam = 'page',
+    this.limitParam = 'limit',
+    this.pageSize = 10,
+    this.initialPage = 1,
+    this.mode = 'page_number',
+    this.dataPath = '',
+  });
+
+  int get defaultLimit => pageSize;
+
+  factory ApiPaginationConfig.fromMap(Map<String, dynamic> map) {
+    return ApiPaginationConfig(
+      enabled: map['enabled'] == true,
+      pageParam: map['page_param']?.toString() ?? 'page',
+      limitParam: map['limit_param']?.toString() ?? 'limit',
+      pageSize: (map['default_limit'] ?? map['page_size'] ?? map['limit'] as num?)?.toInt() ?? 10,
+      initialPage: (map['initial_page'] as num?)?.toInt() ?? 1,
+      mode: map['mode']?.toString() ?? 'page_number',
+      dataPath: map['data_path']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'enabled': enabled,
+    'page_param': pageParam,
+    'limit_param': limitParam,
+    'page_size': pageSize,
+    'default_limit': defaultLimit,
+    'initial_page': initialPage,
+    'mode': mode,
+    'data_path': dataPath,
+  };
+}
+
+/// Dynamic Screen Data Source (GET API / Data Binding)
+class ApiDataSource {
+  final String url;
+  final String method; // 'GET'
+  final Map<String, String> headers;
+  final Map<String, dynamic> queryParams;
+  final String resultsPath; // e.g. 'data', 'users', 'products', or '' for root array/object
+  final bool autoFetch;
+  final ApiPaginationConfig pagination;
+  final Map<String, dynamic> fallbackData;
+  final bool showErrorWidget;
+  final String errorMessage;
+  final String errorWidgetType; // 'banner', 'card'
+
+  const ApiDataSource({
+    required this.url,
+    this.method = 'GET',
+    this.headers = const {},
+    this.queryParams = const {},
+    this.resultsPath = '',
+    this.autoFetch = true,
+    this.pagination = const ApiPaginationConfig(),
+    this.fallbackData = const {},
+    this.showErrorWidget = true,
+    this.errorMessage = '',
+    this.errorWidgetType = 'banner',
+  });
+
+  bool get hasUrl => url.trim().isNotEmpty;
+  Map<String, dynamic> get params => queryParams;
+  String get dataPath => resultsPath;
+
+  factory ApiDataSource.fromMap(Map<String, dynamic> map) {
+    final rawHeaders = map['headers'];
+    final Map<String, String> headers = {};
+    if (rawHeaders is Map) {
+      rawHeaders.forEach((k, v) => headers[k.toString()] = v?.toString() ?? '');
+    }
+
+    final rawQuery = map['query_params'] ?? map['params'];
+    final Map<String, dynamic> queryParams = {};
+    if (rawQuery is Map) {
+      rawQuery.forEach((k, v) => queryParams[k.toString()] = v);
+    }
+
+    final rawPagination = map['pagination'];
+    final pagination = rawPagination is Map<String, dynamic>
+        ? ApiPaginationConfig.fromMap(rawPagination)
+        : (rawPagination is Map
+            ? ApiPaginationConfig.fromMap(Map<String, dynamic>.from(rawPagination))
+            : const ApiPaginationConfig());
+
+    final rawFallback = map['fallback_data'] ?? map['mock_data'];
+    final Map<String, dynamic> fallbackData = {};
+    if (rawFallback is Map) {
+      rawFallback.forEach((k, v) => fallbackData[k.toString()] = v);
+    }
+
+    return ApiDataSource(
+      url: map['url']?.toString() ?? '',
+      method: (map['method']?.toString() ?? 'GET').toUpperCase().trim(),
+      headers: headers,
+      queryParams: queryParams,
+      resultsPath: map['results_path']?.toString() ?? map['root_path']?.toString() ?? '',
+      autoFetch: map['auto_fetch'] != false,
+      pagination: pagination,
+      fallbackData: fallbackData,
+      showErrorWidget: map['show_error_widget'] != false,
+      errorMessage: map['error_message']?.toString() ?? '',
+      errorWidgetType: map['error_widget_type']?.toString() ?? 'banner',
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'url': url,
+    'method': method,
+    'headers': headers,
+    'query_params': queryParams,
+    'results_path': resultsPath,
+    'auto_fetch': autoFetch,
+    'pagination': pagination.toMap(),
+    'fallback_data': fallbackData,
+    'show_error_widget': showErrorWidget,
+    'error_message': errorMessage,
+    'error_widget_type': errorWidgetType,
+  };
+
+  static ApiDataSource? fromProperties(Map<String, dynamic>? props) {
+    if (props == null) return null;
+    final raw = props['data_source'] ?? props['dataSource'] ?? props['fetch_api'];
+    if (raw is Map<String, dynamic>) return ApiDataSource.fromMap(raw);
+    if (raw is Map) return ApiDataSource.fromMap(Map<String, dynamic>.from(raw));
+    return null;
+  }
+}
+
 
 /// Robust Hex Color parser that never throws
 Color parseHexColor(dynamic hexStr, Color fallback) {

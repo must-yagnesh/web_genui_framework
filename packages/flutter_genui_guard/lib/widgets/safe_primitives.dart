@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/ui_schema.dart';
 import '../registry/widget_registry.dart';
 import '../state/form_registry.dart';
+import '../state/data_binding.dart';
 
 /// Helper to map string icon names to standard Material Icons safely
 IconData getMaterialIcon(String? name) {
@@ -20,8 +21,15 @@ IconData getMaterialIcon(String? name) {
     case 'home': return Icons.home;
     case 'shopping_cart': return Icons.shopping_cart;
     case 'lock': return Icons.lock;
-    case 'email': return Icons.email;
-    case 'phone': return Icons.phone;
+    case 'email': case 'mail': return Icons.email;
+    case 'phone': case 'tel': return Icons.phone;
+    case 'language': case 'web': case 'globe': return Icons.language;
+    case 'location_on': case 'location': case 'place': case 'pin': case 'map': return Icons.location_on;
+    case 'business': case 'company': case 'work': case 'domain': return Icons.business;
+    case 'badge': case 'id': case 'tag': return Icons.badge;
+    case 'attach_money': case 'money': case 'dollar': return Icons.attach_money;
+    case 'sync': case 'refresh': return Icons.sync;
+    case 'more_vert': return Icons.more_vert;
     case 'help': return Icons.help_outline;
     default: return Icons.widgets_outlined;
   }
@@ -272,12 +280,14 @@ class SafeGenUiListTile extends StatelessWidget {
   final ComponentNode node;
   final ThemeConfig theme;
   final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
 
   const SafeGenUiListTile({
     super.key,
     required this.node,
     required this.theme,
     this.onAction,
+    this.onExecute,
   });
 
   @override
@@ -288,61 +298,97 @@ class SafeGenUiListTile extends StatelessWidget {
     final subtitle = node.properties['subtitle']?.toString();
     final leadingIconName = node.properties['leading_icon']?.toString() ??
         node.properties['icon']?.toString();
+    final leadingImageUrl = node.properties['leading_image']?.toString() ??
+        node.properties['avatar']?.toString() ??
+        node.properties['avatar_url']?.toString() ??
+        node.properties['image_url']?.toString();
     final trailingText = node.properties['trailing_text']?.toString();
     final trailingIconName = node.properties['trailing_icon']?.toString();
     final actionId = node.properties['action_id']?.toString() ?? 'tile_click';
 
+    final customBg = node.properties['background_color'] != null
+        ? parseHexColor(node.properties['background_color'], theme.surfaceColor)
+        : theme.surfaceColor;
+
+    Widget? leadingWidget;
+    if (leadingImageUrl != null && leadingImageUrl.isNotEmpty) {
+      leadingWidget = ClipRRect(
+        borderRadius: BorderRadius.circular(node.properties['avatar_circular'] == false ? 8.0 : 20.0),
+        child: Image.network(
+          leadingImageUrl,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(node.properties['avatar_circular'] == false ? 8.0 : 20.0),
+            ),
+            child: Icon(getMaterialIcon(leadingIconName), color: theme.primaryColor, size: 20),
+          ),
+        ),
+      );
+    } else if (leadingIconName != null) {
+      leadingWidget = Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: theme.primaryColor.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: Icon(getMaterialIcon(leadingIconName), color: theme.primaryColor, size: 20),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Material(
-        color: const Color(0xFF1E293B),
+        color: customBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
-          side: const BorderSide(color: Color(0xFF334155), width: 1.0),
+          side: BorderSide(color: theme.textSecondary.withOpacity(0.15), width: 1.0),
         ),
         clipBehavior: Clip.antiAlias,
         child: ListTile(
-          onTap: () => onAction?.call(actionId),
-        leading: leadingIconName != null
-            ? Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                child: Icon(getMaterialIcon(leadingIconName), color: theme.primaryColor, size: 20),
-              )
-            : null,
-        title: Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14.0),
-        ),
-        subtitle: subtitle != null
-            ? Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: theme.textSecondary, fontSize: 12.0),
-              )
-            : null,
-        trailing: trailingText != null
-            ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6.0),
-                ),
-                child: Text(
-                  trailingText,
-                  style: TextStyle(color: theme.primaryColor, fontSize: 11.0, fontWeight: FontWeight.bold),
-                ),
-              )
-            : (trailingIconName != null
-                ? Icon(getMaterialIcon(trailingIconName), color: theme.textSecondary, size: 18)
-                : const Icon(Icons.arrow_forward_ios, color: Color(0xFF64748B), size: 14)),
+          onTap: () {
+            if (onExecute != null) {
+              onExecute!(node);
+            } else if (onAction != null) {
+              onAction!(actionId);
+            }
+          },
+          leading: leadingWidget,
+          title: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14.0),
+          ),
+          subtitle: subtitle != null
+              ? Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: theme.textSecondary, fontSize: 12.0),
+                )
+              : null,
+          trailing: trailingText != null
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6.0),
+                  ),
+                  child: Text(
+                    trailingText,
+                    style: TextStyle(color: theme.primaryColor, fontSize: 11.0, fontWeight: FontWeight.bold),
+                  ),
+                )
+              : (trailingIconName != null
+                  ? Icon(getMaterialIcon(trailingIconName), color: theme.textSecondary, size: 18)
+                  : Icon(Icons.arrow_forward_ios, color: theme.textSecondary.withOpacity(0.6), size: 14)),
         ),
       ),
     );
@@ -953,17 +999,16 @@ class SafeGenUiContainer extends StatelessWidget {
       );
     }
 
-    final actionId = node.properties['action_id']?.toString();
-    final hasAction = actionId != null && actionId.isNotEmpty;
+    final actId = node.properties['action_id']?.toString();
     final hasCode = node.properties['custom_dart_code'] != null;
 
-    if (hasAction || hasCode) {
+    if ((actId != null && actId.isNotEmpty) || hasCode) {
       childWidget = InkWell(
         onTap: () {
           if (hasCode && onExecute != null) {
             onExecute!(node);
-          } else if (hasAction && onAction != null) {
-            onAction!(actionId!);
+          } else if (actId != null && actId.isNotEmpty && onAction != null) {
+            onAction!(actId);
           }
         },
         borderRadius: borderRadius > 0 ? BorderRadius.circular(borderRadius) : null,
@@ -1076,5 +1121,164 @@ class SafeGenUiStack extends StatelessWidget {
     }
 
     return stackWidget;
+  }
+}
+
+/// Safe Dynamic ListView Component with dynamic repeating item templates,
+/// nested data path evaluation, empty state fallback, and pagination spinner.
+class SafeGenUiListView extends StatelessWidget {
+  final ComponentNode node;
+  final ThemeConfig theme;
+  final bool isGuarded;
+  final Function(String actionId)? onAction;
+  final Function(ComponentNode node)? onExecute;
+  final Function(String componentId, String error)? onError;
+
+  const SafeGenUiListView({
+    super.key,
+    required this.node,
+    required this.theme,
+    this.isGuarded = true,
+    this.onAction,
+    this.onExecute,
+    this.onError,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. Resolve list items
+    List<dynamic> items = [];
+    final rawItems = node.properties['items'] ?? node.properties['data'];
+    if (rawItems is List) {
+      items = rawItems;
+    }
+
+    // 2. Item template or fallback children
+    final itemTemplate = node.itemTemplate;
+    final shrinkWrap = node.properties['shrink_wrap'] != false; // default true to avoid unbounded height in scrollable parents
+    final isScrollable = node.properties['scrollable'] == true;
+    final isPaginating = node.properties['is_paginating'] == true;
+    final emptyText = node.emptyText;
+    final rawPadding = node.properties['padding'] ?? 8.0;
+    final padding = (rawPadding is num ? rawPadding.toDouble() : 8.0).clamp(0.0, 48.0);
+    final rawSpacing = node.properties['spacing'] ?? 6.0;
+    final spacing = (rawSpacing is num ? rawSpacing.toDouble() : 6.0).clamp(0.0, 40.0);
+
+    // If items is empty and no children defined
+    if (items.isEmpty && node.children.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 36.0, horizontal: 20.0),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox_outlined, size: 42, color: theme.textSecondary.withOpacity(0.5)),
+            const SizedBox(height: 10),
+            Text(
+              emptyText,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: theme.textSecondary,
+                fontSize: 14.0,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // If items is empty but children are provided (static mode)
+    if (items.isEmpty && node.children.isNotEmpty) {
+      return ListView.separated(
+        shrinkWrap: shrinkWrap,
+        physics: isScrollable ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.all(padding),
+        itemCount: node.children.length,
+        separatorBuilder: (_, __) => SizedBox(height: spacing),
+        itemBuilder: (context, index) {
+          return SafeWidgetRegistry.buildNode(
+            node: node.children[index],
+            theme: theme,
+            isGuarded: isGuarded,
+            onAction: onAction,
+            onExecute: onExecute,
+            onError: onError,
+          );
+        },
+      );
+    }
+
+    // Dynamic item repeating mode
+    final totalCount = items.length + (isPaginating ? 1 : 0);
+
+    return ListView.separated(
+      shrinkWrap: shrinkWrap,
+      physics: isScrollable ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.all(padding),
+      itemCount: totalCount,
+      separatorBuilder: (_, __) => SizedBox(height: spacing),
+      itemBuilder: (context, index) {
+        // Pagination indicator at the bottom
+        if (index >= items.length) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final rawItem = items[index];
+        final Map<String, dynamic> rowScope = {};
+
+        if (rawItem is Map) {
+          rawItem.forEach((k, v) => rowScope[k.toString()] = v);
+          rowScope['item'] = rawItem;
+        } else {
+          rowScope['item'] = rawItem;
+          rowScope['value'] = rawItem;
+        }
+        rowScope['index'] = index;
+
+        ComponentNode rowNode;
+        if (itemTemplate != null) {
+          // Deep clone & interpolate template with row scope
+          rowNode = GenUiDataBinding.interpolateNode(itemTemplate, rowScope);
+        } else {
+          // Smart default fallback tile if template wasn't provided
+          final title = rowScope['title'] ?? rowScope['name'] ?? rowScope['label'] ?? 'Item #${index + 1}';
+          final subtitle = rowScope['subtitle'] ?? rowScope['description'] ?? rowScope['email'] ?? rowScope['price']?.toString();
+          final image = rowScope['image'] ?? rowScope['avatar'] ?? rowScope['thumbnail'] ?? rowScope['icon'];
+          rowNode = ComponentNode(
+            id: 'auto_item_$index',
+            type: 'listtile',
+            properties: {
+              'title': title.toString(),
+              if (subtitle != null) 'subtitle': subtitle.toString(),
+              if (image != null) 'leading_image': image.toString(),
+              'action_id': 'item_click_$index',
+            },
+          );
+        }
+
+        return SafeWidgetRegistry.buildNode(
+          node: rowNode,
+          theme: theme,
+          isGuarded: isGuarded,
+          onAction: onAction,
+          onExecute: onExecute,
+          onError: onError,
+        );
+      },
+    );
   }
 }

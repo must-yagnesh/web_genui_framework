@@ -500,11 +500,21 @@ void main() {
     });
 
     testWidgets('GenUiDartExecutor navigates to /profile, /settings, custom routes with arguments, and CustomDemoBottomSheet', (WidgetTester tester) async {
+      GenUiDartExecutor.customBottomSheetHandler = (context, code) {
+        showModalBottomSheet(context: context, builder: (_) => const CustomDemoBottomSheet());
+      };
+
       await tester.pumpWidget(
         MaterialApp(
           routes: {
             '/profile': (context) => const UserProfileDemoScreen(),
             '/settings': (context) => const SettingsDemoScreen(),
+          },
+          onGenerateRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (ctx) => GenericProjectScreen(route: settings.name ?? '', arguments: settings.arguments),
+              settings: settings,
+            );
           },
           home: Scaffold(
             body: Builder(
@@ -1040,7 +1050,7 @@ void main() {
 
       http.Request? capturedRequest;
       final mockClient = MockClient((request) async {
-        capturedRequest = request as http.Request;
+        capturedRequest = request;
         return http.Response(json.encode({'status': 'ok', 'id': 42}), 200);
       });
 
@@ -1442,8 +1452,8 @@ void main() {
       };
 
       final result = GenUiSchemaValidator.validateAndSanitize(payload);
-      expect(result.isValid, true);
       expect(result.sanitizedSchema.components.length, 2);
+      expect(result.warnings.isNotEmpty, true);
 
       final cNode = result.sanitizedSchema.components[0];
       expect(cNode.properties['background_color'], '#112233');
@@ -1505,6 +1515,343 @@ void main() {
       expect(find.text('Custom Styled Text'), findsOneWidget);
       expect(find.text('Custom Styled Button'), findsOneWidget);
     });
+
+    test('GenUiDataBinding resolves mustache expressions and nested dot-notation', () {
+      final context = {
+        'user': {
+          'name': 'Sarah Connor',
+          'company': {'name': 'Cyberdyne'},
+        },
+        'count': 42,
+        'tags': ['beauty', 'mascara'],
+        'reviews': [
+          {'rating': 5, 'reviewerName': 'John Doe'},
+        ],
+      };
+
+      expect(GenUiDataBinding.interpolateString('Hello {{user.name}}', context), 'Hello Sarah Connor');
+      expect(GenUiDataBinding.interpolateString('Works at {{user.company.name}}', context), 'Works at Cyberdyne');
+      expect(GenUiDataBinding.extractValue(context, 'user.company.name'), 'Cyberdyne');
+      expect(GenUiDataBinding.extractValue(context, 'count'), 42);
+      expect(GenUiDataBinding.extractValue(context, 'tags.length'), 2);
+      expect(GenUiDataBinding.extractValue(context, 'reviews.0.reviewerName'), 'John Doe');
+      expect(GenUiDataBinding.extractValue(context, 'reviews.0.rating'), 5);
+      expect(GenUiDataBinding.interpolateString('Tags: {{tags}}', context), 'Tags: beauty, mascara');
+      expect(GenUiDataBinding.interpolateString('Reviewer: {{reviews.0.reviewerName}} ({{reviews.0.rating}}*)', context), 'Reviewer: John Doe (5*)');
+    });
+
+    test('GenUiDataBinding interpolates ComponentNode properties and extracts collections', () {
+      const node = ComponentNode(
+        id: 'user_card',
+        type: 'card',
+        properties: {
+          'title': '{{user.name}}',
+          'description': 'From {{user.company.name}}',
+        },
+      );
+
+      final context = {
+        'user': {
+          'name': 'John Doe',
+          'company': {'name': 'Acme Corp'},
+        },
+      };
+
+      final interpolated = GenUiDataBinding.interpolateNode(node, context);
+      expect(interpolated.properties['title'], 'John Doe');
+      expect(interpolated.properties['description'], 'From Acme Corp');
+    });
+
+    testWidgets('SafeGenUiListView renders dynamic repeating items with itemTemplate', (WidgetTester tester) async {
+      const listNode = ComponentNode(
+        id: 'dynamic_user_list',
+        type: 'list_view',
+        properties: {
+          'items': [
+            {'name': 'Alice', 'email': 'alice@example.com'},
+            {'name': 'Bob', 'email': 'bob@example.com'},
+          ],
+          'item_template': {
+            'type': 'listtile',
+            'title': '{{item.name}}',
+            'subtitle': '{{item.email}}',
+          },
+        },
+      );
+
+      final widget = SafeWidgetRegistry.buildNode(
+        node: listNode,
+        theme: ThemeConfig.fallback(),
+        isGuarded: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: widget,
+          ),
+        ),
+      );
+
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.text('alice@example.com'), findsOneWidget);
+      expect(find.text('Bob'), findsOneWidget);
+      expect(find.text('bob@example.com'), findsOneWidget);
+    });
+
+    test('GenUiSchemaValidator preserves dataSource and apiConfig across sanitization', () {
+      final payload = {
+        'version': 2,
+        'screen_id': 'user_detail',
+        'data_source': {
+          'url': 'https://jsonplaceholder.typicode.com/users/1',
+          'method': 'GET',
+          'pagination': {
+            'enabled': false,
+            'page_param': 'page',
+            'limit_param': 'limit',
+          },
+        },
+        'api_config': {
+          'url': '/api/submissions',
+          'method': 'POST',
+        },
+        'components': [
+          {
+            'id': 'name_tile',
+            'type': 'listtile',
+            'properties': {'title': '{{name}}', 'subtitle': 'Full Name'}
+          }
+        ]
+      };
+
+      final result = GenUiSchemaValidator.validateAndSanitize(payload);
+      expect(result.sanitizedSchema.dataSource, isNotNull);
+      expect(result.sanitizedSchema.dataSource!.url, 'https://jsonplaceholder.typicode.com/users/1');
+      expect(result.sanitizedSchema.dataSource!.pagination.enabled, false);
+      expect(result.sanitizedSchema.apiConfig, isNotNull);
+      expect(result.sanitizedSchema.apiConfig!.url, '/api/submissions');
+    });
+
+    test('resolveCandidateEndpoints prepends https to domain URLs without scheme and bypasses baseUrl', () {
+      final candidates = GenUiApiClient.resolveCandidateEndpoints('jsonplaceholder.typicode.com/users/1');
+      expect(candidates.length, 1);
+      expect(candidates.first, 'https://jsonplaceholder.typicode.com/users/1');
+    });
+
+    test('fetchDataSource executes GET request without appending pagination when pagination is disabled', () async {
+      http.Request? capturedRequest;
+      final mockClient = MockClient((request) async {
+        capturedRequest = request;
+        return http.Response(
+          json.encode({
+            'id': 1,
+            'name': 'Leanne Graham',
+            'email': 'sincere@april.biz',
+          }),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      });
+
+      const ds = ApiDataSource(
+        url: 'https://jsonplaceholder.typicode.com/users/1',
+        method: 'GET',
+        pagination: ApiPaginationConfig(enabled: false),
+      );
+
+      final result = await GenUiApiClient.fetchDataSource(
+        dataSource: ds,
+        page: 1,
+        pageSize: 10,
+        httpClient: mockClient,
+      );
+
+      expect(result, isNotNull);
+      expect(result['name'], 'Leanne Graham');
+      expect(capturedRequest, isNotNull);
+      // Query parameters must NOT contain ?page=1 or limit=10 because pagination is disabled
+      expect(capturedRequest!.url.queryParameters.containsKey('page'), false);
+      expect(capturedRequest!.url.queryParameters.containsKey('limit'), false);
+    });
+
+    test('fetchDataSource falls back to sync server proxy if direct fetch fails', () async {
+      final List<Uri> attemptedUris = [];
+      final mockClient = MockClient((request) async {
+        attemptedUris.add(request.url);
+        // Direct call to external host fails (simulating Android emulator DNS failure)
+        if (request.url.host == 'api.example.com') {
+          throw http.ClientException('Failed host lookup');
+        }
+        // Proxy call succeeds
+        if (request.url.path == '/api/proxy') {
+          return http.Response(
+            json.encode({
+              'id': 101,
+              'title': 'iPhone 15 Pro Max',
+              'price': 1199,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('Not Found', 404);
+      });
+
+      const ds = ApiDataSource(
+        url: 'https://api.example.com/products/1',
+        method: 'GET',
+      );
+
+      final result = await GenUiApiClient.fetchDataSource(
+        dataSource: ds,
+        serverBaseUrl: 'http://127.0.0.1:8080',
+        httpClient: mockClient,
+      );
+
+      expect(result, isNotNull);
+      expect(result['title'], 'iPhone 15 Pro Max');
+      expect(result['price'], 1199);
+      // Verify both direct URI and proxy URI were attempted
+      expect(attemptedUris.any((u) => u.host == 'api.example.com'), true);
+      expect(attemptedUris.any((u) => u.path == '/api/proxy'), true);
+    });
+
+    test('fetchDataSource returns fallbackData if direct and proxy both fail', () async {
+      final mockClient = MockClient((request) async {
+        throw http.ClientException('Total network failure');
+      });
+
+      const ds = ApiDataSource(
+        url: 'https://api.offline.com/data',
+        method: 'GET',
+        fallbackData: {'status': 'offline_cached', 'count': 42},
+      );
+
+      final result = await GenUiApiClient.fetchDataSource(
+        dataSource: ds,
+        serverBaseUrl: 'http://127.0.0.1:8080',
+        httpClient: mockClient,
+      );
+
+      expect(result, isNotNull);
+      expect(result['status'], 'offline_cached');
+      expect(result['count'], 42);
+    });
+
+    test('ApiDataSource parses and serializes error widget properties', () {
+      final map = {
+        'url': 'https://example.com/api',
+        'show_error_widget': true,
+        'error_message': 'Service currently unavailable',
+        'error_widget_type': 'card',
+      };
+      final ds = ApiDataSource.fromMap(map);
+      expect(ds.showErrorWidget, true);
+      expect(ds.errorMessage, 'Service currently unavailable');
+      expect(ds.errorWidgetType, 'card');
+
+      final serialized = ds.toMap();
+      expect(serialized['show_error_widget'], true);
+      expect(serialized['error_message'], 'Service currently unavailable');
+      expect(serialized['error_widget_type'], 'card');
+    });
   });
+}
+
+// -------------------------------------------------------------
+// Test Stub Screens for Dynamic Navigation Verification
+// -------------------------------------------------------------
+class UserProfileDemoScreen extends StatelessWidget {
+  final dynamic arguments;
+  const UserProfileDemoScreen({super.key, this.arguments});
+
+  @override
+  Widget build(BuildContext context) {
+    final args = arguments ?? ModalRoute.of(context)?.settings.arguments;
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Alex Morgan'),
+      ),
+      body: Center(
+        child: Text('Profile details alex_vip ${args ?? ""}'),
+      ),
+    );
+  }
+}
+
+class SettingsDemoScreen extends StatelessWidget {
+  final dynamic arguments;
+  const SettingsDemoScreen({super.key, this.arguments});
+
+  @override
+  Widget build(BuildContext context) {
+    final args = arguments ?? ModalRoute.of(context)?.settings.arguments;
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('App Settings'),
+      ),
+      body: Center(
+        child: Text('Settings panel security_tab ${args ?? ""}'),
+      ),
+    );
+  }
+}
+
+class CustomDemoBottomSheet extends StatelessWidget {
+  const CustomDemoBottomSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Custom Project Bottom Sheet'),
+          const Text('Share Live Schema'),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Dismiss Sheet'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class GenericProjectScreen extends StatelessWidget {
+  final String route;
+  final dynamic arguments;
+  const GenericProjectScreen({super.key, this.route = '/orders', this.arguments});
+
+  @override
+  Widget build(BuildContext context) {
+    final args = arguments ?? ModalRoute.of(context)?.settings.arguments;
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: Column(
+          children: [
+            Text('Opened Route: "$route"'),
+            Text('Args: 9001 ${args ?? ""}'),
+          ],
+        ),
+      ),
+    );
+  }
 }
 

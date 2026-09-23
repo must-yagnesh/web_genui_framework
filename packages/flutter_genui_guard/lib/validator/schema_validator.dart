@@ -115,6 +115,8 @@ class GenUiSchemaValidator {
       theme: ThemeConfig.fromMap(themeMap),
       header: HeaderConfig.fromMap(headerMap),
       components: sanitizedComponents,
+      apiConfig: ApiConfig.fromProperties(rawMap),
+      dataSource: ApiDataSource.fromProperties(rawMap),
     );
 
     stopwatch.stop();

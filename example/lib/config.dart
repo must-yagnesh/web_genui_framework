@@ -1,21 +1,31 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_genui_guard/genui_guard.dart';
 import 'screens/demo_screens.dart';
 
 /// Centralized Configuration for the GenUI Example App.
 ///
-/// Edit this file to change your Sync Server host IP, port,
-/// or Cloud API endpoints for testing on different devices.
+/// Automatically routes traffic to the correct host based on runtime platform:
+/// - Android Emulator: 'http://10.0.2.2:8080' (accesses Mac localhost via virtual router)
+/// - Real Android Device (Wi-Fi): Mac LAN IP (e.g. 'http://192.168.1.11:8080')
+/// - iOS Simulator / macOS / Web: 'http://127.0.0.1:8080'
 class GenUiConfig {
+  /// Optional manual override (e.g. 'http://192.168.1.11:8080' for real phone on Wi-Fi)
+  static String? customServerUrl;
+
   /// 🌐 Real-Time Sync Server URL (Python Bridge Server)
-  ///
-  /// Choose the appropriate URL for your target device:
-  /// - Real Android Device (Wi-Fi): Use your Mac/PC local LAN IP (e.g. 'http://192.168.1.4:8080')
-  /// - Android Emulator: 'http://10.0.2.2:8080'
-  /// - iOS Simulator / macOS / Web: 'http://localhost:8080'
-  static const String syncServerUrl = 'http://192.168.1.4:8080';
+  static String get syncServerUrl {
+    if (customServerUrl != null && customServerUrl!.isNotEmpty) {
+      return customServerUrl!;
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      // 10.0.2.2 is the official loopback interface to host machine from Android Emulator
+      return 'http://10.0.2.2:8080';
+    }
+    return 'http://127.0.0.1:8080';
+  }
 
   /// 🔌 Cloud API Base URL (for form submissions and backend REST calls)
-  static const String apiBaseUrl = 'http://192.168.1.4:8080/api';
+  static String get apiBaseUrl => '$syncServerUrl/api';
 
   /// One-step framework initialization called in main() before runApp()
   static void initialize() {
@@ -34,7 +44,12 @@ class GenUiConfig {
       'email': 'developer@example.com',
     });
 
-    // 5. Connect custom demo bottom sheet handler
+    // 5. Keep customServerUrl in sync with global changes across screens
+    GenUiSyncClient.onServerUrlChanged.listen((newUrl) {
+      customServerUrl = newUrl;
+    });
+
+    // 6. Connect custom demo bottom sheet handler
     GenUiDartExecutor.customBottomSheetHandler = (ctx, code) {
       showCustomDemoBottomSheet(ctx);
     };

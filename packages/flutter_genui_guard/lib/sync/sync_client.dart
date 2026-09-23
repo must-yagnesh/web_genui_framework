@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/ui_schema.dart';
 import '../validator/schema_validator.dart';
+import 'api_client.dart';
 import 'screen_registry.dart';
 
 /// Real-time Sync Client for receiving live UI schema updates from the Web Console
@@ -21,12 +23,139 @@ class GenUiSyncClient {
   Timer? _discoveryTimer;
   Timer? _reconnectTimer;
 
-  /// Default sync server URL for development (defaults to Mac local LAN IP for real devices)
-  static String defaultServerUrl = 'http://192.168.1.4:8080';
+  static String? _customDefaultServerUrl;
+
+  /// Default sync server URL for development:
+  /// Automatically uses 10.0.2.2:8080 on Android Emulator, and 127.0.0.1:8080 on Desktop/Web/iOS.
+  static String get defaultServerUrl {
+    if (_customDefaultServerUrl != null && _customDefaultServerUrl!.isNotEmpty) {
+      return _customDefaultServerUrl!;
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8080';
+    }
+    return 'http://127.0.0.1:8080';
+  }
+
+  static set defaultServerUrl(String url) {
+    _customDefaultServerUrl = url;
+  }
 
   /// Last server base URL that answered successfully. Shared so other
   /// clients (e.g. form submissions from non-syncing screens) can reuse it.
   static String? lastDiscoveredUrl;
+
+  /// Global StreamController broadcasting server URL changes to all screens & containers
+  static final StreamController<String> _serverUrlStreamController =
+      StreamController<String>.broadcast();
+
+  /// Stream of server URL changes triggered from any connection dialog or config update
+  static Stream<String> get onServerUrlChanged => _serverUrlStreamController.stream;
+
+  /// Global setter that updates the server URL for ALL screens, containers, and API clients simultaneously
+  static void updateGlobalServerUrl(String newUrl) {
+    final clean = newUrl.trim();
+    if (clean.isEmpty) return;
+    final normalized = clean.endsWith('/') ? clean.substring(0, clean.length - 1) : clean;
+
+    defaultServerUrl = normalized;
+    lastDiscoveredUrl = normalized;
+    GenUiApiClient.setBaseUrl(normalized.endsWith('/api') ? normalized : '$normalized/api');
+    _serverUrlStreamController.add(normalized);
+    debugPrint('[GenUiSync] Global sync server URL updated across ALL screens: $normalized');
+  }
+
+  /// Universal connection configuration dialog that can be invoked from any screen
+  static void showConnectionDialog(BuildContext context) {
+    final controller = TextEditingController(text: defaultServerUrl);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Row(
+          children: [
+            Icon(Icons.wifi, color: Color(0xFF818CF8), size: 20),
+            SizedBox(width: 8),
+            Text('Sync Server Connection', style: TextStyle(color: Colors.white, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Changes the sync host globally across ALL screens & containers:',
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.0),
+            ),
+            const SizedBox(height: 10.0),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  backgroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF4F46E5)),
+                  label: const Text('10.0.2.2 (Emulator)', style: TextStyle(color: Color(0xFF818CF8), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://10.0.2.2:8080',
+                ),
+                ActionChip(
+                  backgroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF10B981)),
+                  label: const Text('192.168.1.11 (LAN Host)', style: TextStyle(color: Color(0xFF34D399), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://192.168.1.11:8080',
+                ),
+                ActionChip(
+                  backgroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF334155)),
+                  label: const Text('localhost (Desktop)', style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://127.0.0.1:8080',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12.0),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Host Server URL',
+                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                filled: true,
+                fillColor: const Color(0xFF0F172A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final val = controller.text.trim();
+              Navigator.pop(ctx);
+              if (val.isNotEmpty) {
+                updateGlobalServerUrl(val);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Connected globally to $val'),
+                    backgroundColor: const Color(0xFF10B981),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: const Text('Apply Globally'),
+          ),
+        ],
+      ),
+    );
+  }
 
   GenUiSyncClient({
     String? serverBaseUrl,
@@ -52,15 +181,17 @@ class GenUiSyncClient {
   Future<void> _discoverAndFetchSchema() async {
     if (_isDisposed) return;
     final Set<String> candidateHosts = {
-      defaultServerUrl,
-      'http://192.168.1.4:8080',
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
         'http://10.0.2.2:8080',
+        defaultServerUrl,
+        'http://192.168.1.11:8080',
         'http://localhost:8080',
         'http://10.0.3.2:8080',
       ] else ...[
-        'http://localhost:8080',
+        defaultServerUrl,
         'http://127.0.0.1:8080',
+        'http://localhost:8080',
+        'http://192.168.1.11:8080',
       ],
       _activeServerUrl,
       serverBaseUrl,
@@ -83,6 +214,7 @@ class GenUiSyncClient {
           lastDiscoveredUrl = host;
           debugPrint('[GenUiSync] Discovered live sync host at $_activeServerUrl');
           final result = GenUiSchemaValidator.validateAndSanitize(response.body);
+          GenUiScreenRegistry.instance.registerScreen(result.sanitizedSchema);
           _schemaStreamController.add(result.sanitizedSchema);
           completer.complete(true);
         }
