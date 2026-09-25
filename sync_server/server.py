@@ -726,10 +726,10 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
                     except Exception:
                         pass
 
-                # 2. Forward Authorization and custom headers from incoming HTTP request
+                # 2. Forward Authorization, App-* and custom headers from incoming HTTP request
                 for h_key, h_val in self.headers.items():
                     h_lower = h_key.lower()
-                    if h_lower in ("authorization", "x-api-key", "api-key", "token", "x-auth-token") or h_lower.startswith("x-"):
+                    if h_lower in ("authorization", "x-api-key", "api-key", "token", "x-auth-token") or h_lower.startswith("x-") or h_lower.startswith("app-"):
                         if h_key not in fwd_headers:
                             fwd_headers[h_key] = h_val
 
@@ -1086,7 +1086,7 @@ class GenUiSyncHandler(SimpleHTTPRequestHandler):
 
             for h_name, h_val in self.headers.items():
                 h_lower = h_name.lower()
-                if h_lower in ("authorization", "x-api-key", "api-key", "token", "x-auth-token") or h_lower.startswith("x-"):
+                if h_lower in ("authorization", "x-api-key", "api-key", "token", "x-auth-token") or h_lower.startswith("x-") or h_lower.startswith("app-"):
                     if h_name not in fwd_headers:
                         fwd_headers[h_name] = h_val
 

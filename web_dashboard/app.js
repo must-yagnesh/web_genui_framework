@@ -1657,9 +1657,96 @@ function setMockApiKey() {
 }
 window.setMockApiKey = setMockApiKey;
 
+function computeDsFullUrl() {
+  const baseInp = document.getElementById("dsBaseUrlInput");
+  const epInp = document.getElementById("dsEndpointInput");
+  let base = (baseInp?.value || "").trim().replace(/\/+$/, "");
+  let ep = (epInp?.value || "").trim();
+
+  // If user pasted a full absolute URL into Endpoint field and base is empty, auto-separate
+  if ((ep.startsWith("http://") || ep.startsWith("https://")) && !base) {
+    try {
+      const u = new URL(ep);
+      base = u.origin;
+      ep = u.pathname + u.search + u.hash;
+      if (baseInp) baseInp.value = base;
+      if (epInp) epInp.value = ep;
+    } catch (_) {}
+  }
+
+  let full = "";
+  if (base && ep) {
+    full = ep.startsWith("/") ? `${base}${ep}` : `${base}/${ep}`;
+  } else if (base) {
+    full = base;
+  } else {
+    full = ep;
+  }
+
+  const urlInput = document.getElementById("dsUrlInput");
+  if (urlInput) urlInput.value = full;
+
+  const preview = document.getElementById("dsFullUrlPreview");
+  if (preview) preview.textContent = full || "(empty)";
+
+  return full;
+}
+window.computeDsFullUrl = computeDsFullUrl;
+
+function computeApiFullUrl() {
+  const baseInp = document.getElementById("apiBaseUrlInput");
+  const epInp = document.getElementById("apiEndpointInput");
+  let base = (baseInp?.value || "").trim().replace(/\/+$/, "");
+  let ep = (epInp?.value || "").trim();
+
+  // If user pasted a full absolute URL into Endpoint field and base is empty, auto-separate
+  if ((ep.startsWith("http://") || ep.startsWith("https://")) && !base) {
+    try {
+      const u = new URL(ep);
+      base = u.origin;
+      ep = u.pathname + u.search + u.hash;
+      if (baseInp) baseInp.value = base;
+      if (epInp) epInp.value = ep;
+    } catch (_) {}
+  }
+
+  let full = "";
+  if (base && ep) {
+    full = ep.startsWith("/") ? `${base}${ep}` : `${base}/${ep}`;
+  } else if (base) {
+    full = base;
+  } else {
+    full = ep;
+  }
+
+  const urlInput = document.getElementById("apiUrlInput");
+  if (urlInput) urlInput.value = full;
+
+  const preview = document.getElementById("apiFullUrlPreview");
+  if (preview) preview.textContent = full || "(empty)";
+
+  return full;
+}
+window.computeApiFullUrl = computeApiFullUrl;
+
 window.setDsUrlPreset = function(url, name, withAuthHint) {
-  const input = document.getElementById("dsUrlInput");
-  if (input) input.value = url;
+  const baseInp = document.getElementById("dsBaseUrlInput");
+  const epInp = document.getElementById("dsEndpointInput");
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      const u = new URL(url);
+      if (baseInp) baseInp.value = u.origin;
+      if (epInp) epInp.value = u.pathname + u.search + u.hash;
+    } catch (_) {
+      if (baseInp) baseInp.value = "";
+      if (epInp) epInp.value = url;
+    }
+  } else {
+    if (baseInp) baseInp.value = "";
+    if (epInp) epInp.value = url;
+  }
+  computeDsFullUrl();
+
   const isList = url.includes("users") || url.includes("records") || url.includes("items");
   const chk = document.getElementById("dsPaginationCheckbox");
   if (chk) {
@@ -1686,12 +1773,21 @@ window.toggleDsPaginationFields = function() {
 
 let dsUrlDebounceTimer = null;
 function onDsUrlInputChange() {
+  computeDsFullUrl();
   clearTimeout(dsUrlDebounceTimer);
   dsUrlDebounceTimer = setTimeout(() => {
     fetchDsPreview();
   }, 450);
 }
 window.onDsUrlInputChange = onDsUrlInputChange;
+
+function onApiUrlInputChange() {
+  computeApiFullUrl();
+  if (typeof updateApiPayloadPreview === "function") {
+    updateApiPayloadPreview();
+  }
+}
+window.onApiUrlInputChange = onApiUrlInputChange;
 
 let simulatorScreenData = null;
 window._getSimulatorScreenData = () => simulatorScreenData;
@@ -2039,18 +2135,24 @@ window.suggestUiComponents = suggestUiComponents;
 
 function renderSuggestedComponentsList() {
   const container = document.getElementById("dsSuggestedComponentsList");
+  const countBadge = document.getElementById("dsSuggestedCountBadge");
   if (!container) return;
   container.innerHTML = "";
 
   if (!dsSuggestedMappings || dsSuggestedMappings.length === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:24px 10px;color:var(--text-muted);font-size:12px;">Fetch an API endpoint to auto-suggest UI components.</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:24px 10px;color:var(--text-muted);font-size:12px;">Fetch an API endpoint or click any token above to add suggested UI components.</div>`;
+    if (countBadge) countBadge.textContent = "0 fields";
     return;
   }
+
+  const activeCount = dsSuggestedMappings.filter(m => m.type !== "none").length;
+  if (countBadge) countBadge.textContent = `${activeCount} active / ${dsSuggestedMappings.length} total`;
 
   dsSuggestedMappings.forEach((mapping, idx) => {
     const isNone = mapping.type === "none";
     const row = document.createElement("div");
     row.className = "suggested-comp-card";
+    row.id = `suggestedCompCard_${idx}`;
     row.style.cssText = `
       display: flex;
       align-items: center;
@@ -2060,7 +2162,7 @@ function renderSuggestedComponentsList() {
       border: 1px solid ${isNone ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.1)'};
       border-radius: 6px;
       opacity: ${isNone ? 0.45 : 1};
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
     `;
 
     let optionsHtml = "";
@@ -2093,6 +2195,104 @@ function renderSuggestedComponentsList() {
   });
 }
 window.renderSuggestedComponentsList = renderSuggestedComponentsList;
+
+function highlightSuggestedCard(idx) {
+  setTimeout(() => {
+    const card = document.getElementById(`suggestedCompCard_${idx}`);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const origBg = card.style.background;
+      const origBorder = card.style.borderColor;
+      const origBoxShadow = card.style.boxShadow;
+      card.style.background = "rgba(16, 185, 129, 0.22)";
+      card.style.borderColor = "#10B981";
+      card.style.boxShadow = "0 0 14px rgba(16, 185, 129, 0.45)";
+      card.classList.add("suggested-card-highlight");
+      setTimeout(() => {
+        card.style.background = origBg;
+        card.style.borderColor = origBorder;
+        card.style.boxShadow = origBoxShadow;
+        card.classList.remove("suggested-card-highlight");
+      }, 1500);
+    }
+  }, 40);
+}
+window.highlightSuggestedCard = highlightSuggestedCard;
+
+function addTokenToSuggestedComponents(tok) {
+  if (!tok || !tok.token) return;
+
+  if (!Array.isArray(dsSuggestedMappings)) {
+    dsSuggestedMappings = [];
+  }
+
+  // 1. Copy token to clipboard
+  try {
+    navigator.clipboard?.writeText(tok.token);
+  } catch (_) {}
+
+  // 2. Extract clean token, key, and label
+  const cleanTok = tok.token.trim();
+  const rawKey = (tok.key || cleanTok).replace(/[\{\}]/g, "").trim();
+  const lastKey = rawKey.split(".").pop() || rawKey;
+  const label = (typeof formatLabelKey === "function" ? formatLabelKey(lastKey) : lastKey) || lastKey;
+  const sample = tok.sample || "Dynamic Value";
+
+  // 3. Detect smart component type
+  let smartType = "text";
+  if (typeof detectSmartType === "function") {
+    smartType = detectSmartType(lastKey, tok.sample);
+  } else if (tok.type === "image") {
+    smartType = "image";
+  } else if (tok.type === "number") {
+    smartType = "text_price";
+  }
+
+  // 4. Check if token already exists in suggestions list
+  const existingIdx = dsSuggestedMappings.findIndex(m => m.token === cleanTok || m.key === rawKey);
+
+  if (existingIdx !== -1) {
+    if (dsSuggestedMappings[existingIdx].type === "none") {
+      dsSuggestedMappings[existingIdx].type = smartType;
+    }
+    renderSuggestedComponentsList();
+    highlightSuggestedCard(existingIdx);
+    showToast(`✓ "${cleanTok}" is in Suggested UI Components!`);
+    return;
+  }
+
+  // 5. Add new component to suggestions list
+  dsSuggestedMappings.push({
+    key: rawKey,
+    token: cleanTok,
+    sample: sample,
+    type: smartType,
+    label: label,
+    rawValue: tok.sample
+  });
+
+  renderSuggestedComponentsList();
+
+  const newIdx = dsSuggestedMappings.length - 1;
+  highlightSuggestedCard(newIdx);
+  showToast(`⚡ Added ${cleanTok} (${smartType}) to Suggested UI Components!`);
+
+  // 6. If a non-URL input was recently focused in the editor, insert token
+  if (lastActiveFocusedInput && document.body.contains(lastActiveFocusedInput)) {
+    const excludedIds = ["dsUrlInput", "dsBaseUrlInput", "dsEndpointInput", "apiBaseUrlInput", "apiEndpointInput", "apiPostUrlInput"];
+    if (!excludedIds.includes(lastActiveFocusedInput.id)) {
+      try {
+        const start = lastActiveFocusedInput.selectionStart || 0;
+        const end = lastActiveFocusedInput.selectionEnd || 0;
+        const val = lastActiveFocusedInput.value || "";
+        lastActiveFocusedInput.value = val.substring(0, start) + cleanTok + val.substring(end);
+        lastActiveFocusedInput.dispatchEvent(new Event("input", { bubbles: true }));
+        lastActiveFocusedInput.dispatchEvent(new Event("change", { bubbles: true }));
+      } catch (_) {}
+    }
+  }
+}
+window.addTokenToSuggestedComponents = addTokenToSuggestedComponents;
 
 window.changeSuggestedComponentType = function(idx, newType) {
   if (dsSuggestedMappings[idx]) {
@@ -2133,7 +2333,11 @@ window.resetSuggestedComponents = function() {
 };
 
 window.createFullScreenFromSuggestions = function() {
-  const url = (document.getElementById("dsUrlInput")?.value || "").trim();
+  const dsBaseUrl = (document.getElementById("dsBaseUrlInput")?.value || "").trim();
+  const dsEndpoint = (document.getElementById("dsEndpointInput")?.value || "").trim();
+  const dsUseBaseUrlInApp = document.getElementById("dsUseBaseUrlInAppCheckbox")?.checked === true;
+  const dsUseHeadersInApp = document.getElementById("dsUseHeadersInAppCheckbox")?.checked === true;
+  const url = computeDsFullUrl() || (document.getElementById("dsUrlInput")?.value || "").trim();
   if (!url && !manualResponseData) {
     alert("Please enter a Data Source API URL or paste a Manual JSON response first!");
     return;
@@ -2394,9 +2598,15 @@ window.createFullScreenFromSuggestions = function() {
 
   const paginationChk = document.getElementById("dsPaginationCheckbox");
   activeSchema.data_source = {
-    url: url || "",
+    url: url || "/api/local_data",
+    base_url: dsBaseUrl,
+    endpoint: dsEndpoint,
+    use_base_url_in_app: dsUseBaseUrlInApp,
+    use_headers_in_app: dsUseHeadersInApp,
     method: (document.getElementById("dsMethodSelect")?.value || "GET").toUpperCase(),
     headers: getDsHeadersObject(),
+    params: {},
+    results_path: (document.getElementById("dsDataPath")?.value || "").trim(),
     show_error_widget: document.getElementById("dsShowErrorWidgetCheckbox") ? document.getElementById("dsShowErrorWidgetCheckbox").checked : true,
     error_message: (document.getElementById("dsErrorMessageInput")?.value || "").trim(),
     error_widget_type: document.getElementById("dsErrorWidgetTypeSelect")?.value || "banner",
@@ -2462,8 +2672,7 @@ function processDataSourceResponseData(data, sourceLabel = "Direct", metaExtra =
 window.processDataSourceResponseData = processDataSourceResponseData;
 
 async function fetchDsPreview() {
-  const urlInput = document.getElementById("dsUrlInput");
-  const url = (urlInput?.value || "").trim();
+  const url = computeDsFullUrl();
   if (!url) {
     const box = document.getElementById("dsTokensBox");
     if (box) box.style.display = "none";
@@ -2833,6 +3042,13 @@ function extractBindingTokens(data, prefix = "", depth = 0, isItemScope = false)
 
   if (Array.isArray(data)) {
     if (data.length > 0 && typeof data[0] === "object") {
+      // 1. Root flattened tokens (e.g. status, trade_type, id)
+      const rootTokens = extractBindingTokens(data[0], "", depth + 1, false);
+      tokens.push(...rootTokens);
+      // 2. Indexed tokens (e.g. 0.status, 0.trade_type, 0.id)
+      const indexTokens = extractBindingTokens(data[0], "0.", depth + 1, false);
+      tokens.push(...indexTokens);
+      // 3. Item scope tokens (e.g. item.status, item.trade_type)
       const itemTokens = extractBindingTokens(data[0], "item.", depth + 1, true);
       tokens.push(...itemTokens);
     }
@@ -2859,12 +3075,12 @@ function extractBindingTokens(data, prefix = "", depth = 0, isItemScope = false)
           type: "number",
           isItemScope: isItemScope
         });
-        if (v.length > 0 && typeof v[0] === "object" && depth < 2) {
+        if (v.length > 0 && typeof v[0] === "object" && depth < 4) {
           const subPrefix = isItemScope ? `${rawKey}.0.` : `${rawKey}.0.`;
           const subTokens = extractBindingTokens(v[0], subPrefix, depth + 1, isItemScope);
           tokens.push(...subTokens);
         }
-      } else if (typeof v === "object" && depth < 2) {
+      } else if (typeof v === "object" && depth < 4) {
         tokens.push({
           token: tokenStr,
           key: rawKey,
@@ -2896,33 +3112,20 @@ function renderTokenChips(tokens) {
     return;
   }
 
-  tokens.slice(0, 48).forEach(tok => {
+  tokens.slice(0, 150).forEach(tok => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "token-chip";
-    const typeIcon = tok.type === "image" ? "🖼️" : (tok.type === "number" ? "🔢" : "📋");
+    const typeIcon = tok.type === "image" ? "🖼️" : (tok.type === "number" ? "🔢" : (tok.type === "boolean" ? "🔘" : "📋"));
     chip.innerHTML = `
       <span>${typeIcon}</span>
       <span class="token-chip-name">${escapeHtml(tok.token)}</span>
       <span class="token-chip-sample" title="${escapeHtml(tok.sample)}">${escapeHtml(tok.sample)}</span>
+      <span class="token-chip-add-btn" title="Click to add to Suggested Components">+ Add</span>
     `;
-    chip.title = `Click to copy ${tok.token} or insert into active field`;
+    chip.title = `Click to add ${tok.token} directly to Suggested UI Components list (and copy to clipboard)`;
     chip.onclick = () => {
-      // 1. Copy to clipboard
-      navigator.clipboard?.writeText(tok.token);
-
-      // 2. If a property input was recently focused, insert token directly
-      if (lastActiveFocusedInput && document.body.contains(lastActiveFocusedInput)) {
-        const start = lastActiveFocusedInput.selectionStart || 0;
-        const end = lastActiveFocusedInput.selectionEnd || 0;
-        const val = lastActiveFocusedInput.value || "";
-        lastActiveFocusedInput.value = val.substring(0, start) + tok.token + val.substring(end);
-        lastActiveFocusedInput.dispatchEvent(new Event("input", { bubbles: true }));
-        lastActiveFocusedInput.dispatchEvent(new Event("change", { bubbles: true }));
-        showToast(`Inserted ${tok.token} into "${lastActiveFocusedInput.dataset.label || lastActiveFocusedInput.id || 'field'}"!`);
-      } else {
-        showToast(`Copied ${tok.token} to clipboard!`);
-      }
+      addTokenToSuggestedComponents(tok);
     };
     container.appendChild(chip);
   });
@@ -3667,6 +3870,10 @@ function openApiConfigModal(target = "screen") {
 
   // Populate Data Source Tab
   const ds = activeSchema.data_source || {};
+  const dsBaseUrlInput = document.getElementById("dsBaseUrlInput");
+  const dsEndpointInput = document.getElementById("dsEndpointInput");
+  const dsUseBaseUrlInAppCheckbox = document.getElementById("dsUseBaseUrlInAppCheckbox");
+  const dsUseHeadersInAppCheckbox = document.getElementById("dsUseHeadersInAppCheckbox");
   const dsUrlInput = document.getElementById("dsUrlInput");
   const dsMethodSelect = document.getElementById("dsMethodSelect");
   const dsPaginationCheckbox = document.getElementById("dsPaginationCheckbox");
@@ -3676,7 +3883,25 @@ function openApiConfigModal(target = "screen") {
   const dsDefaultLimit = document.getElementById("dsDefaultLimit");
   const dsDataPath = document.getElementById("dsDataPath");
 
-  if (dsUrlInput) dsUrlInput.value = ds.url || "";
+  if (dsBaseUrlInput) dsBaseUrlInput.value = ds.base_url || "";
+  if (dsEndpointInput) dsEndpointInput.value = ds.endpoint || (!ds.base_url ? ds.url || "" : "");
+  if (!ds.base_url && !ds.endpoint && ds.url) {
+    if (ds.url.startsWith("http://") || ds.url.startsWith("https://")) {
+      try {
+        const u = new URL(ds.url);
+        if (dsBaseUrlInput) dsBaseUrlInput.value = u.origin;
+        if (dsEndpointInput) dsEndpointInput.value = u.pathname + u.search + u.hash;
+      } catch (_) {
+        if (dsEndpointInput) dsEndpointInput.value = ds.url;
+      }
+    } else {
+      if (dsEndpointInput) dsEndpointInput.value = ds.url;
+    }
+  }
+  if (dsUseBaseUrlInAppCheckbox) dsUseBaseUrlInAppCheckbox.checked = ds.use_base_url_in_app === true;
+  if (dsUseHeadersInAppCheckbox) dsUseHeadersInAppCheckbox.checked = ds.use_headers_in_app === true;
+  computeDsFullUrl();
+
   if (dsMethodSelect) dsMethodSelect.value = (ds.method || "GET").toUpperCase();
   if (dsPaginationCheckbox) {
     dsPaginationCheckbox.checked = ds.pagination != null;
@@ -3720,7 +3945,7 @@ function openApiConfigModal(target = "screen") {
   // Switch to appropriate tab
   if (target === "screen") {
     switchApiModalTab("datasource");
-    if (ds.url) {
+    if (ds.url || ds.endpoint) {
       setTimeout(() => fetchDsPreview(), 60);
     } else if (manualResponseData) {
       setTimeout(() => {
@@ -3740,8 +3965,30 @@ function openApiConfigModal(target = "screen") {
   }
 
   // Populate Endpoint & Method
+  const apiBaseUrlInput = document.getElementById("apiBaseUrlInput");
+  const apiEndpointInput = document.getElementById("apiEndpointInput");
+  const apiUseBaseUrlInAppCheckbox = document.getElementById("apiUseBaseUrlInAppCheckbox");
+  const apiUseHeadersInAppCheckbox = document.getElementById("apiUseHeadersInAppCheckbox");
+
   if (apiMethodSelect) apiMethodSelect.value = (cfg.method || "POST").toUpperCase();
-  if (apiUrlInput) apiUrlInput.value = cfg.url || "/api/submissions";
+  if (apiBaseUrlInput) apiBaseUrlInput.value = cfg.base_url || "";
+  if (apiEndpointInput) apiEndpointInput.value = cfg.endpoint || (!cfg.base_url ? cfg.url || "/api/submissions" : "");
+  if (!cfg.base_url && !cfg.endpoint && cfg.url) {
+    if (cfg.url.startsWith("http://") || cfg.url.startsWith("https://")) {
+      try {
+        const u = new URL(cfg.url);
+        if (apiBaseUrlInput) apiBaseUrlInput.value = u.origin;
+        if (apiEndpointInput) apiEndpointInput.value = u.pathname + u.search + u.hash;
+      } catch (_) {
+        if (apiEndpointInput) apiEndpointInput.value = cfg.url;
+      }
+    } else {
+      if (apiEndpointInput) apiEndpointInput.value = cfg.url;
+    }
+  }
+  if (apiUseBaseUrlInAppCheckbox) apiUseBaseUrlInAppCheckbox.checked = cfg.use_base_url_in_app === true;
+  if (apiUseHeadersInAppCheckbox) apiUseHeadersInAppCheckbox.checked = cfg.use_headers_in_app === true;
+  computeApiFullUrl();
 
   // Populate Headers
   modalHeaders = [];
@@ -4018,7 +4265,11 @@ async function runApiTest() {
 function saveApiConfig() {
   // 1. If screen level or on datasource tab, save data_source configuration
   if (currentApiTarget === "screen" || activeApiModalTab === "datasource") {
-    const dsUrl = (document.getElementById("dsUrlInput")?.value || "").trim();
+    const dsBaseUrl = (document.getElementById("dsBaseUrlInput")?.value || "").trim();
+    const dsEndpoint = (document.getElementById("dsEndpointInput")?.value || "").trim();
+    const dsUseBaseUrlInApp = document.getElementById("dsUseBaseUrlInAppCheckbox")?.checked === true;
+    const dsUseHeadersInApp = document.getElementById("dsUseHeadersInAppCheckbox")?.checked === true;
+    const dsUrl = computeDsFullUrl();
     const manualText = (document.getElementById("dsManualJsonTextarea")?.value || "").trim();
     if (manualText) {
       try {
@@ -4029,6 +4280,10 @@ function saveApiConfig() {
     if (dsUrl || manualResponseData) {
       const ds = {
         url: dsUrl || "/api/local_data",
+        base_url: dsBaseUrl,
+        endpoint: dsEndpoint,
+        use_base_url_in_app: dsUseBaseUrlInApp,
+        use_headers_in_app: dsUseHeadersInApp,
         method: document.getElementById("dsMethodSelect")?.value || "GET",
         headers: getDsHeadersObject(),
         params: {},
@@ -4058,7 +4313,12 @@ function saveApiConfig() {
   }
 
   // 2. Save submission / action API config if configured or if on submission tab
-  const subUrl = (apiUrlInput?.value || "").trim();
+  const subBaseUrl = (document.getElementById("apiBaseUrlInput")?.value || "").trim();
+  const subEndpoint = (document.getElementById("apiEndpointInput")?.value || "").trim();
+  const subUseBaseUrlInApp = document.getElementById("apiUseBaseUrlInAppCheckbox")?.checked === true;
+  const subUseHeadersInApp = document.getElementById("apiUseHeadersInAppCheckbox")?.checked === true;
+  const subUrl = computeApiFullUrl();
+
   if (subUrl && (activeApiModalTab === "submission" || currentApiTarget !== "screen")) {
     const headers = {};
     modalHeaders.forEach(h => {
@@ -4093,6 +4353,10 @@ function saveApiConfig() {
 
     const api_config = {
       url: subUrl,
+      base_url: subBaseUrl,
+      endpoint: subEndpoint,
+      use_base_url_in_app: subUseBaseUrlInApp,
+      use_headers_in_app: subUseHeadersInApp,
       method: apiMethodSelect ? apiMethodSelect.value : "POST",
       headers: headers,
       body_mapping: bodyMapping,
@@ -4120,10 +4384,23 @@ function removeApiConfig() {
 
 // Global Presets Handlers
 window.setApiUrlPreset = function(url) {
-  if (apiUrlInput) {
-    apiUrlInput.value = url;
-    updateApiPayloadPreview();
+  const baseInp = document.getElementById("apiBaseUrlInput");
+  const epInp = document.getElementById("apiEndpointInput");
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      const u = new URL(url);
+      if (baseInp) baseInp.value = u.origin;
+      if (epInp) epInp.value = u.pathname + u.search + u.hash;
+    } catch (_) {
+      if (baseInp) baseInp.value = "";
+      if (epInp) epInp.value = url;
+    }
+  } else {
+    if (baseInp) baseInp.value = "";
+    if (epInp) epInp.value = url;
   }
+  computeApiFullUrl();
+  updateApiPayloadPreview();
 };
 
 window.addHeaderPreset = function(key, val) {
@@ -4189,6 +4466,34 @@ if (dsUrlInput) {
       fetchDsPreview();
     }
   });
+}
+
+const dsBaseUrlInput = document.getElementById("dsBaseUrlInput");
+if (dsBaseUrlInput) {
+  dsBaseUrlInput.addEventListener("input", onDsUrlInputChange);
+  dsBaseUrlInput.addEventListener("change", fetchDsPreview);
+}
+
+const dsEndpointInput = document.getElementById("dsEndpointInput");
+if (dsEndpointInput) {
+  dsEndpointInput.addEventListener("input", onDsUrlInputChange);
+  dsEndpointInput.addEventListener("change", fetchDsPreview);
+  dsEndpointInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      fetchDsPreview();
+    }
+  });
+}
+
+const apiBaseUrlInput = document.getElementById("apiBaseUrlInput");
+if (apiBaseUrlInput) {
+  apiBaseUrlInput.addEventListener("input", onApiUrlInputChange);
+}
+
+const apiEndpointInput = document.getElementById("apiEndpointInput");
+if (apiEndpointInput) {
+  apiEndpointInput.addEventListener("input", onApiUrlInputChange);
 }
 
 if (apiConfigModal) {

@@ -652,20 +652,7 @@ class _DynamicScreenState extends State<DynamicScreen> {
                             final rawNode = _currentSchema.components[index];
 
                             // Prepare interpolation context with dynamic API data
-                            Map<String, dynamic> interpolationContext = {};
-                            if (_screenData is Map<String, dynamic>) {
-                              interpolationContext = Map<String, dynamic>.from(_screenData as Map<String, dynamic>);
-                            } else if (_screenData is Map) {
-                              (_screenData as Map).forEach((k, v) => interpolationContext[k.toString()] = v);
-                            } else if (_screenData is List) {
-                              interpolationContext = {
-                                'items': _screenData,
-                                'data': _screenData,
-                                'results': _screenData,
-                                'list': _screenData,
-                              };
-                            }
-
+                            final interpolationContext = GenUiDataBinding.buildInterpolationContext(_screenData);
                             if (_isPaginating) {
                               interpolationContext['is_paginating'] = true;
                             }

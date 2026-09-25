@@ -87,7 +87,10 @@ class _GenUiContainerState extends State<GenUiContainer> {
       final updated = GenUiScreenRegistry.instance.getSchemaForRoute(widget.screenId);
       if (updated != null && mounted) {
         final dataSourceChanged = updated.dataSource != null &&
-            (_currentSchema.dataSource?.url != updated.dataSource?.url || _screenData == null);
+            (_currentSchema.dataSource?.url != updated.dataSource?.url ||
+             _currentSchema.dataSource?.endpoint != updated.dataSource?.endpoint ||
+             _currentSchema.dataSource?.baseUrl != updated.dataSource?.baseUrl ||
+             _screenData == null);
 
         setState(() {
           _currentSchema = updated;
@@ -176,7 +179,10 @@ class _GenUiContainerState extends State<GenUiContainer> {
 
         if (matches && mounted) {
           final dataSourceChanged = newSchema.dataSource != null &&
-              (_currentSchema.dataSource?.url != newSchema.dataSource?.url || _screenData == null);
+              (_currentSchema.dataSource?.url != newSchema.dataSource?.url ||
+               _currentSchema.dataSource?.endpoint != newSchema.dataSource?.endpoint ||
+               _currentSchema.dataSource?.baseUrl != newSchema.dataSource?.baseUrl ||
+               _screenData == null);
 
           setState(() {
             _currentSchema = newSchema;
@@ -353,20 +359,7 @@ class _GenUiContainerState extends State<GenUiContainer> {
               ),
             ..._currentSchema.components.map((rawNode) {
               // Interpolate dynamic API response data into tokens
-              Map<String, dynamic> interpolationContext = {};
-              if (_screenData is Map<String, dynamic>) {
-                interpolationContext = Map<String, dynamic>.from(_screenData as Map<String, dynamic>);
-              } else if (_screenData is Map) {
-                (_screenData as Map).forEach((k, v) => interpolationContext[k.toString()] = v);
-              } else if (_screenData is List) {
-                interpolationContext = {
-                  'items': _screenData,
-                  'data': _screenData,
-                  'results': _screenData,
-                  'list': _screenData,
-                };
-              }
-
+              final interpolationContext = GenUiDataBinding.buildInterpolationContext(_screenData);
               final node = GenUiDataBinding.interpolateNode(rawNode, interpolationContext);
 
               return SafeWidgetRegistry.buildNode(

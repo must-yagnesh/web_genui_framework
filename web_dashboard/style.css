@@ -4445,6 +4445,29 @@ input, select, textarea, .modal-card, .btn-secondary, .telemetry-bar {
   color: #E2E8F0;
   border-color: rgba(56, 189, 248, 0.4);
 }
+.token-chip-add-btn {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  letter-spacing: 0.3px;
+  transition: all 0.15s;
+}
+.token-chip:hover .token-chip-add-btn {
+  background: #10B981;
+  color: #FFFFFF;
+}
+@keyframes pulseHighlight {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.suggested-card-highlight {
+  animation: pulseHighlight 0.4s ease;
+}
 [data-theme="light"] .token-chip {
   background: #F0F9FF;
   border-color: #BAE6FD;

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/ui_schema.dart';
 import '../state/form_registry.dart';
+import '../state/data_binding.dart';
 import '../widgets/success_dialog.dart';
 import 'sync_client.dart';
 
@@ -31,7 +32,10 @@ class GenUiApiResult {
 class GenUiApiClient {
   GenUiApiClient._();
 
-  static const Duration _defaultTimeout = Duration(seconds: 10);
+  static const Duration _defaultTimeout = Duration(seconds: 30);
+
+  /// Optional custom HTTP client (e.g. locator<AuthServices>().clientWithInterceptor)
+  static http.Client? _customHttpClient;
 
   /// Optional global base URL configured in Flutter code (e.g. 'https://api.mycompany.com')
   static String? _baseUrl;
@@ -39,14 +43,20 @@ class GenUiApiClient {
   /// Optional static auth token passed from Flutter code (e.g. JWT token)
   static String? _authToken;
 
-  /// Optional dynamic token provider function (e.g. () => authService.currentToken)
-  static String? Function()? _authTokenProvider;
+  /// Optional dynamic token provider function (e.g. () async => authService.currentToken)
+  static FutureOr<String?> Function()? _authTokenProvider;
 
   /// Optional default headers injected into every request (e.g. X-App-Version, X-Tenant-Id)
   static final Map<String, String> _defaultHeaders = {};
 
   /// Optional user context data passed from Flutter code (e.g. {'userId': 'u123', 'email': 'user@example.com'})
   static final Map<String, dynamic> _userContext = {};
+
+  /// Optionally provide the app's native http.Client (e.g. locator<AuthServices>().clientWithInterceptor).
+  /// This ensures identical networking engine, SSL certificate handling, connection pooling, and interceptors.
+  static void setHttpClient(http.Client? client) {
+    _customHttpClient = client;
+  }
 
   /// Set the production or staging Base URL from Flutter code.
   /// When endpoints configured in Web Console start with '/' or are relative (e.g. '/v1/leads'),
@@ -68,15 +78,26 @@ class GenUiApiClient {
     _authToken = token;
   }
 
-  /// Register a dynamic Auth Token provider callback from Flutter code.
-  static void setAuthTokenProvider(String? Function()? provider) {
+  /// Register a dynamic Auth Token provider callback from Flutter code (supports async).
+  static void setAuthTokenProvider(FutureOr<String?> Function()? provider) {
     _authTokenProvider = provider;
   }
 
-  /// Retrieve the active auth token
-  static String? get authToken {
+  /// Retrieve the active auth token synchronously (cached fallback)
+  static String? get authToken => _authToken;
+
+  /// Retrieve active auth token asynchronously (supports async token retrieval from Firebase)
+  static Future<String?> getAuthToken() async {
     if (_authTokenProvider != null) {
-      return _authTokenProvider!();
+      try {
+        final token = await _authTokenProvider!();
+        if (token != null && token.isNotEmpty) {
+          _authToken = token;
+          return token;
+        }
+      } catch (e) {
+        debugPrint('[GenUiApiClient] Error getting token from provider: $e');
+      }
     }
     return _authToken;
   }
@@ -88,6 +109,54 @@ class GenUiApiClient {
   }
 
   static Map<String, String> get defaultHeaders => Map.unmodifiable(_defaultHeaders);
+
+  static FutureOr<Map<String, dynamic>> Function()? _userContextProvider;
+
+  /// Register a dynamic User Context provider callback from Flutter code (supports async).
+  static void setUserContextProvider(FutureOr<Map<String, dynamic>> Function()? provider) {
+    _userContextProvider = provider;
+  }
+
+  /// Retrieve active user context asynchronously (supports async user fetching)
+  static Future<Map<String, dynamic>> getUserContext() async {
+    final Map<String, dynamic> result = Map<String, dynamic>.from(_userContext);
+    if (_userContextProvider != null) {
+      try {
+        final dynamicCtx = await _userContextProvider!();
+        if (dynamicCtx.isNotEmpty) {
+          result.addAll(dynamicCtx);
+        }
+      } catch (e) {
+        debugPrint('[GenUiApiClient] Error getting user context from provider: $e');
+      }
+    }
+    return result;
+  }
+
+  /// Replaces path variables like {userId}, {id}, {email} with case-insensitive and alias resolution
+  static String _injectPathVariables(String rawUrl, Map<String, dynamic> context) {
+    String url = rawUrl;
+    context.forEach((key, val) {
+      if (val != null) {
+        final strVal = Uri.encodeComponent(val.toString());
+        url = url.replaceAll('{$key}', strVal);
+        url = url.replaceAll('{${key.toLowerCase()}}', strVal);
+      }
+    });
+
+    final uid = context['userId'] ??
+        context['user_id'] ??
+        context['id'] ??
+        context['uid'];
+    if (uid != null) {
+      final strUid = Uri.encodeComponent(uid.toString());
+      for (final alias in ['userId', 'user_id', 'id', 'uid']) {
+        url = url.replaceAll('{$alias}', strUid);
+        url = url.replaceAll('{${alias.toLowerCase()}}', strUid);
+      }
+    }
+    return url;
+  }
 
   /// Set active user context from Flutter code (e.g. userId, tenant, roles).
   /// These variables can be used in path variables like {userId} or automatically merged.
@@ -102,12 +171,13 @@ class GenUiApiClient {
   static void clearSession() {
     _authToken = null;
     _authTokenProvider = null;
+    _userContextProvider = null;
     _userContext.clear();
   }
 
   /// Resolves candidate base URLs when relative URLs (e.g. `/v1/leads`) are supplied.
-  /// If [baseUrl] is explicitly configured from Flutter, it takes highest precedence.
-  static List<String> _candidateUrls(String? preferredUrl) {
+  /// If [overrideBaseUrl] is passed, it takes highest precedence.
+  static List<String> _candidateUrls(String? preferredUrl, {String? overrideBaseUrl}) {
     final List<String> urls = [];
     void add(String? u) {
       if (u == null || u.trim().isEmpty) return;
@@ -115,8 +185,17 @@ class GenUiApiClient {
       if (!urls.contains(clean)) urls.add(clean);
     }
 
+    // 0. Explicit Override Base URL from schema (when use_base_url_in_app is true)
+    if (overrideBaseUrl != null && overrideBaseUrl.trim().isNotEmpty) {
+      add(overrideBaseUrl);
+      return urls;
+    }
+
     // 1. Explicitly configured Flutter Base URL (e.g. https://api.mycompany.com)
-    add(_baseUrl);
+    if (_baseUrl != null && _baseUrl!.trim().isNotEmpty) {
+      add(_baseUrl);
+      return urls;
+    }
 
     // 2. Preferred URL if passed
     add(preferredUrl);
@@ -125,16 +204,6 @@ class GenUiApiClient {
     add(GenUiSyncClient.lastDiscoveredUrl);
     add(GenUiSyncClient.defaultServerUrl);
 
-    // 4. Localhost dev fallbacks
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      add('http://10.0.2.2:8080');
-      add('http://192.168.1.11:8080');
-      add('http://localhost:8080');
-    } else {
-      add('http://127.0.0.1:8080');
-      add('http://localhost:8080');
-      add('http://192.168.1.11:8080');
-    }
     return urls;
   }
 
@@ -170,25 +239,39 @@ class GenUiApiClient {
   }
 
   /// Resolves an API URL dynamically:
-  /// - If the URL contains http:// or https://, base URL is completely ignored / forgotten for that specific call.
-  ///   On Android, localhost / 127.0.0.1 is translated to emulator loopback (10.0.2.2).
-  /// - If the URL is relative, joins with candidate base URLs, de-duplicating /api and prioritizing sync server mock.
-  static List<String> resolveCandidateEndpoints(String rawUrl, {String? serverBaseUrl}) {
+  /// - If [overrideBaseUrl] is set (e.g. from schema when use_base_url_in_app is true), it is used as the single target base URL.
+  /// - If the URL is already an absolute URL (starts with http:// or https://), it is used directly.
+  /// - If the URL is relative and starts with /api/mock, the sync server is prioritized.
+  /// - If the URL is relative, joins with Flutter's configured [_baseUrl] (e.g. EndPoints.baseUrl).
+  static List<String> resolveCandidateEndpoints(
+    String rawUrl, {
+    String? serverBaseUrl,
+    String? overrideBaseUrl,
+  }) {
     final List<String> candidates = [];
     var clean = rawUrl.trim();
     if (clean.isEmpty) return candidates;
 
-    // If URL doesn't start with http:// or https://, but looks like a full domain (e.g. jsonplaceholder.typicode.com/users)
-    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
-      final firstSlash = clean.indexOf('/');
-      final hostPart = firstSlash != -1 ? clean.substring(0, firstSlash) : clean;
-      if (hostPart.contains('.') && !hostPart.startsWith('localhost') && !hostPart.startsWith('10.') && !hostPart.startsWith('192.168.')) {
-        clean = 'https://$clean';
+    // 0. If overrideBaseUrl is explicitly configured, use it directly as the single target base URL
+    if (overrideBaseUrl != null && overrideBaseUrl.trim().isNotEmpty) {
+      final baseClean = overrideBaseUrl.trim().endsWith('/')
+          ? overrideBaseUrl.trim().substring(0, overrideBaseUrl.trim().length - 1)
+          : overrideBaseUrl.trim();
+
+      String pathPart = clean;
+      if (clean.startsWith('http://') || clean.startsWith('https://')) {
+        try {
+          final parsed = Uri.parse(clean);
+          pathPart = parsed.path + (parsed.hasQuery ? '?${parsed.query}' : '');
+        } catch (_) {}
       }
+      final cleanPath = pathPart.startsWith('/') ? pathPart : '/$pathPart';
+      candidates.add('$baseClean$cleanPath');
+      return candidates;
     }
 
+    // 1. If clean is an absolute URL (starts with http:// or https://)
     if (clean.startsWith('http://') || clean.startsWith('https://')) {
-      // 1. Absolute URL: Base URL is forgotten for this specific API
       String effectiveUrl = clean;
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
         if (effectiveUrl.contains('localhost') || effectiveUrl.contains('127.0.0.1')) {
@@ -198,32 +281,40 @@ class GenUiApiClient {
         }
       }
       candidates.add(effectiveUrl);
-    } else {
-      // 2. Relative URL path
-      final cleanPath = clean.startsWith('/') ? clean : '/$clean';
+      return candidates;
+    }
 
-      // If it is a built-in sync server mock endpoint (e.g. /api/mock/products/1 or /api/mock/users)
-      // prioritize the active sync server host directly
-      if (cleanPath.startsWith('/api/mock')) {
-        for (final syncHost in [serverBaseUrl, GenUiSyncClient.defaultServerUrl, GenUiSyncClient.lastDiscoveredUrl]) {
-          if (syncHost != null && syncHost.isNotEmpty) {
-            final cleanHost = syncHost.endsWith('/') ? syncHost.substring(0, syncHost.length - 1) : syncHost;
-            final full = '$cleanHost$cleanPath';
-            if (!candidates.contains(full)) candidates.add(full);
-          }
+    // 2. Relative URL path
+    final cleanPath = clean.startsWith('/') ? clean : '/$clean';
+
+    // 2a. If it is a built-in sync server mock endpoint (e.g. /api/mock/...)
+    if (cleanPath.startsWith('/api/mock')) {
+      for (final syncHost in [GenUiSyncClient.lastDiscoveredUrl, GenUiSyncClient.defaultServerUrl, serverBaseUrl]) {
+        if (syncHost != null && syncHost.isNotEmpty) {
+          final cleanHost = syncHost.endsWith('/') ? syncHost.substring(0, syncHost.length - 1) : syncHost;
+          final full = '$cleanHost$cleanPath';
+          if (!candidates.contains(full)) candidates.add(full);
         }
       }
+      return candidates;
+    }
 
-      // Resolve against configured candidate base URLs (baseUrl, discoveredUrl, fallbacks)
-      for (final base in _candidateUrls(serverBaseUrl)) {
-        String joined;
-        if (base.endsWith('/api') && cleanPath.startsWith('/api/')) {
-          joined = '${base.substring(0, base.length - 4)}$cleanPath';
-        } else {
-          joined = '$base$cleanPath';
-        }
-        if (!candidates.contains(joined)) candidates.add(joined);
+    // 2b. If _baseUrl is configured from Flutter code (e.g. EndPoints.baseUrl)
+    if (_baseUrl != null && _baseUrl!.isNotEmpty) {
+      final baseClean = _baseUrl!.endsWith('/') ? _baseUrl!.substring(0, _baseUrl!.length - 1) : _baseUrl!;
+      candidates.add('$baseClean$cleanPath');
+      return candidates;
+    }
+
+    // 2c. Fallback only if no baseUrl was ever configured
+    for (final base in _candidateUrls(serverBaseUrl, overrideBaseUrl: overrideBaseUrl)) {
+      String joined;
+      if (base.endsWith('/api') && cleanPath.startsWith('/api/')) {
+        joined = '${base.substring(0, base.length - 4)}$cleanPath';
+      } else {
+        joined = '$base$cleanPath';
       }
+      if (!candidates.contains(joined)) candidates.add(joined);
     }
     return candidates;
   }
@@ -239,200 +330,264 @@ class GenUiApiClient {
     String? serverBaseUrl,
     http.Client? httpClient,
   }) async {
-    final client = httpClient ?? http.Client();
-    final registry = GenUiFormRegistry.instance;
+    final client = (!config.useHeadersInApp && _customHttpClient != null)
+        ? _customHttpClient!
+        : (httpClient ?? http.Client());
+    final bool shouldCloseClient = client != _customHttpClient && httpClient == null;
 
-    // -------------------------------------------------------------
-    // Step 1: Declarative Validation
-    // -------------------------------------------------------------
-    final List<String> validationErrors = [];
+    try {
+      final registry = GenUiFormRegistry.instance;
 
-    // Validate explicitly listed fields in config.validateFields
-    if (config.validateFields.isNotEmpty) {
-      for (final fieldId in config.validateFields) {
-        if (!registry.hasValue(fieldId)) {
-          final label = registry.getFieldLabel(fieldId);
-          validationErrors.add('$label is required');
+      // -------------------------------------------------------------
+      // Step 1: Declarative Validation
+      // -------------------------------------------------------------
+      final List<String> validationErrors = [];
+
+      // Validate explicitly listed fields in config.validateFields
+      if (config.validateFields.isNotEmpty) {
+        for (final fieldId in config.validateFields) {
+          if (!registry.hasValue(fieldId)) {
+            final label = registry.getFieldLabel(fieldId);
+            validationErrors.add('$label is required');
+          }
         }
       }
-    }
 
-    // Validate component-level validation rules from schema
-    if (components != null && components.isNotEmpty) {
-      final compErrors = registry.validateComponents(components, onlyIds: screenFieldIds);
-      for (final err in compErrors) {
-        if (!validationErrors.contains(err)) {
-          validationErrors.add(err);
+      // Validate component-level validation rules from schema
+      if (components != null && components.isNotEmpty) {
+        final compErrors = registry.validateComponents(components, onlyIds: screenFieldIds);
+        for (final err in compErrors) {
+          if (!validationErrors.contains(err)) {
+            validationErrors.add(err);
+          }
         }
       }
-    }
 
-    if (validationErrors.isNotEmpty) {
-      if (context.mounted) {
-        _showErrorFeedback(
-          context,
-          'Validation Error: ${validationErrors.join(", ")}',
+      if (validationErrors.isNotEmpty) {
+        if (context.mounted) {
+          _showErrorFeedback(
+            context,
+            'Validation Error: ${validationErrors.join(", ")}',
+          );
+        }
+        return GenUiApiResult(
+          success: false,
+          errorMessage: validationErrors.join(', '),
         );
       }
-      return GenUiApiResult(
-        success: false,
-        errorMessage: validationErrors.join(', '),
+
+      // -------------------------------------------------------------
+      // Step 2: Build Dynamic Request Payload
+      // -------------------------------------------------------------
+      final Map<String, dynamic> payload = buildPayload(
+        config: config,
+        onlyIds: screenFieldIds,
+        screenId: screenId,
+        screenTitle: screenTitle,
       );
-    }
 
-    // -------------------------------------------------------------
-    // Step 2: Build Dynamic Request Payload
-    // -------------------------------------------------------------
-    final Map<String, dynamic> payload = buildPayload(
-      config: config,
-      onlyIds: screenFieldIds,
-      screenId: screenId,
-      screenTitle: screenTitle,
-    );
-
-    // -------------------------------------------------------------
-    // Step 3: Resolve Endpoint URL
-    // -------------------------------------------------------------
-    String rawUrl = config.url.trim();
-    if (rawUrl.isEmpty) {
-      const err = 'API configuration has no URL specified.';
-      if (context.mounted) _showErrorFeedback(context, err);
-      return const GenUiApiResult(success: false, errorMessage: err);
-    }
-
-    // Replace URL path parameters from payload and userContext (e.g. /users/{userId}/orders)
-    payload.forEach((key, val) {
-      if (rawUrl.contains('{$key}')) {
-        rawUrl = rawUrl.replaceAll('{$key}', Uri.encodeComponent(val?.toString() ?? ''));
+      // -------------------------------------------------------------
+      // Step 3: Resolve Endpoint URL
+      // -------------------------------------------------------------
+      String rawUrl = config.endpoint.isNotEmpty ? config.endpoint : config.url.trim();
+      if (rawUrl.isEmpty) rawUrl = config.url.trim();
+      if (rawUrl.isEmpty) {
+        const err = 'API configuration has no URL specified.';
+        if (context.mounted) _showErrorFeedback(context, err);
+        return const GenUiApiResult(success: false, errorMessage: err);
       }
-    });
-    _userContext.forEach((key, val) {
-      if (rawUrl.contains('{$key}')) {
-        rawUrl = rawUrl.replaceAll('{$key}', Uri.encodeComponent(val?.toString() ?? ''));
+
+      // Replace URL path parameters from payload and userContext (e.g. /users/{userId}/orders)
+      final activeUserCtx = await getUserContext();
+      final Map<String, dynamic> mergedCtx = {...activeUserCtx, ...payload};
+      rawUrl = _injectPathVariables(rawUrl, mergedCtx);
+
+      final String? overrideBaseUrl = (config.useBaseUrlInApp && config.baseUrl.isNotEmpty)
+          ? config.baseUrl
+          : null;
+
+      List<String> candidateEndpoints = resolveCandidateEndpoints(
+        rawUrl,
+        serverBaseUrl: serverBaseUrl,
+        overrideBaseUrl: overrideBaseUrl,
+      );
+
+      // -------------------------------------------------------------
+      // Step 4: Headers (Default headers + Auto Token + Schema headers)
+      // -------------------------------------------------------------
+      final Map<String, String> requestHeaders = {
+        'Accept': 'application/json, text/plain, */*',
+      };
+      if (config.method.toUpperCase() != 'GET') {
+        requestHeaders['Content-Type'] = 'application/json';
       }
-    });
 
-    List<String> candidateEndpoints = resolveCandidateEndpoints(rawUrl, serverBaseUrl: serverBaseUrl);
+      // 1. If useHeadersInApp is enabled, apply headers configured from Web Console
+      if (config.useHeadersInApp && config.headers.isNotEmpty) {
+        requestHeaders.addAll(config.headers);
+      }
 
-    // -------------------------------------------------------------
-    // Step 4: Headers (Default headers + Auto Token + Schema headers)
-    // -------------------------------------------------------------
-    final Map<String, String> requestHeaders = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Mobile; Android; Flutter; GenUI-Guard) AppleWebKit/537.36 (KHTML, like Gecko)',
-    };
+      // 2. Auto-inject active Auth Token if not provided or if useHeadersInApp is false
+      final activeToken = await getAuthToken();
+      if (activeToken != null && activeToken.isNotEmpty && !requestHeaders.containsKey('Authorization')) {
+        final authValue = activeToken.startsWith('Bearer ') ? activeToken : 'Bearer $activeToken';
+        requestHeaders['Authorization'] = authValue;
+      }
 
-    // Inject default Flutter headers if set
-    if (_defaultHeaders.isNotEmpty) {
-      requestHeaders.addAll(_defaultHeaders);
-    }
+      // 3. Inject default Flutter headers if set (App-Version, App-Language)
+      if (_defaultHeaders.isNotEmpty) {
+        _defaultHeaders.forEach((k, v) {
+          if (!requestHeaders.containsKey(k)) requestHeaders[k] = v;
+        });
+      }
 
-    // Auto-inject active Auth Token if available and not already set
-    final activeToken = authToken;
-    if (activeToken != null && activeToken.isNotEmpty && !requestHeaders.containsKey('Authorization')) {
-      final authValue = activeToken.startsWith('Bearer ') ? activeToken : 'Bearer $activeToken';
-      requestHeaders['Authorization'] = authValue;
-    }
+      // -------------------------------------------------------------
+      // Step 5: Execute HTTP Request
+      // -------------------------------------------------------------
+      http.Response? response;
+      String? lastError;
+      int? lastStatusCode;
 
-    // Schema headers configured from Web Console override defaults
-    if (config.headers.isNotEmpty) {
-      requestHeaders.addAll(config.headers);
-    }
+      for (final targetUrl in candidateEndpoints) {
+        try {
+          final uri = Uri.parse(targetUrl);
+          final method = config.method.toUpperCase();
 
-    // -------------------------------------------------------------
-    // Step 5: Execute HTTP Request
-    // -------------------------------------------------------------
-    http.Response? response;
-    String? lastError;
-    int? lastStatusCode;
+          if (method == 'GET') {
+            // If query params are provided in payload for GET
+            final queryUri = payload.isNotEmpty
+                ? uri.replace(queryParameters: {
+                    ...uri.queryParameters,
+                    ...payload.map((k, v) => MapEntry(k, v?.toString() ?? '')),
+                  })
+                : uri;
+            response = await client.get(queryUri, headers: requestHeaders).timeout(_defaultTimeout);
+          } else if (method == 'DELETE') {
+            response = await client.delete(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
+          } else if (method == 'PUT') {
+            response = await client.put(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
+          } else if (method == 'PATCH') {
+            response = await client.patch(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
+          } else {
+            // Default POST
+            response = await client.post(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
+          }
 
-    for (final targetUrl in candidateEndpoints) {
+          lastStatusCode = response.statusCode;
+          if (response.statusCode >= 200 && response.statusCode < 500) {
+            // Successful connection established
+            break;
+          }
+        } catch (e) {
+          lastError = e.toString();
+        }
+      }
+
+      // Attempt Proxy fallback if direct fetch threw or returned >= 500
+      if (response == null || response.statusCode >= 500) {
+        final List<String> syncHosts = [];
+        void addHost(String? h) {
+          if (h == null || h.trim().isEmpty) return;
+          final clean = h.trim().endsWith('/') ? h.trim().substring(0, h.trim().length - 1) : h.trim();
+          if (!syncHosts.contains(clean)) syncHosts.add(clean);
+        }
+        addHost(serverBaseUrl);
+        addHost(GenUiSyncClient.lastDiscoveredUrl);
+        addHost(GenUiSyncClient.defaultServerUrl);
+
+        for (final targetUrl in candidateEndpoints) {
+          final isExternal = !targetUrl.contains('10.0.2.2') &&
+              !targetUrl.contains('127.0.0.1') &&
+              !targetUrl.contains('localhost');
+          if (isExternal) {
+            for (final syncHost in syncHosts) {
+              try {
+                final proxyUri = Uri.parse('$syncHost/api/proxy');
+                debugPrint('[GenUiApiClient] Trying executeApi proxy fallback via: $proxyUri for $targetUrl');
+                final proxyPayload = json.encode({
+                  'url': targetUrl,
+                  'method': config.method.toUpperCase(),
+                  'headers': requestHeaders,
+                  if (config.method.toUpperCase() != 'GET' && payload.isNotEmpty) 'body': payload,
+                });
+                final proxyResp = await http.post(
+                  proxyUri,
+                  headers: {'Content-Type': 'application/json'},
+                  body: proxyPayload,
+                ).timeout(const Duration(seconds: 15));
+                debugPrint('[GenUiApiClient] Proxy HTTP ${proxyResp.statusCode} for $targetUrl');
+                if (proxyResp.statusCode >= 200 && proxyResp.statusCode < 500) {
+                  response = proxyResp;
+                  lastStatusCode = response.statusCode;
+                  break;
+                }
+              } catch (proxyErr) {
+                debugPrint('[GenUiApiClient] Proxy fallback failed on $syncHost: $proxyErr');
+              }
+            }
+            if (response != null && response.statusCode >= 200 && response.statusCode < 500) {
+              break;
+            }
+          }
+        }
+      }
+
+      // -------------------------------------------------------------
+      // Step 6: Handle Response (0% Crash Guarantee)
+      // -------------------------------------------------------------
+      if (response == null) {
+        final msg = config.onError?['message']?.toString() ??
+            'Failed to reach API server: ${lastError ?? "Network error"}';
+        if (context.mounted) {
+          _showErrorFeedback(context, msg);
+        }
+        return GenUiApiResult(
+          success: false,
+          statusCode: lastStatusCode ?? 0,
+          errorMessage: lastError ?? 'Failed to reach API endpoint. Check network or server status.',
+        );
+      }
+
+      final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+
+      dynamic responseBody;
       try {
-        final uri = Uri.parse(targetUrl);
-        final method = config.method.toUpperCase();
+        responseBody = json.decode(response.body);
+      } catch (_) {
+        responseBody = response.body;
+      }
 
-        if (method == 'GET') {
-          // If query params are provided in payload for GET
-          final queryUri = payload.isNotEmpty
-              ? uri.replace(queryParameters: {
-                  ...uri.queryParameters,
-                  ...payload.map((k, v) => MapEntry(k, v?.toString() ?? '')),
-                })
-              : uri;
-          response = await client.get(queryUri, headers: requestHeaders).timeout(_defaultTimeout);
-        } else if (method == 'DELETE') {
-          response = await client.delete(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
-        } else if (method == 'PUT') {
-          response = await client.put(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
-        } else if (method == 'PATCH') {
-          response = await client.patch(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
-        } else {
-          // Default POST
-          response = await client.post(uri, headers: requestHeaders, body: json.encode(payload)).timeout(_defaultTimeout);
+      if (isSuccess) {
+        if (config.resetFormOnSuccess) {
+          registry.reset();
         }
 
-        lastStatusCode = response.statusCode;
-        if (response.statusCode >= 200 && response.statusCode < 500) {
-          // Successful connection established
-          break;
+        if (context.mounted) {
+          _handleSuccessOutcome(context, config, responseBody);
         }
-      } catch (e) {
-        lastError = e.toString();
+
+        return GenUiApiResult(
+          success: true,
+          statusCode: response.statusCode,
+          data: responseBody,
+        );
+      } else {
+        final errorMsg = config.onError?['message']?.toString() ??
+            'API returned status ${response.statusCode}: ${response.body}';
+        if (context.mounted) {
+          _showErrorFeedback(context, errorMsg);
+        }
+        return GenUiApiResult(
+          success: false,
+          statusCode: response.statusCode,
+          data: responseBody,
+          errorMessage: errorMsg,
+        );
       }
-    }
-
-    // -------------------------------------------------------------
-    // Step 6: Handle Response (0% Crash Guarantee)
-    // -------------------------------------------------------------
-    if (response == null) {
-      final msg = config.onError?['message']?.toString() ??
-          'Failed to reach API server: ${lastError ?? "Network error"}';
-      if (context.mounted) {
-        _showErrorFeedback(context, msg);
+    } finally {
+      if (shouldCloseClient) {
+        client.close();
       }
-      return GenUiApiResult(
-        success: false,
-        statusCode: lastStatusCode ?? 0,
-        errorMessage: lastError ?? 'Failed to reach API endpoint. Check network or server status.',
-      );
-    }
-
-    final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
-
-    dynamic responseBody;
-    try {
-      responseBody = json.decode(response.body);
-    } catch (_) {
-      responseBody = response.body;
-    }
-
-    if (isSuccess) {
-      if (config.resetFormOnSuccess) {
-        registry.reset();
-      }
-
-      if (context.mounted) {
-        _handleSuccessOutcome(context, config, responseBody);
-      }
-
-      return GenUiApiResult(
-        success: true,
-        statusCode: response.statusCode,
-        data: responseBody,
-      );
-    } else {
-      final errorMsg = config.onError?['message']?.toString() ??
-          'API returned status ${response.statusCode}: ${response.body}';
-      if (context.mounted) {
-        _showErrorFeedback(context, errorMsg);
-      }
-      return GenUiApiResult(
-        success: false,
-        statusCode: response.statusCode,
-        data: responseBody,
-        errorMessage: errorMsg,
-      );
     }
   }
 
@@ -446,19 +601,19 @@ class GenUiApiClient {
     String? serverBaseUrl,
     http.Client? httpClient,
   }) async {
-    final client = httpClient ?? http.Client();
-    final bool shouldCloseClient = httpClient == null;
+    final client = (!dataSource.useHeadersInApp && _customHttpClient != null)
+        ? _customHttpClient!
+        : (httpClient ?? http.Client());
+    final bool shouldCloseClient = client != _customHttpClient && httpClient == null;
 
     try {
       // 1. Build URL and inject path variables / userContext
-      String rawUrl = dataSource.url.trim();
+      String rawUrl = dataSource.endpoint.isNotEmpty ? dataSource.endpoint : dataSource.url.trim();
+      if (rawUrl.isEmpty) rawUrl = dataSource.url.trim();
       if (rawUrl.isEmpty) return null;
 
-      _userContext.forEach((key, val) {
-        if (rawUrl.contains('{$key}')) {
-          rawUrl = rawUrl.replaceAll('{$key}', Uri.encodeComponent(val?.toString() ?? ''));
-        }
-      });
+      final activeUserCtx = await getUserContext();
+      rawUrl = _injectPathVariables(rawUrl, activeUserCtx);
 
       // 2. Query parameters & pagination
       final Map<String, String> queryParams = {};
@@ -491,20 +646,45 @@ class GenUiApiClient {
         });
       }
 
+      final String? overrideBaseUrl = (dataSource.useBaseUrlInApp && dataSource.baseUrl.isNotEmpty)
+          ? dataSource.baseUrl
+          : null;
+
       // Resolve candidate endpoints
-      List<String> candidateEndpoints = resolveCandidateEndpoints(rawUrl, serverBaseUrl: serverBaseUrl);
+      List<String> candidateEndpoints = resolveCandidateEndpoints(
+        rawUrl,
+        serverBaseUrl: serverBaseUrl,
+        overrideBaseUrl: overrideBaseUrl,
+      );
 
       // Base headers
       final Map<String, String> requestHeaders = {
         'Accept': 'application/json, text/plain, */*',
-        'User-Agent': 'Mozilla/5.0 (Mobile; Android; Flutter; GenUI-Guard) AppleWebKit/537.36 (KHTML, like Gecko)',
       };
-      if (_defaultHeaders.isNotEmpty) requestHeaders.addAll(_defaultHeaders);
-      if (dataSource.headers.isNotEmpty) {
+      if (dataSource.method.toUpperCase() != 'GET') {
+        requestHeaders['Content-Type'] = 'application/json';
+      }
+
+      // 1. If useHeadersInApp is enabled, apply headers configured from Web Console
+      if (dataSource.useHeadersInApp && dataSource.headers.isNotEmpty) {
         requestHeaders.addAll(dataSource.headers);
       }
 
-      // Collect sync hosts for potential proxy fallback if direct fetch fails on Android emulator
+      // 2. Auto-inject active Auth Token if not provided or if useHeadersInApp is false
+      final activeToken = await getAuthToken();
+      if (activeToken != null && activeToken.isNotEmpty && !requestHeaders.containsKey('Authorization')) {
+        final authValue = activeToken.startsWith('Bearer ') ? activeToken : 'Bearer $activeToken';
+        requestHeaders['Authorization'] = authValue;
+      }
+
+      // 3. Inject default Flutter headers if set (App-Version, App-Language)
+      if (_defaultHeaders.isNotEmpty) {
+        _defaultHeaders.forEach((k, v) {
+          if (!requestHeaders.containsKey(k)) requestHeaders[k] = v;
+        });
+      }
+
+      // Collect sync hosts for potential proxy fallback if direct fetch fails
       final List<String> syncHosts = [];
       void addHost(String? h) {
         if (h == null || h.trim().isEmpty) return;
@@ -514,12 +694,12 @@ class GenUiApiClient {
       addHost(serverBaseUrl);
       addHost(GenUiSyncClient.lastDiscoveredUrl);
       addHost(GenUiSyncClient.defaultServerUrl);
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        addHost('http://10.0.2.2:8080');
-        addHost('http://192.168.1.11:8080');
-      } else {
-        addHost('http://127.0.0.1:8080');
-        addHost('http://localhost:8080');
+      if (syncHosts.isEmpty) {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          addHost('http://10.0.2.2:8080');
+        } else {
+          addHost('http://127.0.0.1:8080');
+        }
       }
 
       for (final baseEndpoint in candidateEndpoints) {
@@ -532,17 +712,7 @@ class GenUiApiClient {
                   ...queryParams,
                 });
 
-          // Only attach default mock auth token if the target is our own server/localhost or if already in requestHeaders
           final endpointHeaders = Map<String, String>.from(requestHeaders);
-          final isLocalOrOwnBackend = baseEndpoint.contains('10.0.2.2') ||
-              baseEndpoint.contains('127.0.0.1') ||
-              baseEndpoint.contains('localhost') ||
-              (_baseUrl != null && baseEndpoint.startsWith(_baseUrl!));
-          final activeToken = authToken;
-          if (isLocalOrOwnBackend && activeToken != null && activeToken.isNotEmpty && !endpointHeaders.containsKey('Authorization')) {
-            final authValue = activeToken.startsWith('Bearer ') ? activeToken : 'Bearer $activeToken';
-            endpointHeaders['Authorization'] = authValue;
-          }
 
           http.Response? response;
           final method = dataSource.method.toUpperCase();
@@ -563,8 +733,11 @@ class GenUiApiClient {
           debugPrint('[GenUiApiClient] fetchDataSource HTTP ${response?.statusCode} from $finalUri');
           if (response != null && response.statusCode >= 200 && response.statusCode < 300) {
             dynamic decoded = json.decode(utf8.decode(response.bodyBytes));
-            if (dataSource.resultsPath.isNotEmpty && decoded is Map && decoded.containsKey(dataSource.resultsPath)) {
-              decoded = decoded[dataSource.resultsPath];
+            if (dataSource.resultsPath.isNotEmpty) {
+              final extracted = GenUiDataBinding.extractValue(decoded, dataSource.resultsPath);
+              if (extracted != null) {
+                decoded = extracted;
+              }
             }
             return decoded;
           }
@@ -576,16 +749,27 @@ class GenUiApiClient {
           if (isExternal) {
             for (final syncHost in syncHosts) {
               try {
-                final proxyUri = Uri.parse('$syncHost/api/proxy?url=${Uri.encodeComponent(finalUri.toString())}');
-                debugPrint('[GenUiApiClient] Trying proxy fallback via: $proxyUri');
-                final proxyResp = await client.get(proxyUri, headers: {
-                  'Accept': 'application/json, text/plain, */*',
-                  'User-Agent': 'Mozilla/5.0 (Mobile; Android; Flutter; GenUI-Guard) AppleWebKit/537.36',
-                }).timeout(_defaultTimeout);
+                final proxyUri = Uri.parse('$syncHost/api/proxy');
+                debugPrint('[GenUiApiClient] Trying proxy fallback via: $proxyUri for $finalUri');
+                final proxyPayload = json.encode({
+                  'url': finalUri.toString(),
+                  'method': method,
+                  'headers': endpointHeaders,
+                  if (method != 'GET' && extraParams != null && extraParams.isNotEmpty) 'body': extraParams,
+                });
+                final proxyResp = await http.post(
+                  proxyUri,
+                  headers: {'Content-Type': 'application/json'},
+                  body: proxyPayload,
+                ).timeout(const Duration(seconds: 15));
+                debugPrint('[GenUiApiClient] Proxy HTTP ${proxyResp.statusCode} for $finalUri');
                 if (proxyResp.statusCode >= 200 && proxyResp.statusCode < 300) {
                   dynamic decoded = json.decode(utf8.decode(proxyResp.bodyBytes));
-                  if (dataSource.resultsPath.isNotEmpty && decoded is Map && decoded.containsKey(dataSource.resultsPath)) {
-                    decoded = decoded[dataSource.resultsPath];
+                  if (dataSource.resultsPath.isNotEmpty) {
+                    final extracted = GenUiDataBinding.extractValue(decoded, dataSource.resultsPath);
+                    if (extracted != null) {
+                      decoded = extracted;
+                    }
                   }
                   debugPrint('[GenUiApiClient] Proxy fallback succeeded for $finalUri!');
                   return decoded;

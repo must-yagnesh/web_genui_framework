@@ -101,8 +101,8 @@ class GenUiSyncClient {
                 ActionChip(
                   backgroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFF10B981)),
-                  label: const Text('192.168.1.11 (LAN Host)', style: TextStyle(color: Color(0xFF34D399), fontSize: 11)),
-                  onPressed: () => controller.text = 'http://192.168.1.11:8080',
+                  label: const Text('192.168.1.5 (LAN Host)', style: TextStyle(color: Color(0xFF34D399), fontSize: 11)),
+                  onPressed: () => controller.text = 'http://192.168.1.5:8080',
                 ),
                 ActionChip(
                   backgroundColor: const Color(0xFF0F172A),
@@ -184,14 +184,14 @@ class GenUiSyncClient {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
         'http://10.0.2.2:8080',
         defaultServerUrl,
-        'http://192.168.1.11:8080',
+        'http://10.0.2.2:8080',
         'http://localhost:8080',
         'http://10.0.3.2:8080',
       ] else ...[
         defaultServerUrl,
         'http://127.0.0.1:8080',
         'http://localhost:8080',
-        'http://192.168.1.11:8080',
+        'http://10.0.2.2:8080',
       ],
       _activeServerUrl,
       serverBaseUrl,

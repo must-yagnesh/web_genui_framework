@@ -572,21 +572,39 @@
 
           <!-- Section 1: Data Source Endpoint -->
           <div class="api-config-section" style="margin-top: 12px;">
-            <label class="section-badge">1. DATA SOURCE ENDPOINT &amp; METHOD</label>
+            <label class="section-badge">1. DATA SOURCE BASE URL, ENDPOINT &amp; METHOD</label>
             <div class="input-row">
-              <div class="field flex-1" style="max-width: 140px;">
+              <div class="field flex-1" style="max-width: 130px;">
                 <label>HTTP Method</label>
                 <select id="dsMethodSelect">
                   <option value="GET">GET</option>
                   <option value="POST">POST</option>
                 </select>
               </div>
-              <div class="field flex-3">
-                <label>API Endpoint URL</label>
-                <input type="text" id="dsUrlInput" placeholder="e.g. https://dummyjson.com/products/1 or https://jsonplaceholder.typicode.com/users" oninput="onDsUrlInputChange()" onchange="fetchDsPreview()">
+              <div class="field flex-2">
+                <div class="flex-between">
+                  <label>Base URL (Optional)</label>
+                  <label class="checkbox-inline" style="font-size: 11px;" title="If checked, mobile app uses this Base URL instead of internal default">
+                    <input type="checkbox" id="dsUseBaseUrlInAppCheckbox">
+                    <span style="color: #38BDF8; font-weight: 500;">Use in mobile app also?</span>
+                  </label>
+                </div>
+                <input type="text" id="dsBaseUrlInput" placeholder="e.g. https://dev-public-api.msq.market" oninput="onDsUrlInputChange()">
+              </div>
+              <div class="field flex-2">
+                <label>Endpoint Path / URL</label>
+                <input type="text" id="dsEndpointInput" placeholder="e.g. /super-save/super_save_transaction_registration" oninput="onDsUrlInputChange()" onchange="fetchDsPreview()">
               </div>
             </div>
-            <div class="api-url-presets">
+            <input type="hidden" id="dsUrlInput">
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <span style="font-weight: 600;">Assembled Target:</span>
+                <code id="dsFullUrlPreview" style="color: #38bdf8; font-family: monospace;">(empty)</code>
+              </div>
+              <span style="font-size: 10px; color: var(--text-muted);">Unchecked = Mobile app uses internal EndPoints.baseUrl</span>
+            </div>
+            <div class="api-url-presets" style="margin-top: 8px;">
               <span class="preset-label">Presets:</span>
               <button class="chip-preset" type="button" onclick="setDsUrlPreset('https://dummyjson.com/products/1', 'Product Detail')">📱 DummyJSON Product</button>
               <button class="chip-preset" type="button" onclick="setDsUrlPreset('https://jsonplaceholder.typicode.com/users', 'Users List')">👥 JSONPlaceholder Users</button>
@@ -603,7 +621,13 @@
           <div class="api-config-section" style="margin-top: 12px;">
             <div class="flex-between">
               <label class="section-badge">2. AUTHORIZATION &amp; REQUEST HEADERS</label>
-              <span class="auth-status-chip" id="dsAuthStatusBadge">🔓 No Auth (Public)</span>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <label class="checkbox-inline" style="font-size: 11px;" title="If checked, mobile app uses console headers &amp; token. If unchecked, mobile app injects dynamic active user token &amp; app headers.">
+                  <input type="checkbox" id="dsUseHeadersInAppCheckbox">
+                  <span style="color: #F59E0B; font-weight: 600;">Use this one in mobile app also?</span>
+                </label>
+                <span class="auth-status-chip" id="dsAuthStatusBadge">🔓 No Auth (Public)</span>
+              </div>
             </div>
             <p class="field-hint" style="margin: 2px 0 8px 0;">Configure Bearer Token, API Key, or custom request headers to authenticate and fetch real project APIs in the web console:</p>
 
@@ -770,7 +794,7 @@
             <div id="dsTokensBox" style="display: none; margin-top: 10px;">
               <!-- Quick Tokens Bar -->
               <div class="flex-between" style="margin-bottom: 6px;">
-                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">AVAILABLE DYNAMIC DATA TOKENS (Click to Copy or Insert):</label>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">AVAILABLE DYNAMIC DATA TOKENS (Click any token to Add to Suggested Components):</label>
                 <span style="font-size: 11px; color: #10B981; font-weight: 600;" id="dsTokensCountLabel">0 tokens found</span>
               </div>
               <div class="token-chips-grid" id="dsTokenChipsContainer" style="max-height: 85px; overflow-y: auto; margin-bottom: 12px;"></div>
@@ -823,6 +847,7 @@
                     <div style="display: flex; align-items: center; gap: 6px;">
                       <span style="font-size: 13px;">🎨</span>
                       <strong style="font-size: 12px; color: #94A3B8;">SUGGESTED UI COMPONENTS</strong>
+                      <span id="dsSuggestedCountBadge" style="font-size: 10px; padding: 1px 6px; background: rgba(56, 189, 248, 0.18); color: #38BDF8; border-radius: 10px; font-weight: 600;">0 fields</span>
                     </div>
                     <div style="display: flex; gap: 4px;">
                       <button class="btn btn-xs btn-outline" type="button" onclick="addCustomSuggestedComponent()" title="Add another field">+ Add Field</button>
@@ -859,9 +884,9 @@
 
         <!-- Section 1: Endpoint & Method -->
         <div class="api-config-section">
-          <label class="section-badge">1. ENDPOINT & HTTP METHOD</label>
+          <label class="section-badge">1. ENDPOINT &amp; HTTP METHOD</label>
           <div class="input-row">
-            <div class="field flex-1" style="max-width: 140px;">
+            <div class="field flex-1" style="max-width: 130px;">
               <label>HTTP Method</label>
               <select id="apiMethodSelect">
                 <option value="POST">POST</option>
@@ -871,12 +896,30 @@
                 <option value="DELETE">DELETE</option>
               </select>
             </div>
-            <div class="field flex-3">
-              <label>API Endpoint URL</label>
-              <input type="text" id="apiUrlInput" placeholder="e.g. https://api.mycloud.com/v1/leads or /api/submissions">
+            <div class="field flex-2">
+              <div class="flex-between">
+                <label>Base URL (Optional)</label>
+                <label class="checkbox-inline" style="font-size: 11px;" title="If checked, mobile app uses this Base URL instead of internal default">
+                  <input type="checkbox" id="apiUseBaseUrlInAppCheckbox">
+                  <span style="color: #38BDF8; font-weight: 500;">Use in mobile app also?</span>
+                </label>
+              </div>
+              <input type="text" id="apiBaseUrlInput" placeholder="e.g. https://dev-public-api.msq.market" oninput="onApiUrlInputChange()">
+            </div>
+            <div class="field flex-2">
+              <label>Endpoint Path / URL</label>
+              <input type="text" id="apiEndpointInput" placeholder="e.g. /super-save/super_save_transaction_registration" oninput="onApiUrlInputChange()">
             </div>
           </div>
-          <div class="api-url-presets">
+          <input type="hidden" id="apiUrlInput">
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <span style="font-weight: 600;">Assembled Target:</span>
+              <code id="apiFullUrlPreview" style="color: #38bdf8; font-family: monospace;">(empty)</code>
+            </div>
+            <span style="font-size: 10px; color: var(--text-muted);">Unchecked = Mobile app uses internal EndPoints.baseUrl</span>
+          </div>
+          <div class="api-url-presets" style="margin-top: 8px;">
             <span class="preset-label">Presets:</span>
             <button class="chip-preset" type="button" onclick="setApiUrlPreset('/api/submissions')">/api/submissions</button>
             <button class="chip-preset" type="button" onclick="setApiUrlPreset('/api/cloud-mock')">/api/cloud-mock</button>
@@ -892,7 +935,13 @@
         <div class="api-config-section">
           <div class="flex-between">
             <label class="section-badge">2. REQUEST HEADERS</label>
-            <button class="btn btn-xs btn-outline" type="button" id="btnAddHeaderRow">+ Add Header</button>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <label class="checkbox-inline" style="font-size: 11px;" title="If checked, mobile app uses console headers &amp; token. If unchecked, mobile app injects dynamic active user token &amp; app headers.">
+                <input type="checkbox" id="apiUseHeadersInAppCheckbox">
+                <span style="color: #F59E0B; font-weight: 600;">Use this one in mobile app also?</span>
+              </label>
+              <button class="btn btn-xs btn-outline" type="button" id="btnAddHeaderRow">+ Add Header</button>
+            </div>
           </div>
           <div class="api-table-wrapper">
             <table class="api-table" id="apiHeadersTable">

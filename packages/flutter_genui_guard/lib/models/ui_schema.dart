@@ -252,6 +252,10 @@ class ComponentNode {
 /// Dynamic API Call Configuration configured from the Web Console
 class ApiConfig {
   final String url;
+  final String baseUrl; // e.g. 'https://dev-public-api.msq.market'
+  final String endpoint; // e.g. '/super-save/super_save_transaction_registration'
+  final bool useBaseUrlInApp; // If true, mobile app uses console baseUrl over internal baseUrl
+  final bool useHeadersInApp; // If true, mobile app uses console headers over internal headers
   final String method; // GET, POST, PUT, DELETE, PATCH
   final Map<String, String> headers;
   final Map<String, String> bodyMapping; // apiKey -> fieldId
@@ -263,6 +267,10 @@ class ApiConfig {
 
   const ApiConfig({
     required this.url,
+    this.baseUrl = '',
+    this.endpoint = '',
+    this.useBaseUrlInApp = false,
+    this.useHeadersInApp = true,
     this.method = 'POST',
     this.headers = const {},
     this.bodyMapping = const {},
@@ -300,8 +308,19 @@ class ApiConfig {
       }
     }
 
+    final rawBaseUrl = map['base_url']?.toString().trim() ?? '';
+    final rawEndpoint = map['endpoint']?.toString().trim() ?? '';
+    var rawUrl = map['url']?.toString().trim() ?? '';
+    if (rawUrl.isEmpty && (rawBaseUrl.isNotEmpty || rawEndpoint.isNotEmpty)) {
+      rawUrl = '$rawBaseUrl${rawEndpoint.startsWith('/') ? rawEndpoint : '/$rawEndpoint'}';
+    }
+
     return ApiConfig(
-      url: map['url']?.toString() ?? '',
+      url: rawUrl,
+      baseUrl: rawBaseUrl,
+      endpoint: rawEndpoint,
+      useBaseUrlInApp: map['use_base_url_in_app'] == true,
+      useHeadersInApp: map['use_headers_in_app'] == true,
       method: (map['method']?.toString() ?? 'POST').toUpperCase().trim(),
       headers: headers,
       bodyMapping: bodyMapping,
@@ -316,6 +335,22 @@ class ApiConfig {
       resetFormOnSuccess: map['reset_form_on_success'] == true,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'url': url,
+    'base_url': baseUrl,
+    'endpoint': endpoint,
+    'use_base_url_in_app': useBaseUrlInApp,
+    'use_headers_in_app': useHeadersInApp,
+    'method': method,
+    'headers': headers,
+    'body_mapping': bodyMapping,
+    'static_body': staticBody,
+    'validate_fields': validateFields,
+    'on_success': onSuccess,
+    'on_error': onError,
+    'reset_form_on_success': resetFormOnSuccess,
+  };
 
   static ApiConfig? fromProperties(Map<String, dynamic>? props) {
     if (props == null) return null;
@@ -375,6 +410,10 @@ class ApiPaginationConfig {
 /// Dynamic Screen Data Source (GET API / Data Binding)
 class ApiDataSource {
   final String url;
+  final String baseUrl; // e.g. 'https://dev-public-api.msq.market'
+  final String endpoint; // e.g. '/super-save/super_save_transaction_registration'
+  final bool useBaseUrlInApp; // If true, mobile app uses console baseUrl over internal baseUrl
+  final bool useHeadersInApp; // If true, mobile app uses console headers over internal headers
   final String method; // 'GET'
   final Map<String, String> headers;
   final Map<String, dynamic> queryParams;
@@ -388,6 +427,10 @@ class ApiDataSource {
 
   const ApiDataSource({
     required this.url,
+    this.baseUrl = '',
+    this.endpoint = '',
+    this.useBaseUrlInApp = false,
+    this.useHeadersInApp = true,
     this.method = 'GET',
     this.headers = const {},
     this.queryParams = const {},
@@ -400,7 +443,7 @@ class ApiDataSource {
     this.errorWidgetType = 'banner',
   });
 
-  bool get hasUrl => url.trim().isNotEmpty;
+  bool get hasUrl => url.trim().isNotEmpty || endpoint.trim().isNotEmpty;
   Map<String, dynamic> get params => queryParams;
   String get dataPath => resultsPath;
 
@@ -430,8 +473,19 @@ class ApiDataSource {
       rawFallback.forEach((k, v) => fallbackData[k.toString()] = v);
     }
 
+    final rawBaseUrl = map['base_url']?.toString().trim() ?? '';
+    final rawEndpoint = map['endpoint']?.toString().trim() ?? '';
+    var rawUrl = map['url']?.toString().trim() ?? '';
+    if (rawUrl.isEmpty && (rawBaseUrl.isNotEmpty || rawEndpoint.isNotEmpty)) {
+      rawUrl = '$rawBaseUrl${rawEndpoint.startsWith('/') ? rawEndpoint : '/$rawEndpoint'}';
+    }
+
     return ApiDataSource(
-      url: map['url']?.toString() ?? '',
+      url: rawUrl,
+      baseUrl: rawBaseUrl,
+      endpoint: rawEndpoint,
+      useBaseUrlInApp: map['use_base_url_in_app'] == true,
+      useHeadersInApp: map['use_headers_in_app'] == true,
       method: (map['method']?.toString() ?? 'GET').toUpperCase().trim(),
       headers: headers,
       queryParams: queryParams,
@@ -447,6 +501,10 @@ class ApiDataSource {
 
   Map<String, dynamic> toMap() => {
     'url': url,
+    'base_url': baseUrl,
+    'endpoint': endpoint,
+    'use_base_url_in_app': useBaseUrlInApp,
+    'use_headers_in_app': useHeadersInApp,
     'method': method,
     'headers': headers,
     'query_params': queryParams,
